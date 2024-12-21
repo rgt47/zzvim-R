@@ -1,0 +1,138 @@
+
+==============================================================================
+                            zzvim-R Plugin Manual
+==============================================================================
+
+Author: [Your Name]
+Version: 1.0
+Date: [Date]
+License: [License, e.g., MIT]
+==============================================================================
+1. Introduction ................................................. *zzvim-intro*
+2. Installation ............................................... *zzvim-install*
+3. Features ..................................................... *zzvim-feat*
+4. Commands and Functions ..................................... *zzvim-cmds*
+5. Key Mappings ............................................... *zzvim-maps*
+6. Configuration .............................................. *zzvim-config*
+7. Example Workflow ............................................ *zzvim-work*
+8. Credits ...................................................... *zzvim-cred*
+
+==============================================================================
+1. Introduction ................................................. *zzvim-intro*
+==============================================================================
+
+The `zzvim-R` plugin enhances Vim's integration with R and R Markdown files,
+providing efficient navigation, code execution, and workflow management. This
+plugin is designed to streamline data analysis workflows directly within Vim.
+
+-------------------------------------------------------------------------------
+**Key Features:**
+- Navigate and execute R Markdown chunks efficiently.
+- Submit code lines, visual selections, or entire chunks to an R terminal.
+- User-configurable options for customization.
+- Lightweight and easy to integrate into existing Vim workflows.
+
+==============================================================================
+2. Installation ............................................... *zzvim-install*
+==============================================================================
+
+To install `zzvim-R`, use any plugin manager or manually install it:
+
+### **Using vim-plug:**
+```vim
+Plug 'your-username/zzvim-R'
+```
+
+### **Manual Installation:**
+1. Copy the plugin files into your `.vim` directory:
+   - `plugin/zzvim-R.vim`
+   - `doc/zzvim-R.txt`
+2. Run `:helptags ~/.vim/doc` to register the help file.
+
+==============================================================================
+3. Features ..................................................... *zzvim-feat*
+==============================================================================
+
+### **Core Functionalities**
+- Navigate between R Markdown chunks (`<localleader>j` and `<localleader>k`).
+- Submit code to the R terminal:
+  - Submit a single line (`<CR>` in Normal Mode).
+  - Submit visual selections (`<CR>` in Visual Mode).
+  - Submit all previous chunks (`<localleader>'`).
+- Flexible customization options using global variables.
+
+==============================================================================
+4. Commands and Functions ..................................... *zzvim-cmds*
+==============================================================================
+
+The plugin provides the following commands and functions:
+
+### **Commands:**
+1. `:call zzvim#SubmitPreviousChunks()`
+   Submit all code from previous chunks to the R terminal.
+
+### **Functions (for advanced users):**
+- `s:has_r_terminal()`: Check if an R terminal is available.
+- `s:send_to_r(cmd)`: Send a command to the R terminal.
+
+==============================================================================
+5. Key Mappings ............................................... *zzvim-maps*
+==============================================================================
+
+### **Normal Mode:**
+- `<CR>`: Submit the current line to the R terminal.
+- `<localleader>j`: Move to the next R Markdown chunk.
+- `<localleader>k`: Move to the previous R Markdown chunk.
+- `<localleader>'`: Submit all previous chunks to the R terminal.
+
+### **Visual Mode:**
+- `<CR>`: Submit the visual selection to the R terminal.
+
+### **Insert Mode:**
+- `<C-e>`: Append the pipe operator (`|>`) and create a new line.
+
+==============================================================================
+6. Configuration .............................................. *zzvim-config*
+==============================================================================
+
+Customize the plugin by setting options in your `.vimrc`:
+
+### **Temporary File Path:**
+Specify a custom path for the temporary file:
+```vim
+let g:zzvim_config = {
+      \ 'temp_file': '/path/to/tempfile.txt'
+\ }
+```
+
+### **Example Configuration:**
+```vim
+let g:zzvim_config = {
+      \ 'temp_file': expand('~/.vim/tmp/zzvim_temp.txt')
+\ }
+```
+
+==============================================================================
+7. Example Workflow ............................................ *zzvim-work*
+==============================================================================
+
+1. Open an R Markdown file in Vim.
+2. Navigate to a code chunk using `<localleader>j` (next chunk) or `<localleader>k` (previous chunk).
+3. Submit the current line to the R terminal with `<CR>`.
+4. Select a block of code and submit it with `<CR>` in Visual Mode.
+5. Submit all previous chunks with `<localleader>'`.
+
+==============================================================================
+8. Credits ...................................................... *zzvim-cred*
+==============================================================================
+
+- **Author:** [Your Name]
+- **Contributions:** [List contributors if applicable]
+- **Inspiration:** RStudio, vim-slime, and Nvim-R plugins.
+
+For bug reports, feature requests, or contributions, visit the plugin repository:
+[GitHub Repository URL]
+
+==============================================================================
+                            End of zzvim-R Manual
+==============================================================================
