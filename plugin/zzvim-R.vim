@@ -43,6 +43,21 @@ endfunction
 " Core Functions
 "------------------------------------------------------------------------------
 
+
+function! s:SubmitLine() abort
+    call s:send_to_r(getline(".") . "\n")
+    " Move to the next line
+    normal! j
+endfunction
+
+
+
+
+
+
+
+
+
 function! s:SubmitLine() abort
     call s:send_to_r(getline(".") . "\n")
 endfunction
@@ -142,6 +157,7 @@ endfunction
 augroup zzvim_RMarkdown
     autocmd!
     " Submit the current line in normal mode
+    " 
     autocmd FileType r,rmd,qmd nnoremap <buffer> <CR> :call <SID>SubmitLine()<CR>
 
     " Submit the visual selection in visual mode
