@@ -9,20 +9,20 @@
 " Returns 1 if at least one terminal is available, 0 otherwise.
 function! s:has_r_terminal() abort
     try
-        let terms = term_list()  " Get a list of all terminals
-        return !empty(terms)     " Return true if terminals exist
+        return !empty(term_list())  " Return true if terminals exist
     catch
         echom "Error checking R terminal: " . v:exception
-        return 0                 " Return false on error
+        return 0                   " Return false on error
     endtry
 endfunction
 
 " Prompt the user to select a terminal if there are multiple
-" Returns the terminal ID of the selected terminal, or -1 if canceled.
+" Returns the buffer number of the selected terminal, or -1 if canceled.
 function! s:choose_terminal(terms) abort
-    let choices = ['Cancel'] + map(copy(a:terms), 'v:val.name . " (ID: " . v:val.id . ")"')
+    " Prepare terminal names for selection
+    let choices = ['Cancel'] + map(copy(a:terms), 'bufname(v:val)')
     let choice = inputlist(choices)
-    return choice == 0 ? -1 : a:terms[choice - 1].id
+    return choice == 0 ? -1 : a:terms[choice - 1]
 endfunction
 
 " Safely send keys to the selected R terminal, if available
@@ -34,9 +34,9 @@ function! s:send_to_r(cmd) abort
         return
     endif
     try
-        let terms = term_list()  " Get the list of terminals
+        let terms = term_list()  " Get the list of terminal buffers
         if len(terms) == 1
-            let target_terminal = terms[0].id  " Only one terminal available
+            let target_terminal = terms[0]  " Only one terminal available
         else
             let target_terminal = s:choose_terminal(terms)  " Prompt user to choose
             if target_terminal == -1
@@ -45,7 +45,7 @@ function! s:send_to_r(cmd) abort
             endif
         endif
         call term_sendkeys(target_terminal, a:cmd)  " Send the command to the selected terminal
-        echom "Command sent to terminal ID: " . target_terminal
+        echom "Command sent to terminal buffer: " . target_terminal
     catch
         echom "Error sending command to R terminal: " . v:exception
     endtry
