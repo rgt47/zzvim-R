@@ -1,7 +1,5 @@
 " zzvim-R.vim
 " A Vim plugin for working with R and R Markdown files, sending code to an R terminal.
-" Namespace: zzvim
-" Description: Provides functionality for navigating and executing R code in R and R Markdown files.
 
 "------------------------------------------------------------------------------
 " User Configurable Options
@@ -25,13 +23,6 @@ function! s:has_r_terminal() abort
     endtry
 endfunction
 
-" Open an R terminal
-function! zzvim#OpenRTerminal() abort
-    execute "vert term R --no-save"
-    execute "normal! \<C-w>p"  " Return to the previous window
-    echom "R terminal opened."
-endfunction
-
 " Send commands to the R terminal safely
 function! s:send_to_r(cmd) abort
     if !s:has_r_terminal()
@@ -42,17 +33,24 @@ function! s:send_to_r(cmd) abort
 endfunction
 
 "------------------------------------------------------------------------------
-" Core Functions (Public: zzvim# Namespace)
+" Core Functions
 "------------------------------------------------------------------------------
 
+" Open an R terminal
+function! OpenRTerminal() abort
+    execute "vert term R --no-save"
+    execute "normal! \<C-w>p"  " Return to the previous window
+    echom "R terminal opened."
+endfunction
+
 " Submit the current line to the R terminal
-function! zzvim#SubmitLine() abort
+function! SubmitLine() abort
     call s:send_to_r(getline(".") . "\n")
 endfunction
 
 " Submit the visual selection to the R terminal
-function! zzvim#SubmitVisualSelection() abort
-    let selection = zzvim#GetVisualSelection(visualmode())
+function! SubmitVisualSelection() abort
+    let selection = s:GetVisualSelection(visualmode())
     if !empty(selection)
         call s:send_to_r(selection . "\n")
     else
@@ -61,7 +59,7 @@ function! zzvim#SubmitVisualSelection() abort
 endfunction
 
 " Collect all previous chunks
-function! zzvim#CollectPreviousChunks() abort
+function! s:CollectPreviousChunks() abort
     let l:chunk_start_delimiter = g:zzvim_config.chunk_delimiter
     let l:chunk_end_delimiter = '^\s*```$'
     let l:all_chunk_lines = []
@@ -85,8 +83,8 @@ function! zzvim#CollectPreviousChunks() abort
 endfunction
 
 " Submit all previous chunks to the R terminal
-function! zzvim#SubmitPreviousChunks() abort
-    let chunks = zzvim#CollectPreviousChunks()
+function! SubmitPreviousChunks() abort
+    let chunks = s:CollectPreviousChunks()
     if empty(chunks)
         echom "No previous chunks to submit."
         return
@@ -96,7 +94,7 @@ function! zzvim#SubmitPreviousChunks() abort
 endfunction
 
 " Perform an action on the current word in the terminal
-function! zzvim#Raction(action) abort
+function! Raction(action) abort
     if !s:has_r_terminal()
         echom "No R terminal available."
         return
@@ -107,7 +105,7 @@ function! zzvim#Raction(action) abort
 endfunction
 
 " Move to the next chunk
-function! zzvim#MoveNextChunk() abort
+function! MoveNextChunk() abort
     if search(g:zzvim_config.chunk_delimiter, 'W')
         normal! j
     else
@@ -117,7 +115,7 @@ function! zzvim#MoveNextChunk() abort
 endfunction
 
 " Move to the previous chunk
-function! zzvim#MovePrevChunk() abort
+function! MovePrevChunk() abort
     let l:opening_delimiter = g:zzvim_config.chunk_delimiter
     let l:closing_delimiter = '^\s*```$'
     while line('.') > 1 && (getline('.') =~ l:opening_delimiter || getline('.') =~ l:closing_delimiter)
@@ -133,14 +131,14 @@ function! zzvim#MovePrevChunk() abort
 endfunction
 
 " Add a pipe and a new indented line
-function! zzvim#AddPipeAndNewLine() abort
+function! AddPipeAndNewLine() abort
     normal! A |>
     normal! o
     execute "normal! i  "
 endfunction
 
 " Get the visual selection
-function! zzvim#GetVisualSelection(mode) abort
+function! s:GetVisualSelection(mode) abort
     let [line_start, col_start] = getpos("'<")[1:2]
     let [line_end, col_end] = getpos("'>")[1:2]
     let lines = getline(line_start, line_end)
@@ -164,31 +162,31 @@ endfunction
 augroup zzvim_RMarkdown
     autocmd!
     " Submit the current line in normal mode
-    autocmd FileType r,rmd,qmd nnoremap <buffer> <CR> :call zzvim#SubmitLine()<CR>
+    autocmd FileType r,rmd,qmd nnoremap <buffer> <CR> :call SubmitLine()<CR>
 
     " Submit the visual selection in visual mode
-    autocmd FileType r,rmd,qmd xnoremap <buffer> <CR> :<C-u>call zzvim#SubmitVisualSelection()<CR>
+    autocmd FileType r,rmd,qmd xnoremap <buffer> <CR> :<C-u>call SubmitVisualSelection()<CR>
 
     " Navigate chunks
-    autocmd FileType r,rmd,qmd nnoremap <buffer> <localleader>j :call zzvim#MoveNextChunk()<CR>
-    autocmd FileType r,rmd,qmd nnoremap <buffer> <localleader>k :call zzvim#MovePrevChunk()<CR>
+    autocmd FileType r,rmd,qmd nnoremap <buffer> <localleader>j :call MoveNextChunk()<CR>
+    autocmd FileType r,rmd,qmd nnoremap <buffer> <localleader>k :call MovePrevChunk()<CR>
 
     " Submit all previous chunks
-    autocmd FileType r,rmd,qmd nnoremap <buffer> <localleader>' :call zzvim#SubmitPreviousChunks()<CR>
+    autocmd FileType r,rmd,qmd nnoremap <buffer> <localleader>' :call SubmitPreviousChunks()<CR>
 
     " Open an R terminal
-    autocmd FileType r,rmd,qmd nnoremap <buffer> <localleader>r :call zzvim#OpenRTerminal()<CR>
+    autocmd FileType r,rmd,qmd nnoremap <buffer> <localleader>r :call OpenRTerminal()<CR>
 
     " Add pipe operator
-    autocmd FileType r,rmd,qmd nnoremap <buffer> <C-e> :call zzvim#AddPipeAndNewLine()<CR>
+    autocmd FileType r,rmd,qmd nnoremap <buffer> <C-e> :call AddPipeAndNewLine()<CR>
 
     " Perform actions on the word under the cursor
-    autocmd FileType r,rmd,qmd nnoremap <buffer> <localleader>d :call zzvim#Raction("dim")<CR>
-    autocmd FileType r,rmd,qmd nnoremap <buffer> <localleader>h :call zzvim#Raction("head")<CR>
-    autocmd FileType r,rmd,qmd nnoremap <buffer> <localleader>s :call zzvim#Raction("str")<CR>
-    autocmd FileType r,rmd,qmd nnoremap <buffer> <localleader>p :call zzvim#Raction("print")<CR>
-    autocmd FileType r,rmd,qmd nnoremap <buffer> <localleader>n :call zzvim#Raction("names")<CR>
-    autocmd FileType r,rmd,qmd nnoremap <buffer> <localleader>f :call zzvim#Raction("length")<CR>
-    autocmd FileType r,rmd,qmd nnoremap <buffer> <localleader>g :call zzvim#Raction("glimpse")<CR>
-    autocmd FileType r,rmd,qmd nnoremap <buffer> <localleader>b :call zzvim#Raction("dt")<CR>
+    autocmd FileType r,rmd,qmd nnoremap <buffer> <localleader>d :call Raction("dim")<CR>
+    autocmd FileType r,rmd,qmd nnoremap <buffer> <localleader>h :call Raction("head")<CR>
+    autocmd FileType r,rmd,qmd nnoremap <buffer> <localleader>s :call Raction("str")<CR>
+    autocmd FileType r,rmd,qmd nnoremap <buffer> <localleader>p :call Raction("print")<CR>
+    autocmd FileType r,rmd,qmd nnoremap <buffer> <localleader>n :call Raction("names")<CR>
+    autocmd FileType r,rmd,qmd nnoremap <buffer> <localleader>f :call Raction("length")<CR>
+    autocmd FileType r,rmd,qmd nnoremap <buffer> <localleader>g :call Raction("glimpse")<CR>
+    autocmd FileType r,rmd,qmd nnoremap <buffer> <localleader>b :call Raction("dt")<CR>
 augroup END
