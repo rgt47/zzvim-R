@@ -79,7 +79,46 @@ let s:last_command_time = ''
 "------------------------------------------------------------------------------
 " Utility Functions
 "------------------------------------------------------------------------------
+" Function to create a new R terminal
+function! s:OpenRTerminal() abort
+    " Check if R is installed
+    if !executable('R')
+        call s:Error('R is not installed or not in PATH')
+        return
+    endif
 
+    " Check if a terminal with R is already running
+    let terms = term_list()
+    for term in terms
+        if match(term_getline(term, 1), 'R version') != -1
+            call s:Error('R terminal is already running')
+            " Switch to the existing R terminal
+            call win_gotoid(win_findbuf(term)[0])
+            return
+        endif
+    endfor
+
+    " Save current window dimensions
+    let current_window = win_getid()
+
+    " Open vertical split with customizable width
+    let width = get(g:, 'zzvim_r_terminal_width', 80)
+    execute 'vertical rightbelow ' . width . 'split'
+
+    " Start R with common startup flags
+    let r_cmd = get(g:, 'zzvim_r_command', 'R --no-save --quiet')
+    execute 'terminal ' . r_cmd
+
+    " Set terminal window options
+    setlocal nobuflisted
+    setlocal nonumber
+    setlocal norelativenumber
+    setlocal signcolumn=no
+    let t:is_r_term = 1
+
+    " Return to previous window
+    call win_gotoid(current_window)
+endfunction
 " Check if terminal feature is available and R terminal exists
 " Returns: boolean
 function! s:has_r_terminal() abort
@@ -337,6 +376,8 @@ command! -nargs=0 RSubmitChunks call <SID>CollectAndSubmitPreviousChunks()
 if !g:zzvim_r_disable_mappings
     augroup zzvim_RMarkdown
         autocmd!
+autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>r 
+            \ :call <SID>OpenRTerminal()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <CR> 
 \ :call <SID>SubmitLine()<CR>
         autocmd FileType r,rmd,qmd xnoremap <buffer> <silent> <localleader>z 
