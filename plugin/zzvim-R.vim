@@ -287,9 +287,6 @@ if !g:zzvim_r_disable_mappings
         " Mapping to submit the current visual selection to R
         autocmd FileType r,rmd,qmd xnoremap <buffer> <silent> <CR> :call <SID>SubmitVisualSelection()<CR>
 
-        " Mapping to submit the visual selection and save to a file
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>z :call <SID>SubmitVisualSelectionWithFile()<CR>
-
         " Mapping to add a pipe operator and create a new line
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>o :call <SID>AddPipeAndNewLine()<CR>
 
@@ -300,7 +297,7 @@ if !g:zzvim_r_disable_mappings
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>k :call <SID>MovePrevChunk()<CR>
 
         " Mapping to select the current R Markdown chunk and submit the selection
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>l :call <SID>SelectChunk()<CR> | :call <SID>SubmitVisualSelectionWithFile()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>l :call <SID>SelectChunk()<CR> | :call <SID>SubmitVisualSelection()<CR>
 
         " Mapping to submit all previous R Markdown chunks
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>t :call <SID>CollectAndSubmitPreviousChunks()<CR>
