@@ -193,7 +193,36 @@ function! s:send_to_r(cmd) abort
     endtry
 endfunction
 
+"==============================================================================
+" Submit the current R Markdown chunk to the R terminal
+"==============================================================================
+function! s:SubmitChunk() abort
+    let save_pos = getpos('.')
 
+    " Find the start of the chunk
+    if search('^```{', 'bW') == 0
+        call s:Error("No R Markdown chunk found above the current line.")
+        call setpos('.', save_pos)
+        return
+    endif
+    let start_line = line('.')
+
+    " Find the end of the chunk
+    if search('^```$', 'W') == 0
+        call s:Error("No closing backticks for the chunk found.")
+        call setpos('.', save_pos)
+        return
+    endif
+    let end_line = line('.')
+
+    " Extract lines within the chunk
+    let chunk_lines = getline(start_line, end_line)
+
+    " Submit the chunk to R
+    call s:send_to_r(join(chunk_lines, "\n"))
+    call setpos('.', save_pos)
+    echom "Submitted current chunk to R terminal."
+endfunction
 "------------------------------------------------------------------------------
 " Commands
 "------------------------------------------------------------------------------
@@ -297,7 +326,7 @@ if !g:zzvim_r_disable_mappings
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>k :call <SID>MovePrevChunk()<CR>
 
         " Mapping to select the current R Markdown chunk and submit the selection
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>l :call <SID>SelectChunk()<CR> | :call <SID>SubmitVisualSelection()<CR>
+autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>l :call <SID>SubmitChunk()<CR>
 
         " Mapping to submit all previous R Markdown chunks
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>t :call <SID>CollectAndSubmitPreviousChunks()<CR>
