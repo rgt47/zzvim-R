@@ -98,14 +98,14 @@ function! s:OpenRTerminal() abort
         endif
     endfor
 
-    " Save current window dimensions
+    " Save current window ID
     let current_window = win_getid()
 
-    " Open vertical split with customizable width
+    " Open vertical split for R terminal only
     let width = get(g:, 'zzvim_r_terminal_width', 80)
-    execute 'vertical rightbelow ' . width . 'split'
+    execute 'vertical rightbelow ' . width . ' new'
 
-    " Start R with common startup flags
+    " Start R with common startup flags in the new buffer
     let r_cmd = get(g:, 'zzvim_r_command', 'R --no-save --quiet')
     execute 'terminal ' . r_cmd
 
@@ -116,7 +116,7 @@ function! s:OpenRTerminal() abort
     setlocal signcolumn=no
     let t:is_r_term = 1
 
-    " Return to previous window
+    " Return focus to the original buffer
     call win_gotoid(current_window)
 endfunction
 " Check if terminal feature is available and R terminal exists
