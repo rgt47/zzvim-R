@@ -52,7 +52,7 @@ endfunction
 
 
 function! s:Sel() abort
-    let visual_selection = GetVisualSelection(visualmode())
+    let visual_selection = s:GetVisualSelection(visualmode())
     if visual_selection == ''
         return
     endif
