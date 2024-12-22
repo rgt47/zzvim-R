@@ -1,0 +1,158 @@
+" zzvim-R.vim - R development plugin for Vim
+" ... (Documentation - no changes)
+
+" Guard against multiple loading
+if exists('g:loaded_zzvim_r')
+    finish
+endif
+let g:loaded_zzvim_r = 1
+
+" Configuration variables with defaults
+" ... (Configuration - no changes)
+
+" Script-local variables
+let s:last_command_time = ''
+
+"------------------------------------------------------------------------------
+" Utility Functions
+"------------------------------------------------------------------------------
+
+" Function to create a new R terminal
+" ... (OpenRTerminal function - no changes)
+
+" Check if terminal feature is available and R terminal exists
+function! s:has_r_terminal() abort
+    if !has('terminal')
+        call s:Error("Terminal feature not available in this Vim version")
+        return 0
+    endif
+    if !has('term_sendkeys')
+        call s:Error("term_sendkeys() is not available in this Vim version.")
+        return 0
+    endif
+    try
+        return !empty(term_list())
+    catch
+        call s:Error("Error checking R terminal: " . v:exception)
+        return 0
+    endtry
+endfunction
+
+" Display consistent error messages
+" ... (Error function - no changes)
+
+" Choose a terminal from available terminals
+" ... (choose_terminal function - no changes)
+
+" Send command to R terminal
+function! s:send_to_r(cmd) abort
+    if !s:has_r_terminal()
+        call s:Error("No R terminal available. Open one with <localleader>r.")
+        return
+    endif
+    try
+        let terms = term_list()
+        let target_terminal = len(terms) == 1 ? terms[0] : s:choose_terminal(terms)
+        if target_terminal == -1
+            call s:Error("Terminal selection canceled.")
+            return
+        endif
+        let s:last_command_time = strftime('%H:%M:%S')
+        call term_sendkeys(target_terminal, a:cmd)
+        let &statusline .= ' [R cmd: ' . s:last_command_time . ']'
+        " Clear statusline message after 3 seconds or on cursor move
+        autocmd CursorMoved,CursorMovedI * :if winnr() == winnr('#') | let &statusline = substitute(&statusline, ' \[R cmd: .*\]', '', '') | endif
+    catch
+        call s:Error("Error sending command to R terminal: " . v:exception)
+    endtry
+endfunction
+
+"------------------------------------------------------------------------------
+" Core Functions
+"------------------------------------------------------------------------------
+
+" Submit current line to R terminal and move cursor down
+" ... (SubmitLine function - no changes)
+
+" Execute R action on word under cursor
+" ... (Raction function - no changes)
+
+" Send control keys to R terminal
+function! s:SendControlKeys(key) abort
+    call s:send_to_r(a:key)
+endfunction
+
+" Add pipe operator and create new line
+" ... (AddPipeAndNewLine function - no changes)
+
+" Submit visual selection to R (Simplified)
+function! s:SubmitVisualSelection() abort
+    let selection = s:GetVisualSelection(visualmode())
+    if !empty(selection)
+        call s:send_to_r(selection . "\n")
+    endif
+endfunction
+
+" Get visual selection with support for all modes
+" ... (GetVisualSelection function - no changes)
+
+"------------------------------------------------------------------------------
+" Selection and Navigation Functions
+"------------------------------------------------------------------------------
+
+" ... (Chunk navigation functions - no changes)
+
+"------------------------------------------------------------------------------
+" Chunk Collection and Submission
+"------------------------------------------------------------------------------
+
+" ... (Chunk collection and submission functions - no changes)
+
+"------------------------------------------------------------------------------
+" Commands
+"------------------------------------------------------------------------------
+
+" ... (Commands - no changes)
+
+"------------------------------------------------------------------------------
+" Mappings
+"------------------------------------------------------------------------------
+
+if !g:zzvim_r_disable_mappings
+    augroup zzvim_RMarkdown
+        autocmd!
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>r
+            \ :call <SID>OpenRTerminal()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <CR>
+            \ :call <SID>SubmitLine()<CR>
+        autocmd FileType r,rmd,qmd xnoremap <buffer> <silent> <localleader>z
+            \ :call <SID>SubmitVisualSelection()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>o
+            \ :call <SID>AddPipeAndNewLine()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>j
+            \ :call <SID>MoveNextChunk()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>k
+            \ :call <SID>MovePrevChunk()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>l
+            \ :call <SID>SelectChunk()<CR> | :call <SID>SubmitVisualSelection()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>'
+            \ :call <SID>CollectAndSubmitPreviousChunks()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>q
+            \ :call <SID>SendControlKeys("Q")<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>c
+            \ :call <SID>SendControlKeys("\<C-c>")<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>d
+            \ :call <SID>Raction("dim")<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>h
+            \ :call <SID>Raction("head")<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>s
+            \ :call <SID>Raction("str")<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p
+            \ :call <SID>Raction("print")<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>n
+            \ :call <SID>Raction("names")<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>f
+            \ :call <SID>Raction("length")<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>g
+            \ :call <SID>Raction("glimpse")<CR>
+        autocmd FileType r,rmd,qmd nnoremap

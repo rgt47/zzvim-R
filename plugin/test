@@ -1,0 +1,216 @@
+" zzvim-R.vim - R development plugin for Vim
+" Maintainer: [Your Name] <email>
+" Version:     1.0
+" License:     VIM License
+"
+" Description:
+" This plugin provides integration between Vim and R, allowing users to
+" send commands to an R terminal, navigate R Markdown chunks, and perform
+" common R operations directly from Vim.
+"
+" Configuration:
+" The following variables can be set in your vimrc to customize the plugin's
+" behavior:
+"
+" g:zzvim_r_default_terminal       (string)
+"   Sets the default terminal name for R sessions
+"   Default: 'R'
+"   Example: let g:zzvim_r_default_terminal = 'R-4.1'
+"
+" g:zzvim_r_disable_mappings       (boolean)
+"   If set to 1, disables all default key mappings
+"   Default: 0
+"   Example: let g:zzvim_r_disable_mappings = 1
+"
+" g:zzvim_r_map_submit             (string)
+"   Sets the key mapping for submitting lines to R
+"   Default: '<CR>' (Enter key)
+"   Example: let g:zzvim_r_map_submit = '<Leader>s'
+"
+" Default Mappings (when g:zzvim_r_disable_mappings = 0):
+"   <CR>                    - Submit current line to R
+"   <localleader>z          - Submit visual selection
+"   <localleader>o          - Add pipe operator and new line
+"   <localleader>j          - Move to next chunk
+"   <localleader>k          - Move to previous chunk
+"   <localleader>l          - Select and submit current chunk
+"   <localleader>'          - Submit all previous chunks
+"   <localleader>q          - Send 'Q' to R terminal
+"   <localleader>c          - Send Ctrl-C to R terminal
+"   <localleader>d          - Run dim() on word under cursor
+"   <localleader>h          - Run head() on word under cursor
+"   <localleader>s          - Run str() on word under cursor
+"   <localleader>p          - Run print() on word under cursor
+"   <localleader>n          - Run names() on word under cursor
+"   <localleader>f          - Run length() on word under cursor
+"   <localleader>g          - Run glimpse() on word under cursor
+"   <localleader>b          - Run dt() on word under cursor
+"
+" Commands:
+"   :RSubmitLine            - Submit current line to R
+"   :RNextChunk             - Move to next chunk
+"   :RPrevChunk             - Move to previous chunk
+"   :RSelectChunk           - Select current chunk
+"   :RSubmitChunks          - Submit all previous chunks
+
+" Guard against multiple loading
+if exists('g:loaded_zzvim_r')
+    finish
+endif
+let g:loaded_zzvim_r = 1
+
+" Configuration variables with defaults
+if !exists('g:zzvim_r_default_terminal')
+    let g:zzvim_r_default_terminal = 'R'
+endif
+
+if !exists('g:zzvim_r_disable_mappings')
+    let g:zzvim_r_disable_mappings = 0
+endif
+
+if !exists('g:zzvim_r_map_submit')
+    let g:zzvim_r_map_submit = '<CR>'
+endif
+
+" Script-local variables
+let s:last_command_time = ''
+
+"------------------------------------------------------------------------------
+" Utility Functions
+"------------------------------------------------------------------------------
+
+" Function to create a new R terminal
+function! s:OpenRTerminal() abort
+    " Check if R is installed
+    if !executable('R')
+        call s:Error('R is not installed or not in PATH')
+        return
+    endif
+
+    " Check if a terminal with R is already running
+    let terms = term_list()
+    for term in terms
+        if match(term_getline(term, 1), 'R version') != -1
+            call s:Error('R terminal is already running')
+            " Switch to the existing R terminal
+            call win_gotoid(win_findbuf(term)[0])
+            return
+        endif
+    endfor
+
+    " Save the current window ID
+    let current_window = win_getid()
+
+    " Open a vertical split without creating an extra buffer
+    let width = get(g:, 'zzvim_r_terminal_width', 80)
+    execute 'vertical rightbelow ' . width . 'vsplit'
+
+    " Start R with common startup flags in the new buffer
+    let r_cmd = get(g:, 'zzvim_r_command', 'R --no-save --quiet')
+    execute 'terminal ' . r_cmd
+
+    " Set terminal window options
+    setlocal nobuflisted
+    setlocal nonumber
+    setlocal norelativenumber
+    setlocal signcolumn=no
+    let t:is_r_term = 1
+
+    " Return focus to the original buffer
+    call win_gotoid(current_window)
+endfunction
+
+" Check if terminal feature is available and R terminal exists
+function! s:has_r_terminal() abort
+    if !has('terminal')
+        call s:Error("Terminal feature not available in this Vim version")
+        return 0
+    endif
+    if !has('term_sendkeys')
+        call s:Error("term_sendkeys() is not available in this Vim version.")
+        return 0
+    endif
+    try
+        return !empty(term_list())
+    catch
+        call s:Error("Error checking R terminal: " . v:exception)
+        return 0
+    endtry
+endfunction
+
+" Display consistent error messages
+function! s:Error(msg) abort
+    echohl ErrorMsg
+    echom "zzvim-R: " . a:msg
+    echohl None
+endfunction
+
+" Choose a terminal from available terminals
+function! s:choose_terminal(terms) abort
+    let choices = ['Cancel'] + map(copy(a:terms), 'bufname(v:val)')
+    let choice = inputlist(choices)
+    return choice == 0 ? -1 : a:terms[choice - 1]
+endfunction
+
+" Send command to R terminal
+function! s:send_to_r(cmd) abort
+    if !s:has_r_terminal()
+        call s:Error("No R terminal available. Open one with <localleader>r.")
+        return
+    endif
+    try
+        let terms = term_list()
+        let target_terminal = len(terms) == 1 ? terms[0] : s:choose_terminal(terms)
+        if target_terminal == -1
+            call s:Error("Terminal selection canceled.")
+            return
+        endif
+        let s:last_command_time = strftime('%H:%M:%S')
+        call term_sendkeys(target_terminal, a:cmd)
+        let &statusline .= ' [R cmd: ' . s:last_command_time . ']'
+        " Clear statusline message after 3 seconds or on cursor move
+        autocmd CursorMoved,CursorMovedI * :if winnr() == winnr('#') | let &statusline = substitute(&statusline, ' \[R cmd: .*\]', '', '') | endif
+    catch
+        call s:Error("Error sending command to R terminal: " . v:exception)
+    endtry
+endfunction
+
+"------------------------------------------------------------------------------
+" Core Functions
+"------------------------------------------------------------------------------
+
+" Submit current line to R terminal and move cursor down
+function! s:SubmitLine() abort
+    call s:send_to_r(getline(".") . "\n")
+    normal! j
+endfunction
+
+" Execute R action on word under cursor
+function! s:Raction(action) abort
+    let current_word = expand("<cword>")
+    call s:send_to_r(a:action . "(" . current_word . ")\n")
+endfunction
+
+" Send control keys to R terminal
+function! s:SendControlKeys(key) abort
+    call s:send_to_r(a:key)
+endfunction
+
+" Add pipe operator and create new line
+function! s:AddPipeAndNewLine() abort
+    normal! A |>
+    normal! o
+    execute "normal! i "
+endfunction
+
+" Submit visual selection to R (Simplified)
+function! s:SubmitVisualSelection() abort
+    let selection = s:GetVisualSelection(visualmode())
+    if !empty(selection)
+        call s:send_to_r(selection . "\n")
+    endif
+endfunction
+
+" Get visual selection with support for all modes
+function! s:GetVisualSelection(mode) abort
+    let [line_
