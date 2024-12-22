@@ -5,7 +5,7 @@
 " Utility Functions
 "------------------------------------------------------------------------------
 
-function! s:has_r_terminal() abort
+function! s:Has_r_terminal() abort
     try
         return !empty(term_list())  " Return true if terminals exist
     catch
@@ -21,7 +21,7 @@ function! s:choose_terminal(terms) abort
 endfunction
 
 function! s:send_to_r(cmd) abort
-    if !s:has_r_terminal()
+    if !s:Has_r_terminal()
         echom "No R terminal available. Open one with <localleader>r."
         return
     endif
@@ -51,6 +51,23 @@ function! s:SubmitLine() abort
 endfunction
 
 
+function! s:Sel() abort
+    let visual_selection = GetVisualSelection(visualmode())
+    if visual_selection == ''
+        return
+    endif
+    let g:source_file = tempname()
+    call writefile(split(visual_selection, "\n"), g:source_file)
+endfunction
+
+function! s:Submit() abort
+    if !exists("g:source_file")
+        echo "No source file available."
+        return
+    endif
+    let cmd = "source('" . g:source_file . "', echo=T)\n"
+    call s:send_to_r(cmd)
+endfunction
 
 function! s:SubmitVisualSelection() abort
     let selection = s:GetVisualSelection(visualmode())
@@ -141,8 +158,8 @@ function! s:GetVisualSelection(mode) abort
 endfunction
 
 function! s:CheckTerminalAndSubmitLineNormal() abort
-    if s:has_r_terminal()
-        call SubmitLine()
+    if s:Has_r_terminal()
+        call s:SubmitLine()
         " Move to the next line after submitting
         normal! j
     else
@@ -152,9 +169,9 @@ endfunction
 
 " Called by visual mode <CR>: submit selection if terminal available, else show message
 function! s:CheckTerminalAndSubmitVisual() abort
-    if s:has_r_terminal()
-        call Sel()
-        call Submit()
+    if s:Has_r_terminal()
+        call s:Sel()
+        call s:Submit()
     else
         echo "No R terminal available."
     endif
