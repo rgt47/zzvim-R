@@ -47,7 +47,7 @@ endfunction
 function! s:SubmitLine() abort
     call s:send_to_r(getline(".") . "\n")
     " Move to the next line
-    normal! j
+    " normal! j
 endfunction
 
 
@@ -154,6 +154,28 @@ function! s:GetVisualSelection(mode) abort
         return ''
     endif
 
+" Select a markdown chunk by searching for backticks and entering visual mode
+function! s:SelectChunk() abort
+    " Search backwards for the opening of an R Markdown chunk
+    if search('^```{', 'bW')
+        " Move to the next line (start of the chunk content)
+        normal! j
+
+        " Start visual line mode
+        normal! V
+
+        " Search forwards for the closing backticks
+        if search('^```$', 'W')
+            " Move up one line to exclude the closing backticks
+            normal! k
+        else
+            echo "No matching closing backticks found."
+            normal! <Esc> " Exit visual mode if no match found
+        endif
+    else
+        echo "No R Markdown chunks found above."
+    endif
+endfunction
     return join(lines, "\n")
 endfunction
 
@@ -188,6 +210,13 @@ augroup zzvim_RMarkdown
     " Submit the visual selection in visual mode
     autocmd FileType r,rmd,qmd xnoremap <buffer> <CR> :<C-u>call <SID>CheckTerminalAndSubmitVisual()<CR>
     " Navigate chunks
+    " Select a chunk and send it to R
+    autocmd FileType r,rmd,qmd nnoremap <buffer> <localleader>l :call <SID>SelectChunk()<CR> \| :call <SID>Sel() \| :call <SID>Submit()<CR><CR>
+
+    " Select a chunk, send it to R, move to next chunk, center vertically
+    autocmd FileType r,rmd,qmd nnoremap <buffer> <localleader>; :call <SID>SelectChunk()<CR> \| :call <SID>Sel() \| :call <SID>Submit()<CR> \| /```{<CR>jzz:noh<CR>
+
+    autocmd FileType r,rmd,qmd nnoremap <buffer> <localleader>' :call <SID>CollectAndSubmitPreviousChunks()<CR>
     autocmd FileType r,rmd,qmd nnoremap <buffer> <localleader>j :call <SID>MoveNextChunk()<CR>
     autocmd FileType r,rmd,qmd nnoremap <buffer> <localleader>k :call <SID>MovePrevChunk()<CR>
 
