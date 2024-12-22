@@ -52,16 +52,6 @@ endfunction
 
 
 
-
-
-
-
-
-
-function! s:SubmitLine() abort
-    call s:send_to_r(getline(".") . "\n")
-endfunction
-
 function! s:SubmitVisualSelection() abort
     let selection = s:GetVisualSelection(visualmode())
     if !empty(selection)
@@ -150,6 +140,25 @@ function! s:GetVisualSelection(mode) abort
     return join(lines, "\n")
 endfunction
 
+function! s:CheckTerminalAndSubmitLineNormal() abort
+    if s:has_r_terminal()
+        call SubmitLine()
+        " Move to the next line after submitting
+        normal! j
+    else
+        echo "No R terminal available."
+    endif
+endfunction
+
+" Called by visual mode <CR>: submit selection if terminal available, else show message
+function! s:CheckTerminalAndSubmitVisual() abort
+    if s:has_r_terminal()
+        call Sel()
+        call Submit()
+    else
+        echo "No R terminal available."
+    endif
+endfunction
 "------------------------------------------------------------------------------
 " Autocommands and Mappings
 "------------------------------------------------------------------------------
@@ -158,11 +167,9 @@ augroup zzvim_RMarkdown
     autocmd!
     " Submit the current line in normal mode
     " 
-    autocmd FileType r,rmd,qmd nnoremap <buffer> <CR> :call <SID>SubmitLine()<CR>
-
+    autocmd FileType r,rmd,qmd nnoremap <buffer> <CR> :call <SID>CheckTerminalAndSubmitLineNormal()<CR>
     " Submit the visual selection in visual mode
-    autocmd FileType r,rmd,qmd xnoremap <buffer> <CR> :<C-u>call <SID>SubmitVisualSelection()<CR>
-
+    autocmd FileType r,rmd,qmd xnoremap <buffer> <CR> :<C-u>call <SID>CheckTerminalAndSubmitVisual()<CR>
     " Navigate chunks
     autocmd FileType r,rmd,qmd nnoremap <buffer> <localleader>j :call <SID>MoveNextChunk()<CR>
     autocmd FileType r,rmd,qmd nnoremap <buffer> <localleader>k :call <SID>MovePrevChunk()<CR>
@@ -171,7 +178,9 @@ augroup zzvim_RMarkdown
     autocmd FileType r,rmd,qmd nnoremap <buffer> <localleader>' :call <SID>CollectAndSubmitPreviousChunks()<CR>
 
     " Open an R terminal
-    autocmd FileType r,rmd,qmd nnoremap <buffer> <localleader>r :vert term R --no-save<CR>
+    "
+    " Open an R terminal
+    autocmd FileType r,rmd,qmd nnoremap <buffer> <localleader>r :vert term R --no-save<CR><c-w>:wincmd p<CR>
 
     " Add pipe operator
     autocmd FileType r,rmd,qmd nnoremap <buffer> <C-e> :call <SID>AddPipeAndNewLine()<CR>
