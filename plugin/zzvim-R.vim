@@ -192,7 +192,13 @@ function! s:send_to_r(cmd) abort
         call s:Error("Error sending command to R terminal: " . v:exception)
     endtry
 endfunction
-
+"==============================================================================
+" Submit the current line to the R terminal and move the cursor down
+"==============================================================================
+function! s:SubmitLine() abort
+    call s:send_to_r(getline("."))
+    normal! j
+endfunction
 "==============================================================================
 " Submit the current R Markdown chunk to the R terminal
 "==============================================================================
