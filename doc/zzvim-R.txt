@@ -1,138 +1,143 @@
+*zzvim-r.txt*  R development plugin for Vim
 
-==============================================================================
-                            zzvim-R Plugin Manual
-==============================================================================
-
-Author: [Your Name]
+Author:  [Your Name] <email>
+License: VIM License
 Version: 1.0
-Date: [Date]
-License: [License, e.g., MIT]
-==============================================================================
-1. Introduction ................................................. *zzvim-intro*
-2. Installation ............................................... *zzvim-install*
-3. Features ..................................................... *zzvim-feat*
-4. Commands and Functions ..................................... *zzvim-cmds*
-5. Key Mappings ............................................... *zzvim-maps*
-6. Configuration .............................................. *zzvim-config*
-7. Example Workflow ............................................ *zzvim-work*
-8. Credits ...................................................... *zzvim-cred*
+
+CONTENTS                                                        *zzvim-r-contents*
+
+    1. Introduction ........................... |zzvim-r-introduction|
+    2. Requirements ........................... |zzvim-r-requirements|
+    3. Configuration .......................... |zzvim-r-configuration|
+    4. Commands ............................... |zzvim-r-commands|
+    5. Mappings .............................. |zzvim-r-mappings|
+    6. Functions ............................. |zzvim-r-functions|
+    7. Troubleshooting ....................... |zzvim-r-troubleshooting|
 
 ==============================================================================
-1. Introduction ................................................. *zzvim-intro*
-==============================================================================
+1. INTRODUCTION                                              *zzvim-r-introduction*
 
-The `zzvim-R` plugin enhances Vim's integration with R and R Markdown files,
-providing efficient navigation, code execution, and workflow management. This
-plugin is designed to streamline data analysis workflows directly within Vim.
+zzvim-R is a Vim plugin that provides integration between Vim and R, allowing
+users to send commands to an R terminal, navigate R Markdown chunks, and perform
+common R operations directly from Vim.
 
--------------------------------------------------------------------------------
-**Key Features:**
-- Navigate and execute R Markdown chunks efficiently.
-- Submit code lines, visual selections, or entire chunks to an R terminal.
-- User-configurable options for customization.
-- Lightweight and easy to integrate into existing Vim workflows.
+The plugin supports R script files (.R) as well as R Markdown (.rmd) and Quarto
+(.qmd) documents.
 
 ==============================================================================
-2. Installation ............................................... *zzvim-install*
-==============================================================================
+2. REQUIREMENTS                                            *zzvim-r-requirements*
 
-To install `zzvim-R`, use any plugin manager or manually install it:
-
-### **Using vim-plug:**
-```vim
-Plug 'your-username/zzvim-R'
-```
-
-### **Manual Installation:**
-1. Copy the plugin files into your `.vim` directory:
-   - `plugin/zzvim-R.vim`
-   - `doc/zzvim-R.txt`
-2. Run `:helptags ~/.vim/doc` to register the help file.
+The plugin requires:
+    * Vim 8.1 or newer with the +terminal feature
+    * R installed and available in your PATH
 
 ==============================================================================
-3. Features ..................................................... *zzvim-feat*
+3. CONFIGURATION                                          *zzvim-r-configuration*
+
+The following variables can be set in your vimrc to customize the plugin:
+
+                                                    *g:zzvim_r_default_terminal*
+g:zzvim_r_default_terminal    Sets the default terminal name for R sessions.
+                             Default: 'R'
+                             Example: >
+                             let g:zzvim_r_default_terminal = 'R-4.1'
+<
+                                                    *g:zzvim_r_disable_mappings*
+g:zzvim_r_disable_mappings    If set to 1, disables all default key mappings.
+                             Default: 0
+                             Example: >
+                             let g:zzvim_r_disable_mappings = 1
+<
+                                                    *g:zzvim_r_map_submit*
+g:zzvim_r_map_submit         Sets the key mapping for submitting lines to R.
+                             Default: '<CR>' (Enter key)
+                             Example: >
+                             let g:zzvim_r_map_submit = '<Leader>s'
+<
 ==============================================================================
+4. COMMANDS                                                    *zzvim-r-commands*
 
-### **Core Functionalities**
-- Navigate between R Markdown chunks (`<localleader>j` and `<localleader>k`).
-- Submit code to the R terminal:
-  - Submit a single line (`<CR>` in Normal Mode).
-  - Submit visual selections (`<CR>` in Visual Mode).
-  - Submit all previous chunks (`<localleader>'`).
-- Flexible customization options using global variables.
+The plugin provides the following commands:
 
-==============================================================================
-4. Commands and Functions ..................................... *zzvim-cmds*
-==============================================================================
+:RSubmitLine                                                      *:RSubmitLine*
+    Submit the current line to R terminal.
 
-The plugin provides the following commands and functions:
+:RNextChunk                                                        *:RNextChunk*
+    Move cursor to the next R Markdown chunk.
 
-### **Commands:**
-1. `:call zzvim#SubmitPreviousChunks()`
-   Submit all code from previous chunks to the R terminal.
+:RPrevChunk                                                        *:RPrevChunk*
+    Move cursor to the previous R Markdown chunk.
 
-### **Functions (for advanced users):**
-- `s:has_r_terminal()`: Check if an R terminal is available.
-- `s:send_to_r(cmd)`: Send a command to the R terminal.
+:RSelectChunk                                                    *:RSelectChunk*
+    Select the current R Markdown chunk.
 
-==============================================================================
-5. Key Mappings ............................................... *zzvim-maps*
-==============================================================================
-
-### **Normal Mode:**
-- `<CR>`: Submit the current line to the R terminal.
-- `<localleader>j`: Move to the next R Markdown chunk.
-- `<localleader>k`: Move to the previous R Markdown chunk.
-- `<localleader>'`: Submit all previous chunks to the R terminal.
-
-### **Visual Mode:**
-- `<CR>`: Submit the visual selection to the R terminal.
-
-### **Insert Mode:**
-- `<C-e>`: Append the pipe operator (`|>`) and create a new line.
-
-==============================================================================
-6. Configuration .............................................. *zzvim-config*
-==============================================================================
-
-Customize the plugin by setting options in your `.vimrc`:
-
-### **Temporary File Path:**
-Specify a custom path for the temporary file:
-```vim
-let g:zzvim_config = {
-      \ 'temp_file': '/path/to/tempfile.txt'
-\ }
-```
-
-### **Example Configuration:**
-```vim
-let g:zzvim_config = {
-      \ 'temp_file': expand('~/.vim/tmp/zzvim_temp.txt')
-\ }
-```
+:RSubmitChunks                                                  *:RSubmitChunks*
+    Submit all previous chunks to R terminal.
 
 ==============================================================================
-7. Example Workflow ............................................ *zzvim-work*
-==============================================================================
+5. MAPPINGS                                                    *zzvim-r-mappings*
 
-1. Open an R Markdown file in Vim.
-2. Navigate to a code chunk using `<localleader>j` (next chunk) or `<localleader>k` (previous chunk).
-3. Submit the current line to the R terminal with `<CR>`.
-4. Select a block of code and submit it with `<CR>` in Visual Mode.
-5. Submit all previous chunks with `<localleader>'`.
+The following mappings are available when g:zzvim_r_disable_mappings is 0:
+
+Normal Mode:
+    <CR>              Submit current line to R
+    <localleader>o    Add pipe operator and new line
+    <localleader>j    Move to next chunk
+    <localleader>k    Move to previous chunk
+    <localleader>l    Select and submit current chunk
+    <localleader>'    Submit all previous chunks
+    <localleader>q    Send 'Q' to R terminal
+    <localleader>c    Send Ctrl-C to R terminal
+
+R Function Shortcuts:
+    <localleader>d    Run dim() on word under cursor
+    <localleader>h    Run head() on word under cursor
+    <localleader>s    Run str() on word under cursor
+    <localleader>p    Run print() on word under cursor
+    <localleader>n    Run names() on word under cursor
+    <localleader>f    Run length() on word under cursor
+    <localleader>g    Run glimpse() on word under cursor
+    <localleader>b    Run dt() on word under cursor
+
+Visual Mode:
+    <localleader>z    Submit visual selection
 
 ==============================================================================
-8. Credits ...................................................... *zzvim-cred*
-==============================================================================
+6. FUNCTIONS                                                  *zzvim-r-functions*
 
-- **Author:** [Your Name]
-- **Contributions:** [List contributors if applicable]
-- **Inspiration:** RStudio, vim-slime, and Nvim-R plugins.
+The plugin provides several script-local functions that can be used to build
+custom functionality:
 
-For bug reports, feature requests, or contributions, visit the plugin repository:
-[GitHub Repository URL]
+s:SubmitLine()                                            *zzvim-r-SubmitLine()*
+    Submit current line to R terminal and move cursor down.
+
+s:Raction({action})                                         *zzvim-r-Raction()*
+    Execute R function on word under cursor.
+    {action} is the R function name to execute.
+
+s:SelectChunk()                                          *zzvim-r-SelectChunk()*
+    Select the current R Markdown chunk.
+
+s:CollectPreviousChunks()                      *zzvim-r-CollectPreviousChunks()*
+    Collect all chunks above current position.
 
 ==============================================================================
-                            End of zzvim-R Manual
+7. TROUBLESHOOTING                                      *zzvim-r-troubleshooting*
+
+Common issues and solutions:
+
+No R terminal available~
+Make sure you have started an R terminal session before trying to send commands.
+
+Commands not being sent to R~
+Verify that:
+    * Vim was compiled with terminal support
+    * R is properly installed and in your PATH
+    * There is an active R terminal session
+
+Multiple terminals~
+If multiple terminal sessions are open, the plugin will prompt you to choose
+which terminal to send commands to.
+
 ==============================================================================
+vim:ft=help:tw=78:ts=8:noet:fen:fdl=0:fdm=marker:
