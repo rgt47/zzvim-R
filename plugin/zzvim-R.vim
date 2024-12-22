@@ -276,31 +276,63 @@ endfunction
 " Mappings
 "------------------------------------------------------------------------------
 if !g:zzvim_r_disable_mappings
-    let mappings = [
-                \ ['<localleader>r', '<SID>OpenRTerminal'],
-                \ ['<CR>', '<SID>SubmitLine'],
-                \ ['<localleader>z', '<SID>SubmitVisualSelectionWithFile'],
-                \ ['<localleader>o', '<SID>AddPipeAndNewLine'],
-                \ ['<localleader>j', '<SID>MoveNextChunk'],
-                \ ['<localleader>k', '<SID>MovePrevChunk'],
-                \ ['<localleader>l', '<SID>SelectChunk | <SID>SubmitVisualSelectionWithFile'],
-                \ ['<localleader>t', '<SID>CollectAndSubmitPreviousChunks'],
-                \ ['<localleader>q', '<SID>SendControlKeys("Q")'],
-                \ ['<localleader>c', '<SID>SendControlKeys("\<C-c>")'],
-                \ ['<localleader>d', '<SID>Raction("dim")'],
-                \ ['<localleader>h', '<SID>Raction("head")'],
-                \ ['<localleader>s', '<SID>Raction("str")'],
-                \ ['<localleader>p', '<SID>Raction("print")'],
-                \ ['<localleader>n', '<SID>Raction("names")'],
-                \ ['<localleader>f', '<SID>Raction("length")'],
-                \ ['<localleader>g', '<SID>Raction("glimpse")'],
-                \ ['<localleader>b', '<SID>Raction("dt")'],
-                \ ]
     augroup zzvim_RMarkdown
         autocmd!
-        for map in mappings
-            execute 'autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> ' . map[0] . ' :' . map[1] . '()<CR>'
-        endfor
+        " Mapping to open R terminal
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>r :call <SID>OpenRTerminal()<CR>
+
+        " Mapping to submit the current line to R
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <CR> :call <SID>SubmitLine()<CR>
+
+        " Mapping to submit the current visual selection to R
         autocmd FileType r,rmd,qmd xnoremap <buffer> <silent> <CR> :call <SID>SubmitVisualSelection()<CR>
+
+        " Mapping to submit the visual selection and save to a file
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>z :call <SID>SubmitVisualSelectionWithFile()<CR>
+
+        " Mapping to add a pipe operator and create a new line
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>o :call <SID>AddPipeAndNewLine()<CR>
+
+        " Mapping to move to the next R Markdown chunk
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>j :call <SID>MoveNextChunk()<CR>
+
+        " Mapping to move to the previous R Markdown chunk
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>k :call <SID>MovePrevChunk()<CR>
+
+        " Mapping to select the current R Markdown chunk and submit the selection
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>l :call <SID>SelectChunk()<CR> | :call <SID>SubmitVisualSelectionWithFile()<CR>
+
+        " Mapping to submit all previous R Markdown chunks
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>t :call <SID>CollectAndSubmitPreviousChunks()<CR>
+
+        " Mapping to send 'Q' to the R terminal
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>q :call <SID>SendControlKeys("Q")<CR>
+
+        " Mapping to send Ctrl-C to the R terminal
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>c :call <SID>SendControlKeys("\<C-c>")<CR>
+
+        " Mapping to run dim() on the word under the cursor
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>d :call <SID>Raction("dim")<CR>
+
+        " Mapping to run head() on the word under the cursor
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>h :call <SID>Raction("head")<CR>
+
+        " Mapping to run str() on the word under the cursor
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>s :call <SID>Raction("str")<CR>
+
+        " Mapping to run print() on the word under the cursor
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p :call <SID>Raction("print")<CR>
+
+        " Mapping to run names() on the word under the cursor
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>n :call <SID>Raction("names")<CR>
+
+        " Mapping to run length() on the word under the cursor
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>f :call <SID>Raction("length")<CR>
+
+        " Mapping to run glimpse() on the word under the cursor
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>g :call <SID>Raction("glimpse")<CR>
+
+        " Mapping to run dt() on the word under the cursor
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>b :call <SID>Raction("dt")<CR>
     augroup END
 endif
