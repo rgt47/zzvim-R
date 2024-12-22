@@ -98,12 +98,12 @@ function! s:OpenRTerminal() abort
         endif
     endfor
 
-    " Save current window ID
+    " Save the current window ID
     let current_window = win_getid()
 
-    " Open vertical split for R terminal only
+    " Open a vertical split without creating an extra buffer
     let width = get(g:, 'zzvim_r_terminal_width', 80)
-    execute 'vertical rightbelow ' . width . ' new'
+    execute 'vertical rightbelow ' . width . 'vsplit'
 
     " Start R with common startup flags in the new buffer
     let r_cmd = get(g:, 'zzvim_r_command', 'R --no-save --quiet')
