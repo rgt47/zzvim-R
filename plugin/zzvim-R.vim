@@ -193,19 +193,25 @@ function! s:send_to_r(cmd) abort
     endtry
 endfunction
 
+
+"------------------------------------------------------------------------------
+" Commands
+"------------------------------------------------------------------------------
+command! -nargs=0 RSubmitLine call <SID>SubmitLine()
+command! -nargs=0 RNextChunk call <SID>MoveNextChunk()
+command! -nargs=0 RPrevChunk call <SID>MovePrevChunk()
+command! -nargs=0 RSelectChunk call <SID>SelectChunk()
+command! -nargs=0 RSubmitChunks call <SID>CollectAndSubmitPreviousChunks()
 "==============================================================================
-" Retrieve and send visual selection to R terminal with temporary file
+" Submit visual selection to R terminal
 "==============================================================================
-function! s:SubmitVisualSelectionWithFile() abort
+function! s:SubmitVisualSelection() abort
     let selection = s:GetVisualSelection(visualmode())
     if empty(selection)
         call s:Error("No visual selection to submit.")
         return
     endif
-    let temp_file = tempname()
-    call writefile(split(selection, "\n"), temp_file)
-    let cmd = "source('" . temp_file . "', echo=T)"
-    call s:send_to_r(cmd)
+    call s:send_to_r(selection)
 endfunction
 
 "==============================================================================
@@ -233,16 +239,6 @@ function! s:GetVisualSelection(mode) abort
         return ''
     endif
 endfunction
-
-"------------------------------------------------------------------------------
-" Commands
-"------------------------------------------------------------------------------
-command! -nargs=0 RSubmitLine call <SID>SubmitLine()
-command! -nargs=0 RNextChunk call <SID>MoveNextChunk()
-command! -nargs=0 RPrevChunk call <SID>MovePrevChunk()
-command! -nargs=0 RSelectChunk call <SID>SelectChunk()
-command! -nargs=0 RSubmitChunks call <SID>CollectAndSubmitPreviousChunks()
-
 "==============================================================================
 " Submit visual selection to R terminal
 "==============================================================================
