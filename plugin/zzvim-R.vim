@@ -245,21 +245,21 @@ if !g:zzvim_r_disable_mappings
     augroup zzvim_RMarkdown
         autocmd!
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>r :call <SID>OpenRTerminal()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <CR> :call s:Send_to_r(getline("."))<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>o :call s:AddPipeAndNewLine()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>j :call s:MoveNextChunk()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>k :call s:MovePrevChunk()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>l :call s:SubmitChunk()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>t :call s:CollectAndSubmitPreviousChunks()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>q :call s:SendControlKeys("Q")<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>c :call s:SendControlKeys("\<C-c>")<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>d :call s:RAction("dim")<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>h :call s:RAction("head")<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>s :call s:RAction("str")<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p :call s:RAction("print")<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>n :call s:RAction("names")<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>f :call s:RAction("length")<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>g :call s:RAction("glimpse")<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>b :call s:RAction("dt")<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <CR> :call <SID>Send_to_r(getline("."))<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>o :call <SID>AddPipeAndNewLine()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>j :call <SID>MoveNextChunk()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>k :call <SID>MovePrevChunk()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>l :call <SID>SubmitChunk()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>t :call <SID>CollectAndSubmitPreviousChunks()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>q :call <SID>SendControlKeys("Q")<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>c :call <SID>SendControlKeys("\<C-c>")<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>d :call <SID>RAction("dim")<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>h :call <SID>RAction("head")<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>s :call <SID>RAction("str")<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p :call <SID>RAction("print")<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>n :call <SID>RAction("names")<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>f :call <SID>RAction("length")<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>g :call <SID>RAction("glimpse")<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>b :call <SID>RAction("dt")<CR>
     augroup END
 endif
