@@ -70,13 +70,6 @@
 "   :RSubmitLine               - Submit current line to R
 "   :ROpenTerminal             - Open a new R terminal
 
-"------------------------------------------------------------------------------
-" Guard against multiple loading
-"------------------------------------------------------------------------------
-if exists('g:loaded_script')
-    finish
-endif
-let g:loaded_script = 1
 
 "------------------------------------------------------------------------------
 " Configuration variables with defaults
