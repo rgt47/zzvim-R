@@ -70,6 +70,13 @@
 "   :RSubmitLine               - Submit current line to R
 "   :ROpenTerminal             - Open a new R terminal
 
+"------------------------------------------------------------------------------
+" Guard against multiple loading
+"------------------------------------------------------------------------------
+if exists('g:loaded_script')
+    finish
+endif
+let g:loaded_script = 1
 
 "------------------------------------------------------------------------------
 " Configuration variables with defaults
@@ -141,9 +148,118 @@ function! s:OpenRTerminal() abort
     wincmd p
 endfunction
 
+"------------------------------------------------------------------------------
+" Function: Add a pipe operator and create a new line
+"------------------------------------------------------------------------------
+function! s:AddPipeAndNewLine() abort
+    call append(line('.'), ' %>%')
+    normal! j
+endfunction
+
+"------------------------------------------------------------------------------
+" Function: Move to the next R Markdown chunk
+"------------------------------------------------------------------------------
+function! s:MoveNextChunk() abort
+    if search(g:zzvim_r_chunk_start, 'W')
+        echom "Moved to the next chunk."
+    else
+        call s:Error("No more chunks found.")
+    endif
+endfunction
+
+"------------------------------------------------------------------------------
+" Function: Move to the previous R Markdown chunk
+"------------------------------------------------------------------------------
+function! s:MovePrevChunk() abort
+    if search(g:zzvim_r_chunk_start, 'bW')
+        echom "Moved to the previous chunk."
+    else
+        call s:Error("No previous chunks found.")
+    endif
+endfunction
+
+"------------------------------------------------------------------------------
+" Function: Submit the current R Markdown chunk to R terminal
+"------------------------------------------------------------------------------
+function! s:SubmitChunk() abort
+    let save_pos = getpos('.')
+    if search(g:zzvim_r_chunk_start, 'bW') == 0 || search(g:zzvim_r_chunk_end, 'W') == 0
+        call s:Error("No valid chunk found.")
+        call setpos('.', save_pos)
+        return
+    endif
+    let chunk_lines = getline(search(g:zzvim_r_chunk_start, 'bW'), search(g:zzvim_r_chunk_end, 'W'))
+    call s:Send_to_r(join(chunk_lines, "\n"))
+    echom "Submitted current chunk to R."
+    call setpos('.', save_pos)
+endfunction
+
+"------------------------------------------------------------------------------
+" Function: Submit all previous chunks
+"------------------------------------------------------------------------------
+function! s:CollectAndSubmitPreviousChunks() abort
+    let save_pos = getpos('.')
+    let start_pos = 1
+    if search(g:zzvim_r_chunk_start, 'bW') > 0
+        let start_pos = line('.')
+    endif
+    let lines = getline(1, start_pos - 1)
+    call s:Send_to_r(join(lines, "\n"))
+    echom "Submitted all previous chunks."
+    call setpos('.', save_pos)
+endfunction
+
+"------------------------------------------------------------------------------
+" Function: Send control keys (e.g., 'Q' or Ctrl-C)
+"------------------------------------------------------------------------------
+function! s:SendControlKeys(key) abort
+    try
+        let terms = term_list()
+        let target_terminal = terms[0]
+        call term_sendkeys(target_terminal, a:key)
+    catch
+        call s:Error("Failed to send control key: " . a:key)
+    endtry
+endfunction
+
+"------------------------------------------------------------------------------
+" Function: Perform an R action on the word under the cursor
+"------------------------------------------------------------------------------
+function! s:RAction(action) abort
+    let word = expand('<cword>')
+    if empty(word)
+        call s:Error("No word under cursor.")
+        return
+    endif
+    call s:Send_to_r(a:action . '(' . word . ')')
+    echom "Ran " . a:action . " on " . word . "."
+endfunction
+
+"------------------------------------------------------------------------------
+" Mappings
+"------------------------------------------------------------------------------
+"
+"
+"
 if !g:zzvim_r_disable_mappings
     augroup zzvim_RMarkdown
         autocmd!
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>r :call s:OpenRTerminal()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>r :call <SID>OpenRTerminal()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <CR> :call s:Send_to_r(getline("."))<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>o :call s:AddPipeAndNewLine()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>j :call s:MoveNextChunk()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>k :call s:MovePrevChunk()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>l :call s:SubmitChunk()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>t :call s:CollectAndSubmitPreviousChunks()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>q :call s:SendControlKeys("Q")<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>c :call s:SendControlKeys("\<C-c>")<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>d :call s:RAction("dim")<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>h :call s:RAction("head")<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>s :call s:RAction("str")<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p :call s:RAction("print")<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>n :call s:RAction("names")<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>f :call s:RAction("length")<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>g :call s:RAction("glimpse")<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>b :call s:RAction("dt")<CR>
     augroup END
 endif
