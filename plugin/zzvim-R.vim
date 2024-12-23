@@ -1,7 +1,7 @@
-" script3 - R development plugin for Vim
-" Maintainer:  [Your Name] <email>
-" Version:     1.2
-" License:     VIM License
+" zzvim-R - R development plugin for Vim
+" Maintainer:  RG Thomas rgthomas@ucsd.edu
+" Version:     1.0
+" License:     GPL3 License
 "
 " Description:
 " This plugin provides integration between Vim and R, allowing users to
@@ -13,40 +13,48 @@
 " behavior:
 "
 " g:zzvim_r_default_terminal    (string)
-"   Sets the default terminal name for R sessions
+"   Sets the default terminal name for R sessions.
 "   Default: 'R'
 "   Example: let g:zzvim_r_default_terminal = 'R-4.1'
 "
 " g:zzvim_r_disable_mappings    (boolean)
-"   If set to 1, disables all default key mappings
+"   If set to 1, disables all default key mappings.
 "   Default: 0
 "   Example: let g:zzvim_r_disable_mappings = 1
 "
 " g:zzvim_r_map_submit         (string)
-"   Sets the key mapping for submitting lines to R
+"   Sets the key mapping for submitting lines to R.
 "   Default: '<CR>' (Enter key)
 "   Example: let g:zzvim_r_map_submit = '<Leader>s'
 "
 " g:zzvim_r_terminal_width      (number)
-"   Sets the width of the R terminal in the vertical split
+"   Sets the width of the R terminal in the vertical split.
 "   Default: 80
 "
 " g:zzvim_r_command             (string)
-"   The command to start the R terminal
+"   The command to start the R terminal.
 "   Default: 'R --no-save --quiet'
 "
+" g:zzvim_r_chunk_start         (string)
+"   Sets the regular expression for the start of an R Markdown chunk.
+"   Default: '^```{'
+"
+" g:zzvim_r_chunk_end           (string)
+"   Sets the regular expression for the end of an R Markdown chunk.
+"   Default: '^```$'
+"
 " g:zzvim_r_debug               (boolean)
-"   Enables debug mode with logging to ~/zzvim_r.log
+"   Enables debug mode with logging to ~/zzvim_r.log.
 "   Default: 0
 "
 " Default Mappings (when g:zzvim_r_disable_mappings = 0):
 "   <CR>              - Submit current line to R
-"   <localleader>z    - Submit visual selection
+"   <localleader>r    - Open R terminal
 "   <localleader>o    - Add pipe operator and new line
 "   <localleader>j    - Move to next chunk
 "   <localleader>k    - Move to previous chunk
 "   <localleader>l    - Select and submit current chunk
-"   <localleader>'    - Submit all previous chunks
+"   <localleader>t    - Submit all previous chunks
 "   <localleader>q    - Send 'Q' to R terminal
 "   <localleader>c    - Send Ctrl-C to R terminal
 "   <localleader>d    - Run dim() on word under cursor
@@ -59,21 +67,20 @@
 "   <localleader>b    - Run dt() on word under cursor
 "
 " Commands:
-"   :RSubmitLine      - Submit current line to R
-"   :RNextChunk       - Move to next chunk
-"   :RPrevChunk       - Move to previous chunk
-"   :RSelectChunk     - Select current chunk
-"   :RSubmitChunks    - Submit all previous chunks
+"   :RSubmitLine               - Submit current line to R
+"   :ROpenTerminal             - Open a new R terminal
 
 "------------------------------------------------------------------------------
 " Guard against multiple loading
 "------------------------------------------------------------------------------
-if exists('g:loaded_script3')
+if exists('g:loaded_script')
     finish
 endif
-let g:loaded_script3 = 1
+let g:loaded_script = 1
 
+"------------------------------------------------------------------------------
 " Configuration variables with defaults
+"------------------------------------------------------------------------------
 if !exists('g:zzvim_r_default_terminal')
     let g:zzvim_r_default_terminal = 'R'
 endif
@@ -87,284 +94,172 @@ if !exists('g:zzvim_r_map_submit')
 endif
 
 if !exists('g:zzvim_r_terminal_width')
-    let g:zzvim_r_terminal_width = 80
+    let g:zzvim_r_terminal_width = 100
 endif
-
 if !exists('g:zzvim_r_command')
     let g:zzvim_r_command = 'R --no-save --quiet'
 endif
 
-if !exists('g:zzvim_r_debug')
-    let g:zzvim_r_debug = 0
+if !exists('g:zzvim_r_chunk_start')
+    let g:zzvim_r_chunk_start = '^```{'
 endif
 
-" Script-local variables
-let s:last_command_time = ''
+if !exists('g:zzvim_r_chunk_end')
+    let g:zzvim_r_chunk_end = '^```$'
+endif
 
 "------------------------------------------------------------------------------
 " Utility Functions
 "------------------------------------------------------------------------------
-
-"==============================================================================
-" Log debug messages to a file
-"==============================================================================
-function! s:Log(msg) abort
-    if g:zzvim_r_debug
+function! s:Log(msg, level) abort
+    if g:zzvim_r_debug >= a:level
         call writefile([strftime('%c') . ' - ' . a:msg], expand('~/zzvim_r.log'), 'a')
         echom "Debug: " . a:msg
     endif
 endfunction
 
-"==============================================================================
-" Display error messages consistently
-"==============================================================================
 function! s:Error(msg) abort
     echohl ErrorMsg
     echom "zzvim-R: " . a:msg
     echohl None
-    call s:Log(a:msg)
+    " call Log(a:msg, 1)
 endfunction
 
-"==============================================================================
-" Open a new R terminal
-"==============================================================================
+"------------------------------------------------------------------------------
+" Function: Open a new R terminal
+"------------------------------------------------------------------------------
 function! s:OpenRTerminal() abort
     if !executable('R')
-        call s:Error('R is not installed or not in PATH')
+        call Error('R is not installed or not in PATH')
         return
     endif
 
-    let terms = term_list()
-    for term in terms
-        if match(term_getline(term, 1), 'R version') != -1
-            call s:Error('R terminal is already running')
-            call win_gotoid(win_findbuf(term)[0])
-            return
-        endif
-    endfor
+    " Open a vertical split and start the R terminal
+    execute 'vertical term ' . g:zzvim_r_command
+    execute 'vertical resize ' . g:zzvim_r_terminal_width
 
-    let current_window = win_getid()
-    execute 'vertical rightbelow ' . g:zzvim_r_terminal_width . 'vsplit'
-    execute 'terminal ' . g:zzvim_r_command
+    " Set terminal-specific options
+    setlocal norelativenumber nonumber signcolumn=no
 
-    setlocal nobuflisted nonumber norelativenumber signcolumn=no
+    " Indicate that an R terminal is active
     let t:is_r_term = 1
 
-    call win_gotoid(current_window)
+    " Return focus to the previous window
+    wincmd p
 endfunction
 
-"==============================================================================
-" Check if R terminal exists
-"==============================================================================
-function! s:has_r_terminal() abort
-    if !has('terminal')
-        call s:Error("Terminal feature not available in this Vim version")
-        return 0
-    endif
-    try
-        return !empty(term_list())
-    catch
-        call s:Error("Error checking R terminal: " . v:exception)
-        return 0
-    endtry
-endfunction
-
-"==============================================================================
-" Send command to R terminal
-"==============================================================================
-function! s:send_to_r(cmd) abort
-    if !s:has_r_terminal()
-        call s:Error("No R terminal available. Open one with <localleader>r.")
-        return
-    endif
-    try
-        let terms = term_list()
-        let target_terminal = len(terms) == 1 ? terms[0] : s:choose_terminal(terms)
-        if target_terminal == -1
-            call s:Error("Command canceled.")
-            return
-        endif
-        let s:last_command_time = strftime('%H:%M:%S')
-        call term_sendkeys(target_terminal, a:cmd . "\n")
-        echom "Command sent to terminal buffer: " . target_terminal
-        let &statusline .= ' [R cmd: ' . s:last_command_time . ']'
-    catch
-        call s:Error("Error sending command to R terminal: " . v:exception)
-    endtry
-endfunction
-"==============================================================================
-" Submit the current line to the R terminal and move the cursor down
-"==============================================================================
-function! s:SubmitLine() abort
-    call s:send_to_r(getline("."))
+"------------------------------------------------------------------------------
+" Function: Add a pipe operator and create a new line
+"------------------------------------------------------------------------------
+function! s:AddPipeAndNewLine() abort
+    call append(line('.'), ' %>%')
     normal! j
 endfunction
-"==============================================================================
-" Submit the current R Markdown chunk to the R terminal
-"==============================================================================
+
+"------------------------------------------------------------------------------
+" Function: Move to the next R Markdown chunk
+"------------------------------------------------------------------------------
+function! s:MoveNextChunk() abort
+    if search(g:zzvim_r_chunk_start, 'W')
+        echom "Moved to the next chunk."
+    else
+        call s:Error("No more chunks found.")
+    endif
+endfunction
+
+"------------------------------------------------------------------------------
+" Function: Move to the previous R Markdown chunk
+"------------------------------------------------------------------------------
+function! s:MovePrevChunk() abort
+    if search(g:zzvim_r_chunk_start, 'bW')
+        echom "Moved to the previous chunk."
+    else
+        call s:Error("No previous chunks found.")
+    endif
+endfunction
+
+"------------------------------------------------------------------------------
+" Function: Submit the current R Markdown chunk to R terminal
+"------------------------------------------------------------------------------
 function! s:SubmitChunk() abort
     let save_pos = getpos('.')
-
-    " Find the start of the chunk
-    if search('^```{', 'bW') == 0
-        call s:Error("No R Markdown chunk found above the current line.")
+    if search(g:zzvim_r_chunk_start, 'bW') == 0 || search(g:zzvim_r_chunk_end, 'W') == 0
+        call s:Error("No valid chunk found.")
         call setpos('.', save_pos)
         return
     endif
-    let start_line = line('.')
-
-    " Find the end of the chunk
-    if search('^```$', 'W') == 0
-        call s:Error("No closing backticks for the chunk found.")
-        call setpos('.', save_pos)
-        return
-    endif
-    let end_line = line('.')
-
-    " Extract lines within the chunk
-    let chunk_lines = getline(start_line, end_line)
-
-    " Submit the chunk to R
-    call s:send_to_r(join(chunk_lines, "\n"))
+    let chunk_lines = getline(search(g:zzvim_r_chunk_start, 'bW'), search(g:zzvim_r_chunk_end, 'W'))
+    call s:Send_to_r(join(chunk_lines, "\n"))
+    echom "Submitted current chunk to R."
     call setpos('.', save_pos)
-    echom "Submitted current chunk to R terminal."
 endfunction
+
 "------------------------------------------------------------------------------
-" Commands
+" Function: Submit all previous chunks
 "------------------------------------------------------------------------------
-command! -nargs=0 RSubmitLine call <SID>SubmitLine()
-command! -nargs=0 RNextChunk call <SID>MoveNextChunk()
-command! -nargs=0 RPrevChunk call <SID>MovePrevChunk()
-command! -nargs=0 RSelectChunk call <SID>SelectChunk()
-command! -nargs=0 RSubmitChunks call <SID>CollectAndSubmitPreviousChunks()
-"==============================================================================
-" Submit visual selection to R terminal
-"==============================================================================
-function! s:SubmitVisualSelection() abort
-    let selection = s:GetVisualSelection(visualmode())
-    if empty(selection)
-        call s:Error("No visual selection to submit.")
+function! s:CollectAndSubmitPreviousChunks() abort
+    let save_pos = getpos('.')
+    let start_pos = 1
+    if search(g:zzvim_r_chunk_start, 'bW') > 0
+        let start_pos = line('.')
+    endif
+    let lines = getline(1, start_pos - 1)
+    call s:Send_to_r(join(lines, "\n"))
+    echom "Submitted all previous chunks."
+    call setpos('.', save_pos)
+endfunction
+
+"------------------------------------------------------------------------------
+" Function: Send control keys (e.g., 'Q' or Ctrl-C)
+"------------------------------------------------------------------------------
+function! s:SendControlKeys(key) abort
+    try
+        let terms = term_list()
+        let target_terminal = terms[0]
+        call term_sendkeys(target_terminal, a:key)
+    catch
+        call s:Error("Failed to send control key: " . a:key)
+    endtry
+endfunction
+
+"------------------------------------------------------------------------------
+" Function: Perform an R action on the word under the cursor
+"------------------------------------------------------------------------------
+function! s:RAction(action) abort
+    let word = expand('<cword>')
+    if empty(word)
+        call s:Error("No word under cursor.")
         return
     endif
-    call s:send_to_r(selection)
+    call s:Send_to_r(a:action . '(' . word . ')')
+    echom "Ran " . a:action . " on " . word . "."
 endfunction
 
-"==============================================================================
-" Get visual selection based on mode
-"==============================================================================
-function! s:GetVisualSelection(mode) abort
-    let [line_start, col_start] = getpos("'<")[1:2]
-    let [line_end, col_end] = getpos("'>")[1:2]
-    if a:mode ==# "\<C-v>"
-        let lines = []
-        for lnum in range(line_start, line_end)
-            let line = getline(lnum)
-            call add(lines, line[col_start-1 : col_end-1])
-        endfor
-        return join(lines, "\n")
-    elseif a:mode ==# 'v'
-        let lines = getline(line_start, line_end)
-        let lines[0] = lines[0][col_start - 1:]
-        let lines[-1] = lines[-1][:col_end - 1]
-        return join(lines, "\n")
-    elseif a:mode ==# 'V'
-        return join(getline(line_start, line_end), "\n")
-    else
-        call s:Error("Unsupported visual mode")
-        return ''
-    endif
-endfunction
-"==============================================================================
-" Submit visual selection to R terminal
-"==============================================================================
-function! s:SubmitVisualSelection() abort
-    let selection = s:GetVisualSelection(visualmode())
-    if empty(selection)
-        call s:Error("No visual selection to submit.")
-        return
-    endif
-    call s:send_to_r(selection)
-endfunction
-
-"==============================================================================
-" Send visual selection to R terminal and return results as comments
-"==============================================================================
-function! s:SubmitVisualSelectionWithComment() abort
-    let selection = s:GetVisualSelection(visualmode())
-    if empty(selection)
-        call s:Error("No visual selection to process.")
-        return
-    endif
-
-    " Send the selection to R
-    call s:send_to_r(selection)
-
-    " Mock receiving the result from R (as we cannot directly fetch terminal output)
-    let result = "# Simulated R output for: " . substitute(selection, "\n", "; ", "g")
-
-    " Insert result into buffer as an R comment
-    let pos = getpos("'>")  " End of visual selection
-    call setline(pos[1] + 1, split(result, "\n"))
-    echom "Results inserted as R comments."
-endfunction
 "------------------------------------------------------------------------------
 " Mappings
 "------------------------------------------------------------------------------
+"
+"
+"
 if !g:zzvim_r_disable_mappings
     augroup zzvim_RMarkdown
         autocmd!
-        " Mapping to open R terminal
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>r :call <SID>OpenRTerminal()<CR>
-
-        " Mapping to submit the current line to R
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <CR> :call <SID>SubmitLine()<CR>
-
-        " Mapping to submit the current visual selection to R
-        autocmd FileType r,rmd,qmd xnoremap <buffer> <silent> <CR> :call <SID>SubmitVisualSelection()<CR>
-
-        " Mapping to add a pipe operator and create a new line
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>o :call <SID>AddPipeAndNewLine()<CR>
-
-        " Mapping to move to the next R Markdown chunk
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>j :call <SID>MoveNextChunk()<CR>
-
-        " Mapping to move to the previous R Markdown chunk
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>k :call <SID>MovePrevChunk()<CR>
-
-        " Mapping to select the current R Markdown chunk and submit the selection
-autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>l :call <SID>SubmitChunk()<CR>
-
-        " Mapping to submit all previous R Markdown chunks
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>t :call <SID>CollectAndSubmitPreviousChunks()<CR>
-
-        " Mapping to send 'Q' to the R terminal
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>q :call <SID>SendControlKeys("Q")<CR>
-
-        " Mapping to send Ctrl-C to the R terminal
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>c :call <SID>SendControlKeys("\<C-c>")<CR>
-
-        " Mapping to run dim() on the word under the cursor
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>d :call <SID>Raction("dim")<CR>
-
-        " Mapping to run head() on the word under the cursor
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>h :call <SID>Raction("head")<CR>
-
-        " Mapping to run str() on the word under the cursor
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>s :call <SID>Raction("str")<CR>
-
-        " Mapping to run print() on the word under the cursor
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p :call <SID>Raction("print")<CR>
-
-        " Mapping to run names() on the word under the cursor
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>n :call <SID>Raction("names")<CR>
-
-        " Mapping to run length() on the word under the cursor
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>f :call <SID>Raction("length")<CR>
-
-        " Mapping to run glimpse() on the word under the cursor
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>g :call <SID>Raction("glimpse")<CR>
-
-        " Mapping to run dt() on the word under the cursor
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>b :call <SID>Raction("dt")<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>r :call s:OpenRTerminal()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <CR> :call s:Send_to_r(getline("."))<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>o :call s:AddPipeAndNewLine()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>j :call s:MoveNextChunk()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>k :call s:MovePrevChunk()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>l :call s:SubmitChunk()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>t :call s:CollectAndSubmitPreviousChunks()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>q :call s:SendControlKeys("Q")<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>c :call s:SendControlKeys("\<C-c>")<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>d :call s:RAction("dim")<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>h :call s:RAction("head")<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>s :call s:RAction("str")<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p :call s:RAction("print")<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>n :call s:RAction("names")<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>f :call s:RAction("length")<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>g :call s:RAction("glimpse")<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>b :call s:RAction("dt")<CR>
     augroup END
 endif
