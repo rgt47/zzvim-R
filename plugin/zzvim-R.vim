@@ -149,6 +149,19 @@ function! s:OpenRTerminal() abort
 endfunction
 
 "------------------------------------------------------------------------------
+" Function: Send command to R terminal
+"------------------------------------------------------------------------------
+function! s:Send_to_r(cmd) abort
+    try
+        let terms = term_list()
+        let target_terminal = terms[0]
+        call term_sendkeys(target_terminal, a:cmd . "\n")
+    catch
+        call Error("Failed to send to R terminal: " . v:exception)
+    endtry
+    normal! j
+endfunction
+"------------------------------------------------------------------------------
 " Function: Add a pipe operator and create a new line
 "------------------------------------------------------------------------------
 function! s:AddPipeAndNewLine() abort
