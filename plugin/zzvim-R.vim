@@ -232,17 +232,34 @@ endfunction
 " Function: Submit the current R Markdown chunk to R terminal
 "------------------------------------------------------------------------------
 function! s:SubmitChunk() abort
-    let save_pos = getpos('.')
-    if search(g:zzvim_r_chunk_start, 'bW') == 0 || search(g:zzvim_r_chunk_end, 'W') == 0
-        call s:Error("No valid chunk found.")
-        call setpos('.', save_pos)
+    let save_pos = getpos('.')  " Save the current cursor position
+
+    " Find the start of the chunk
+    let chunk_start = search(g:zzvim_r_chunk_start, 'bW')
+    if chunk_start == 0
+        call s:Error("No valid chunk start found.")
+        call setpos('.', save_pos)  " Restore the cursor position
         return
     endif
-    let chunk_lines = getline(search(g:zzvim_r_chunk_start, 'bW'), search(g:zzvim_r_chunk_end, 'W'))
+
+    " Find the end of the chunk
+    let chunk_end = search(g:zzvim_r_chunk_end, 'W')
+    if chunk_end == 0
+        call s:Error("No valid chunk end found.")
+        call setpos('.', save_pos)  " Restore the cursor position
+        return
+    endif
+
+    " Extract the lines within the chunk, excluding the closing delimiter
+    let chunk_lines = getline(chunk_start + 1, chunk_end - 1)
+
+    " Send the chunk to R
     call s:Send_to_r(join(chunk_lines, "\n"))
     echom "Submitted current chunk to R."
-    call setpos('.', save_pos)
+
+    call setpos('.', save_pos)  " Restore the cursor position
 endfunction
+
 
 "------------------------------------------------------------------------------
 " Function: Submit all previous chunks
