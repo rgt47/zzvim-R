@@ -285,10 +285,10 @@ function! s:SubmitChunk() abort
     " If all lines are invalid, place cursor directly on the next chunk start
     if line_num > line('$') || getline(line_num) =~# g:zzvim_r_chunk_start
         call setpos('.', [0, next_chunk_start, 1, 0])
-        echom "Moved to the next chunk start at line " . line('.')
+        " echom "Moved to the next chunk start at line " . line('.')
     else
         call setpos('.', [0, line_num, 1, 0])
-        echom "Moved to the first valid line of the next chunk at line " . line('.')
+        " echom "Moved to the first valid line of the next chunk at line " . line('.')
     endif
 endfunction
 
