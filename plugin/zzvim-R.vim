@@ -274,19 +274,19 @@ function! s:SubmitChunk() abort
         return
     endif
 
-    " Move cursor to the first non-empty line inside the next chunk
-    let line_num = next_chunk_start + 1  " Start searching after the delimiter
-    while line_num <= line('$') && (getline(line_num) =~# '^\s*$' || getline(line_num) =~# g:zzvim_r_chunk_start)
+    " Move to the first non-delimiter line in the next chunk
+    let line_num = next_chunk_start + 1
+    while line_num <= line('$') && (getline(line_num) =~# g:zzvim_r_chunk_start || getline(line_num) =~# g:zzvim_r_chunk_end)
         let line_num += 1
     endwhile
 
-    if line_num > line('$') || getline(line_num) =~# g:zzvim_r_chunk_start
+    if line_num > line('$')
         call s:Error("No valid lines inside the next chunk.")
         return
     endif
 
     call setpos('.', [0, line_num, 1, 0])
-    echom "Moved to the first non-empty line of the next chunk at line " . line('.')
+    echom "Moved to the first line of the next chunk at line " . line('.')
 endfunction
 
 
