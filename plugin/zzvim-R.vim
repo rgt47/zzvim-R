@@ -267,26 +267,29 @@ function! s:SubmitChunk() abort
     call s:Send_to_r(join(chunk_lines, "\n"))
     echom "Submitted current chunk to R."
 
-    " Find the next chunk
+    " Find the next chunk start
     let next_chunk_start = search(g:zzvim_r_chunk_start, 'W')
     if next_chunk_start == 0
         call s:Error("No more chunks found after submission.")
         return
     endif
 
-    " Move to the first non-delimiter line in the next chunk
+    " Move cursor to the first line inside the next chunk
     let line_num = next_chunk_start + 1
-    while line_num <= line('$') && (getline(line_num) =~# g:zzvim_r_chunk_start || getline(line_num) =~# g:zzvim_r_chunk_end)
+
+    " Check if the next line is valid (not empty or a delimiter)
+    while line_num <= line('$') && (getline(line_num) =~# '^\s*$' || getline(line_num) =~# g:zzvim_r_chunk_start || getline(line_num) =~# g:zzvim_r_chunk_end)
         let line_num += 1
     endwhile
 
-    if line_num > line('$')
-        call s:Error("No valid lines inside the next chunk.")
-        return
+    " If all lines are invalid, place cursor directly on the next chunk start
+    if line_num > line('$') || getline(line_num) =~# g:zzvim_r_chunk_start
+        call setpos('.', [0, next_chunk_start, 1, 0])
+        echom "Moved to the next chunk start at line " . line('.')
+    else
+        call setpos('.', [0, line_num, 1, 0])
+        echom "Moved to the first valid line of the next chunk at line " . line('.')
     endif
-
-    call setpos('.', [0, line_num, 1, 0])
-    echom "Moved to the first line of the next chunk at line " . line('.')
 endfunction
 
 
@@ -334,7 +337,7 @@ endfunction
 " Collect and submit all previous chunks to R
 function! s:CollectAndSubmitPreviousChunks() abort
     " Collect all previous chunks
-    let l:previous_chunks = CollectPreviousChunks()
+    let l:previous_chunks = s:CollectPreviousChunks()
 
     " Check if there is anything to submit
     if empty(l:previous_chunks)
