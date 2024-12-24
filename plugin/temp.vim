@@ -1,3 +1,72 @@
+"
+if !exists('g:zzvim_r_chunk_start')
+    let g:zzvim_r_chunk_start = '^```{'
+endif
+
+if !exists('g:zzvim_r_chunk_end')
+    let g:zzvim_r_chunk_end = '^```$'
+endif
+"------------------------------------------------------------------------------
+" Function: Move to the next R Markdown chunk
+"------------------------------------------------------------------------------
+function! MoveNextChunk() abort
+    " Ensure the pattern for chunk start is defined
+    if !exists('g:zzvim_r_chunk_start')
+        call Error("Chunk start pattern is not defined.")
+        return
+    endif
+
+    " Search for the next chunk start
+    let chunk_start = search(g:zzvim_r_chunk_start, 'W')
+
+    if chunk_start
+        " Move the cursor to the first line inside the chunk
+        if line('.') < line('$')
+            normal! j
+            echom "Moved inside the next chunk at line " . line('.')
+        else
+            call Error("Next chunk found, but no lines inside the chunk.")
+        endif
+    else
+        call Error("No more chunks found.")
+    endif
+endfunction
+
+
+"------------------------------------------------------------------------------
+" Function: Submit the current R Markdown chunk to R terminal
+"------------------------------------------------------------------------------
+function! SubmitChunk() abort
+    let save_pos = getpos('.')  " Save the current cursor position
+
+    " Find the start of the chunk
+    let chunk_start = search(g:zzvim_r_chunk_start, 'bW')
+    if chunk_start == 0
+        call Error("No valid chunk start found.")
+        call setpos('.', save_pos)  " Restore the cursor position
+        return
+    endif
+
+    " Find the end of the chunk
+    let chunk_end = search(g:zzvim_r_chunk_end, 'W')
+    if chunk_end == 0
+        call Error("No valid chunk end found.")
+        call setpos('.', save_pos)  " Restore the cursor position
+        return
+    endif
+
+    " Extract the lines within the chunk, excluding the closing delimiter
+    let chunk_lines = getline(chunk_start + 1, chunk_end - 1)
+
+    " Send the chunk to R
+    call Send_to_r(join(chunk_lines, "\n"))
+    echom "Submitted current chunk to R."
+
+    call setpos('.', save_pos)  " Restore the cursor position
+endfunction
+
+
+
 function! GetVisualSelection() abort
     let [line_start, col_start] = getpos("'<")[1:2]
     let [line_end, col_end] = getpos("'>")[1:2]
@@ -91,3 +160,6 @@ autocmd FileType * nnoremap <buffer> <silent> <localleader>r :call OpenRTerminal
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <CR> :call Send_to_r(getline("."))<CR>
 
 autocmd FileType *  xnoremap <buffer> <silent> <CR> :<C-u>call SendVisualToR()<CR>
+
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>j :call MoveNextChunk()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>l :call SubmitChunk()<CR>
