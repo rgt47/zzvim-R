@@ -211,7 +211,13 @@ endfunction
 "------------------------------------------------------------------------------
 function! s:MoveNextChunk() abort
     if search(g:zzvim_r_chunk_start, 'W')
-        echom "Moved to the next chunk."
+        " Move cursor to the next line to enter the chunk
+        if line('.') < line('$')
+            normal! j
+            echom "Moved to the next chunk at line " . line('.')
+        else
+            call s:Error("Next chunk found, but no lines inside the chunk.")
+        endif
     else
         call s:Error("No more chunks found.")
     endif
@@ -228,13 +234,10 @@ function! s:MovePrevChunk() abort
     endif
 endfunction
 
-"------------------------------------------------------------------------------
-" Function: Submit the current R Markdown chunk to R terminal
-"------------------------------------------------------------------------------
 function! s:SubmitChunk() abort
     let save_pos = getpos('.')  " Save the current cursor position
 
-    " Find the start of the chunk
+    " Find the start of the current chunk
     let chunk_start = search(g:zzvim_r_chunk_start, 'bW')
     if chunk_start == 0
         call s:Error("No valid chunk start found.")
@@ -242,10 +245,17 @@ function! s:SubmitChunk() abort
         return
     endif
 
-    " Find the end of the chunk
+    " Find the end of the current chunk
     let chunk_end = search(g:zzvim_r_chunk_end, 'W')
     if chunk_end == 0
         call s:Error("No valid chunk end found.")
+        call setpos('.', save_pos)  " Restore the cursor position
+        return
+    endif
+
+    " Validate chunk range
+    if chunk_start + 1 > chunk_end - 1
+        call s:Error("Chunk is empty or malformed.")
         call setpos('.', save_pos)  " Restore the cursor position
         return
     endif
@@ -257,23 +267,84 @@ function! s:SubmitChunk() abort
     call s:Send_to_r(join(chunk_lines, "\n"))
     echom "Submitted current chunk to R."
 
-    call setpos('.', save_pos)  " Restore the cursor position
+    " Find the next chunk
+    let next_chunk_start = search(g:zzvim_r_chunk_start, 'W')
+    if next_chunk_start == 0
+        call s:Error("No more chunks found after submission.")
+        return
+    endif
+
+    " Move cursor to the first non-empty line inside the next chunk
+    let line_num = next_chunk_start
+    while line_num < line('$') && getline(line_num) =~# '^\s*$'
+        let line_num += 1
+    endwhile
+
+    if line_num >= line('$') || getline(line_num) =~# g:zzvim_r_chunk_start
+        call s:Error("No valid lines inside the next chunk.")
+        return
+    endif
+
+    call setpos('.', [0, line_num, 1, 0])
+    echom "Moved to the first non-empty line of the next chunk at line " . line('.')
 endfunction
 
 
+function! s:CollectPreviousChunks() abort
+    " Define the chunk delimiter as lines starting with ```
+    let l:chunk_start_delimiter = '^\s*```{.*'
+    let l:chunk_end_delimiter = '^\s*```$'
+
+    " Get the current line number
+    let l:current_line = line('.')
+
+    " Initialize variables
+    let l:all_chunk_lines = []
+    let l:inside_chunk = 0
+
+    " Loop through lines up to the current line
+    for l:line in range(1, l:current_line)
+        let l:current_content = getline(l:line)
+        
+        " Check if the line is a chunk start
+        if l:current_content =~ l:chunk_start_delimiter
+            let l:inside_chunk = 1
+            continue
+        endif
+        
+        " Check if the line is a chunk end
+        if l:current_content =~ l:chunk_end_delimiter
+            let l:inside_chunk = 0
+            continue
+        endif
+
+        " If inside a chunk, collect the line
+        if l:inside_chunk
+            call add(l:all_chunk_lines, l:current_content)
+        endif
+    endfor
+
+    " Return the collected lines joined as a single string
+    return join(l:all_chunk_lines, "\n")
+endfunction
 "------------------------------------------------------------------------------
-" Function: Submit all previous chunks
+" Mapping to Collect and Submit All Previous Chunks
 "------------------------------------------------------------------------------
+
+" Collect and submit all previous chunks to R
 function! s:CollectAndSubmitPreviousChunks() abort
-    let save_pos = getpos('.')
-    let start_pos = 1
-    if search(g:zzvim_r_chunk_start, 'bW') > 0
-        let start_pos = line('.')
+    " Collect all previous chunks
+    let l:previous_chunks = CollectPreviousChunks()
+
+    " Check if there is anything to submit
+    if empty(l:previous_chunks)
+        echo "No previous chunks to submit."
+        return
     endif
-    let lines = getline(1, start_pos - 1)
-    call s:Send_to_r(join(lines, "\n"))
-    echom "Submitted all previous chunks."
-    call setpos('.', save_pos)
+
+    " Submit to R using the existing send_to_r function
+    call s:Send_to_r(l:previous_chunks . "\n")
+    echo "Submitted all previous chunks to R."
 endfunction
 
 "------------------------------------------------------------------------------
