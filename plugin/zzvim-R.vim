@@ -109,6 +109,28 @@ if !exists('g:zzvim_r_chunk_end')
 endif
 
 "------------------------------------------------------------------------------
+" Function: Open a new R terminal
+"------------------------------------------------------------------------------
+function! s:OpenRTerminal() abort
+    if !executable('R')
+        call s:Error('R is not installed or not in PATH')
+        return
+    endif
+
+    " Open a vertical split and start the R terminal
+    execute 'vertical term ' . g:zzvim_r_command
+    " execute 'vertical resize ' . g:zzvim_r_terminal_width
+
+    " Set terminal-specific options
+    setlocal norelativenumber nonumber signcolumn=no
+
+    " Indicate that an R terminal is active
+    let t:is_r_term = 1
+
+    " Return focus to the previous window
+    wincmd p
+endfunction
+"------------------------------------------------------------------------------
 " Utility Functions
 "------------------------------------------------------------------------------
 function! s:Log(msg, level) abort
@@ -157,7 +179,7 @@ function! s:Send_to_r(cmd) abort
         let target_terminal = terms[0]
         call term_sendkeys(target_terminal, a:cmd . "\n")
     catch
-        call Error("Failed to send to R terminal: " . v:exception)
+        call s:Error("Failed to send to R terminal: " . v:exception)
     endtry
     normal! j
 endfunction
@@ -176,7 +198,7 @@ endfunction
 
 function! s:SendVisualToR() abort
     " Get the selected text
-    let selection = GetVisualSelection()
+    let selection = s:GetVisualSelection()
 
     " Check if R terminal exists
     if !exists('t:is_r_term') || t:is_r_term != 1
@@ -210,88 +232,85 @@ endfunction
 " Function: Move to the next R Markdown chunk
 "------------------------------------------------------------------------------
 function! s:MoveNextChunk() abort
-    if search(g:zzvim_r_chunk_start, 'W')
-        " Move cursor to the next line to enter the chunk
+    " Ensure the pattern for chunk start is defined
+    if !exists('g:zzvim_r_chunk_start')
+        call s:Error("Chunk start pattern is not defined.")
+        return
+    endif
+
+    " Search for the next chunk start
+    let chunk_start = search(g:zzvim_r_chunk_start, 'W')
+
+    if chunk_start
+        " Move the cursor to the first line inside the chunk
         if line('.') < line('$')
             normal! j
-            echom "Moved to the next chunk at line " . line('.')
+            echom "Moved inside the next chunk at line " . line('.')
         else
-            call s:Error("Next chunk found, but no lines inside the chunk.")
+            call Error("Next chunk found, but no lines inside the chunk.")
         endif
     else
         call s:Error("No more chunks found.")
     endif
 endfunction
 
+
 "------------------------------------------------------------------------------
 " Function: Move to the previous R Markdown chunk
 "------------------------------------------------------------------------------
 function! s:MovePrevChunk() abort
-    if search(g:zzvim_r_chunk_start, 'bW')
-        echom "Moved to the previous chunk."
-    else
-        call s:Error("No previous chunks found.")
-    endif
+    let chunk_start = search(g:zzvim_r_chunk_start, 'bW')
+    call setpos('.', [0, chunk_start, 1, 0])
+    let chunk_end = search(g:zzvim_r_chunk_end, 'bW')
+    call setpos('.', [0, chunk_end, 1, 0])
+    let chunk_start = search(g:zzvim_r_chunk_start, 'bW')
+    call setpos('.', [0, chunk_start, 1, 0])
+            normal! j
 endfunction
+
 
 function! s:SubmitChunk() abort
     let save_pos = getpos('.')  " Save the current cursor position
-
-    " Find the start of the current chunk
     let chunk_start = search(g:zzvim_r_chunk_start, 'bW')
     if chunk_start == 0
         call s:Error("No valid chunk start found.")
         call setpos('.', save_pos)  " Restore the cursor position
         return
     endif
-
-    " Find the end of the current chunk
     let chunk_end = search(g:zzvim_r_chunk_end, 'W')
     if chunk_end == 0
         call s:Error("No valid chunk end found.")
         call setpos('.', save_pos)  " Restore the cursor position
         return
     endif
-
-    " Validate chunk range
-    if chunk_start + 1 > chunk_end - 1
-        call s:Error("Chunk is empty or malformed.")
-        call setpos('.', save_pos)  " Restore the cursor position
-        return
-    endif
-
-    " Extract the lines within the chunk, excluding the closing delimiter
     let chunk_lines = getline(chunk_start + 1, chunk_end - 1)
+    let g:source_file = tempname()
+    call writefile(chunk_lines, g:source_file)
 
-    " Send the chunk to R
-    call s:Send_to_r(join(chunk_lines, "\n"))
+    let cmd = "source('" . g:source_file . "', echo=T)\n"
+    call s:Send_to_r(cmd)
     echom "Submitted current chunk to R."
-
-    " Find the next chunk start
+    call setpos('.', [0, chunk_end, 1, 0])
     let next_chunk_start = search(g:zzvim_r_chunk_start, 'W')
     if next_chunk_start == 0
         call s:Error("No more chunks found after submission.")
         return
     endif
-
-    " Move cursor to the first line inside the next chunk
-    let line_num = next_chunk_start + 1
-
-    " Check if the next line is valid (not empty or a delimiter)
-    while line_num <= line('$') && (getline(line_num) =~# '^\s*$' || getline(line_num) =~# g:zzvim_r_chunk_start || getline(line_num) =~# g:zzvim_r_chunk_end)
+    let line_num = next_chunk_start
+    let line_count = line('$')
+    while line_num <= line_count
+        let current_line = getline(line_num)
+        if current_line !~# '^\s*$' && current_line !~# g:zzvim_r_chunk_start && current_line !~# g:zzvim_r_chunk_end
+            break
+        endif
         let line_num += 1
     endwhile
-
-    " If all lines are invalid, place cursor directly on the next chunk start
-    if line_num > line('$') || getline(line_num) =~# g:zzvim_r_chunk_start
-        call setpos('.', [0, next_chunk_start, 1, 0])
-        " echom "Moved to the next chunk start at line " . line('.')
-    else
-        call setpos('.', [0, line_num, 1, 0])
-        " echom "Moved to the first valid line of the next chunk at line " . line('.')
+    if line_num > line_count
+        call s:Error("No valid lines inside the next chunk.")
+        return
     endif
+    call setpos('.', [0, line_num, 1, 0])
 endfunction
-
 
 function! s:CollectPreviousChunks() abort
     " Define the chunk delimiter as lines starting with ```
@@ -386,6 +405,7 @@ if !g:zzvim_r_disable_mappings
     augroup zzvim_RMarkdown
         autocmd!
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>r :call <SID>OpenRTerminal()<CR>
+
         autocmd FileType *  xnoremap <buffer> <silent> <CR> :<C-u>call <SID>SendVisualToR()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <CR> :call <SID>Send_to_r(getline("."))<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>o :call <SID>AddPipeAndNewLine()<CR>

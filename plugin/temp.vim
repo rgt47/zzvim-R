@@ -1,50 +1,32 @@
-"------------------------------------------------------------------------------
-" Function: Submit the current R Markdown chunk to R terminal
-"------------------------------------------------------------------------------
 function! SubmitChunk() abort
     let save_pos = getpos('.')  " Save the current cursor position
-
-    " Find the start of the chunk
     let chunk_start = search(g:zzvim_r_chunk_start, 'bW')
     if chunk_start == 0
         call Error("No valid chunk start found.")
         call setpos('.', save_pos)  " Restore the cursor position
         return
     endif
-
-    " Find the end of the chunk
     let chunk_end = search(g:zzvim_r_chunk_end, 'W')
     if chunk_end == 0
         call Error("No valid chunk end found.")
         call setpos('.', save_pos)  " Restore the cursor position
         return
     endif
-
-    " Extract the lines within the chunk, excluding the closing delimiter
     let chunk_lines = getline(chunk_start + 1, chunk_end - 1)
-
     let g:source_file = tempname()
     call writefile(chunk_lines, g:source_file)
 
     let cmd = "source('" . g:source_file . "', echo=T)\n"
     call Send_to_r(cmd)
     echom "Submitted current chunk to R."
-
-" Delete the temporary file
-    " call delete(g:source_file)
-
-    " Find the next chunk start
-    call setpos('.', [0, chunk_end, 1, 0])  " Set at end of chunk
+    call setpos('.', [0, chunk_end, 1, 0])
     let next_chunk_start = search(g:zzvim_r_chunk_start, 'W')
     if next_chunk_start == 0
         call Error("No more chunks found after submission.")
         return
     endif
-
-    " Skip empty lines and delimiters in the next chunk
     let line_num = next_chunk_start
     let line_count = line('$')
-
     while line_num <= line_count
         let current_line = getline(line_num)
         if current_line !~# '^\s*$' && current_line !~# g:zzvim_r_chunk_start && current_line !~# g:zzvim_r_chunk_end
@@ -52,16 +34,11 @@ function! SubmitChunk() abort
         endif
         let line_num += 1
     endwhile
-
-    " If no valid line is found, return an error
     if line_num > line_count
         call Error("No valid lines inside the next chunk.")
         return
     endif
-
-    " Move the cursor to the first valid line
     call setpos('.', [0, line_num, 1, 0])
-    
 endfunction
 
 "
@@ -126,6 +103,20 @@ function! MoveNextChunk() abort
     else
         call Error("No more chunks found.")
     endif
+endfunction
+
+
+"------------------------------------------------------------------------------
+" Function: Move to the previous R Markdown chunk
+"------------------------------------------------------------------------------
+function! MovePrevChunk() abort
+    let chunk_start = search(g:zzvim_r_chunk_start, 'bW')
+    call setpos('.', [0, chunk_start, 1, 0])
+    let chunk_end = search(g:zzvim_r_chunk_end, 'bW')
+    call setpos('.', [0, chunk_end, 1, 0])
+    let chunk_start = search(g:zzvim_r_chunk_start, 'bW')
+    call setpos('.', [0, chunk_start, 1, 0])
+            normal! j
 endfunction
 
 
@@ -206,7 +197,7 @@ function! OpenRTerminal() abort
 
     " Open a vertical split and start the R terminal
     execute 'vertical term ' . g:zzvim_r_command
-    execute 'vertical resize ' . g:zzvim_r_terminal_width
+    " execute 'vertical resize ' . g:zzvim_r_terminal_width
 
     " Set terminal-specific options
     setlocal norelativenumber nonumber signcolumn=no
@@ -226,4 +217,5 @@ autocmd FileType * nnoremap <buffer> <silent> <localleader>r :call OpenRTerminal
 autocmd FileType *  xnoremap <buffer> <silent> <CR> :<C-u>call SendVisualToR()<CR>
 
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>j :call MoveNextChunk()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>k :call MovePrevChunk()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>l :call SubmitChunk()<CR>zz
