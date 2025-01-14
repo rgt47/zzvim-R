@@ -406,7 +406,6 @@ if !g:zzvim_r_disable_mappings
     augroup zzvim_RMarkdown
         autocmd!
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>r 
-          
           :call <SID>OpenRTerminal()<CR>
         autocmd FileType *  xnoremap <buffer> <silent> <CR> 
           :<C-u>call <SID>SendVisualToR()<CR>
@@ -427,7 +426,7 @@ if !g:zzvim_r_disable_mappings
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>c 
           :call <SID>SendControlKeys("\<C-c>")<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>d 
-          :call <SID>RAction("dim")<CR>
+          :call <SID>RAction("dim")
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>h 
           :call <SID>RAction("head")<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>s 
