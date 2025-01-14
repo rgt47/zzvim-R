@@ -290,7 +290,7 @@ function! s:SubmitChunk() abort
     call writefile(chunk_lines, g:source_file)
 
     let cmd = "source('" . g:source_file . "', echo=T)\n"
-    call s:Send_to_r(cmd)
+    call s:Send_to_r(cmd, 0)
     echom "Submitted current chunk to R."
     call setpos('.', [0, chunk_end, 1, 0])
     let next_chunk_start = search(g:zzvim_r_chunk_start, 'W')
