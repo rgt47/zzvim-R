@@ -406,15 +406,15 @@ if !g:zzvim_r_disable_mappings
     augroup zzvim_RMarkdown
         autocmd!
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>r 
-          :call <SID>OpenRTerminal()<CR>
+	\ :call <SID>OpenRTerminal()<CR>
         autocmd FileType *  xnoremap <buffer> <silent> <CR> 
-          :<C-u>call <SID>SendVisualToR()<CR>
+				\   :<C-u>call <SID>SendVisualToR()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <CR> 
-          :call <SID>Send_to_r(getline("."))<CR>
+				\          :call <SID>Send_to_r(getline("."))<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>o 
-          :call <SID>AddPipeAndNewLine()<CR>
+				\          :call <SID>AddPipeAndNewLine()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>j 
-          :call <SID>MoveNextChunk()<CR>
+				\          :call <SID>MoveNextChunk()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>k 
           :call <SID>MovePrevChunk()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>l 
