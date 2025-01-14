@@ -173,7 +173,7 @@ endfunction
 "------------------------------------------------------------------------------
 " Function: Send command to R terminal
 "------------------------------------------------------------------------------
-function! s:Send_to_r(cmd) abort
+function! s:Send_to_r(cmd, stay_on_line) abort
     try
         let terms = term_list()
         let target_terminal = terms[0]
@@ -181,7 +181,9 @@ function! s:Send_to_r(cmd) abort
     catch
         call s:Error("Failed to send to R terminal: " . v:exception)
     endtry
-    normal! j
+    if !a:stay_on_line
+        normal! j
+    endif
 endfunction
 
 function! s:GetVisualSelection() abort
@@ -376,8 +378,16 @@ endfunction
 function! s:SendControlKeys(key) abort
     try
         let terms = term_list()
+        if empty(terms)
+            call s:Error("No active terminals found.")
+            return
+        endif
+
+        " Assume the first terminal in the list is the target
         let target_terminal = terms[0]
+        " Use term_sendkeys to send the control key
         call term_sendkeys(target_terminal, a:key)
+        echom "Sent control key: " . a:key
     catch
         call s:Error("Failed to send control key: " . a:key)
     endtry
@@ -386,13 +396,13 @@ endfunction
 "------------------------------------------------------------------------------
 " Function: Perform an R action on the word under the cursor
 "------------------------------------------------------------------------------
-function! s:RAction(action) abort
+function! s:RAction(action, stay_on_line) abort
     let word = expand('<cword>')
     if empty(word)
         call s:Error("No word under cursor.")
         return
     endif
-    call s:Send_to_r(a:action . '(' . word . ')')
+    call s:Send_to_r(a:action . '(' . word . ')', a:stay_on_line)
     echom "Ran " . a:action . " on " . word . "."
 endfunction
 
@@ -415,13 +425,13 @@ if !g:zzvim_r_disable_mappings
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>t :call <SID>CollectAndSubmitPreviousChunks()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>q :call <SID>SendControlKeys("Q")<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>c :call <SID>SendControlKeys("\<C-c>")<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>d :call <SID>RAction("dim")<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>h :call <SID>RAction("head")<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>s :call <SID>RAction("str")<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p :call <SID>RAction("print")<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>n :call <SID>RAction("names")<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>f :call <SID>RAction("length")<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>g :call <SID>RAction("glimpse")<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>b :call <SID>RAction("dt")<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>d :call <SID>RAction("dim", 1)<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>h :call <SID>RAction("head",1)<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>s :call <SID>RAction("str",1)<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p :call <SID>RAction("print",1)<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>n :call <SID>RAction("names",1)<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>f :call <SID>RAction("length",1)<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>g :call <SID>RAction("glimpse",1)<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>b :call <SID>RAction("dt",1)<CR>
     augroup END
 endif
