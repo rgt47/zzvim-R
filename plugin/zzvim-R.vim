@@ -368,7 +368,7 @@ function! s:CollectAndSubmitPreviousChunks() abort
     endif
 
     " Submit to R using the existing send_to_r function
-    call s:Send_to_r(l:previous_chunks . "\n")
+    call s:Send_to_r(l:previous_chunks . "\n",0)
     echo "Submitted all previous chunks to R."
 endfunction
 
@@ -417,7 +417,7 @@ if !g:zzvim_r_disable_mappings
         autocmd!
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>r  :call <SID>OpenRTerminal()<CR>
         autocmd FileType *  xnoremap <buffer> <silent> <CR>    :<C-u>call <SID>SendVisualToR()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <CR>  :call <SID>Send_to_r(getline("."))<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <CR>  :call <SID>Send_to_r(getline("."),0)<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>o   :call <SID>AddPipeAndNewLine()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>j   :call <SID>MoveNextChunk()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>k :call <SID>MovePrevChunk()<CR>
