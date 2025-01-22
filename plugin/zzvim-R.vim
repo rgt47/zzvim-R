@@ -219,7 +219,7 @@ function! s:SendVisualToR() abort
 
         " Re-select the Visual selection and move the cursor to its end
         normal! gv
-        normal! >j
+        normal! `>j
     catch
         echohl ErrorMsg
         echom "Error: Unable to send to R terminal."
