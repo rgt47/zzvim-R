@@ -198,35 +198,6 @@ function! s:GetVisualSelection() abort
     return join(lines, "\n")
 endfunction
 
-function! s:SendVisualToR() abort
-    " Get the selected text
-    let selection = s:GetVisualSelection()
-
-    " Check if R terminal exists
-    if !exists('t:is_r_term') || t:is_r_term != 1
-        echohl ErrorMsg
-        echom "Error: No R terminal is active. Open one with :call OpenRTerminal()."
-        echohl None
-        return
-    endif
-
-    " Send the selection to the R terminal
-    try
-        let terms = term_list()
-        let target_terminal = terms[0]
-        call term_sendkeys(target_terminal, selection . "\n")
-        echo "Sent visual selection to R terminal."
-
-        " Re-select the Visual selection and move the cursor to its end
-        normal! gv
-        normal! `>j
-        normal! 0
-    catch
-        echohl ErrorMsg
-        echom "Error: Unable to send to R terminal."
-        echohl None
-    endtry
-endfunction
 " function! s:SendVisualToR() abort
 "     " Get the selected text
 "     let selection = s:GetVisualSelection()
@@ -242,15 +213,45 @@ endfunction
 "     " Send the selection to the R terminal
 "     try
 "         let terms = term_list()
-"         let target_terminal = terms[0] " Assuming the first terminal is R
+"         let target_terminal = terms[0]
 "         call term_sendkeys(target_terminal, selection . "\n")
 "         echo "Sent visual selection to R terminal."
+
+"         " Re-select the Visual selection and move the cursor to its end
+"         normal! gv
+"         normal! `>j
+"         normal! 0
 "     catch
 "         echohl ErrorMsg
 "         echom "Error: Unable to send to R terminal."
 "         echohl None
 "     endtry
 " endfunction
+"
+function! s:SendVisualToR() abort
+    " Get the selected text
+    let selection = s:GetVisualSelection()
+
+    " Check if R terminal exists
+    if !exists('t:is_r_term') || t:is_r_term != 1
+        echohl ErrorMsg
+        echom "Error: No R terminal is active. Open one with :call OpenRTerminal()."
+        echohl None
+        return
+    endif
+
+    " Send the selection to the R terminal
+    try
+        let terms = term_list()
+        let target_terminal = terms[0] " Assuming the first terminal is R
+        call term_sendkeys(target_terminal, selection . "\n")
+        echo "Sent visual selection to R terminal."
+    catch
+        echohl ErrorMsg
+        echom "Error: Unable to send to R terminal."
+        echohl None
+    endtry
+endfunction
 "------------------------------------------------------------------------------
 " Function: Add a pipe operator and create a new line
 "------------------------------------------------------------------------------
