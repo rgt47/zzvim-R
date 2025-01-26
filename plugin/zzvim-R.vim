@@ -174,13 +174,38 @@ endfunction
 " Function: Send command to R terminal
 "------------------------------------------------------------------------------
 function! s:Send_to_r(cmd, stay_on_line) abort
+    " Check if R terminal exists and try to create one if it doesn't
+    if !exists('t:is_r_term') || t:is_r_term != 1
+        " Try to open R terminal
+        call s:OpenRTerminal()
+        
+        " Verify terminal was created successfully
+        if !exists('t:is_r_term') || t:is_r_term != 1
+            call s:Error("Could not create R terminal. Please check R installation.")
+            return
+        endif
+    endif
+
+    " Get available terminals
+    let terms = term_list()
+    if empty(terms)
+        call s:Error("No active terminals found")
+        return
+    endif
+
     try
-        let terms = term_list()
         let target_terminal = terms[0]
-        call term_sendkeys(target_terminal, a:cmd . "\n")
+        " Skip empty commands
+        if !empty(trim(a:cmd))
+            call term_sendkeys(target_terminal, a:cmd . "\n")
+            " Add small delay for terminal handling
+            sleep 10m
+        endif
     catch
         call s:Error("Failed to send to R terminal: " . v:exception)
+        return
     endtry
+
     if !a:stay_on_line
         normal! j
     endif
