@@ -228,28 +228,89 @@ endfunction
 "     endtry
 " endfunction
 "
+" function! s:SendVisualToR() abort
+"     " Get the selected text
+"     let selection = s:GetVisualSelection()
+
+"     " Check if R terminal exists
+"     if !exists('t:is_r_term') || t:is_r_term != 1
+"         echohl ErrorMsg
+"         echom "Error: No R terminal is active. Open one with :call OpenRTerminal()."
+"         echohl None
+"         return
+"     endif
+
+"     " Send the selection to the R terminal
+"     try
+"         let terms = term_list()
+"         let target_terminal = terms[0] " Assuming the first terminal is R
+"         call term_sendkeys(target_terminal, selection . "\n")
+"         echo "Sent visual selection to R terminal."
+"     catch
+"         echohl ErrorMsg
+"         echom "Error: Unable to send to R terminal."
+"         echohl None
+"     endtry
+" endfunction
 function! s:SendVisualToR() abort
+    " Store the end position of the visual selection
+    let [line_start, col_start] = getpos("'<")[1:2]
+    let [line_end, col_end] = getpos("'>")[1:2]
+    
     " Get the selected text
     let selection = s:GetVisualSelection()
+    
+    " Validate selection isn't empty
+    if empty(selection)
+        call s:Error("No text selected")
+        return
+    endif
 
-    " Check if R terminal exists
+    " Check if R terminal exists and try to create one if it doesn't
     if !exists('t:is_r_term') || t:is_r_term != 1
-        echohl ErrorMsg
-        echom "Error: No R terminal is active. Open one with :call OpenRTerminal()."
-        echohl None
+        " Try to open R terminal
+        call s:OpenRTerminal()
+        
+        " Verify terminal was created successfully
+        if !exists('t:is_r_term') || t:is_r_term != 1
+            call s:Error("Could not create R terminal. Please check R installation.")
+            return
+        endif
+    endif
+
+    " Get available terminals
+    let terms = term_list()
+    if empty(terms)
+        call s:Error("No active terminals found")
         return
     endif
 
     " Send the selection to the R terminal
     try
-        let terms = term_list()
-        let target_terminal = terms[0] " Assuming the first terminal is R
-        call term_sendkeys(target_terminal, selection . "\n")
-        echo "Sent visual selection to R terminal."
+        let target_terminal = terms[0]
+        
+        " Split multi-line selections and send line by line
+        let lines = split(selection, "\n")
+        for line in lines
+            " Skip empty lines
+            if !empty(trim(line))
+                call term_sendkeys(target_terminal, line . "\n")
+                " Add small delay between lines for better terminal handling
+                sleep 10m
+            endif
+        endfor
+        
+        " Provide feedback
+        echo "Sent " . len(lines) . " line" . (len(lines) > 1 ? "s" : "") . " to R"
+        
+        " Exit visual mode, move to next line, and ensure normal mode
+        execute "normal! \<ESC>"
+        call cursor(line_end + 1, 1)
+        
     catch
-        echohl ErrorMsg
-        echom "Error: Unable to send to R terminal."
-        echohl None
+        call s:Error("Failed to send to R terminal: " . v:exception)
+        " Ensure we exit to normal mode even on error
+        execute "normal! \<ESC>"
     endtry
 endfunction
 "------------------------------------------------------------------------------
