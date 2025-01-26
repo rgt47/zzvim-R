@@ -174,8 +174,12 @@ endfunction
 " Function: Send command to R terminal
 "------------------------------------------------------------------------------
 function! s:Send_to_r(cmd, stay_on_line) abort
-    " Check if R terminal exists and try to create one if it doesn't
+    " Check if R terminal exists
     if !exists('t:is_r_term') || t:is_r_term != 1
+        echohl WarningMsg
+        echo "No R terminal open - creating new terminal and submitting line..."
+        echohl None
+        
         " Try to open R terminal
         call s:OpenRTerminal()
         
@@ -184,6 +188,9 @@ function! s:Send_to_r(cmd, stay_on_line) abort
             call s:Error("Could not create R terminal. Please check R installation.")
             return
         endif
+        
+        " Small delay to ensure terminal is ready
+        sleep 100m
     endif
 
     " Get available terminals
