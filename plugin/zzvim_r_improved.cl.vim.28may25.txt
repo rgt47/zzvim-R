@@ -1,0 +1,1108 @@
+" ==============================================================================
+" zzvim-R - R development plugin for Vim
+" ==============================================================================
+" File:        plugin/zzvim-r.vim
+" Maintainer:  RG Thomas <rgthomas@ucsd.edu>
+" Version:     2.1
+" License:     GPL-3.0
+" URL:         https://github.com/rgthomas/zzvim-r
+" Description: Comprehensive R integration for Vim with terminal management,
+"              chunk navigation, and object inspection capabilities.
+"
+" FEATURES:
+" - Persistent R terminal session management per Vim tab
+" - Send lines, visual selections, and R Markdown chunks to R
+" - Navigate between R Markdown code chunks
+" - Quick R object inspection functions
+" - Configurable key mappings and behavior
+" - Comprehensive error handling and debug logging
+" - Support for R, R Markdown, and Quarto files
+"
+" REQUIREMENTS:
+" - Vim 8.0+ with terminal support
+" - R executable in PATH
+" - Optional: tidyverse packages for enhanced inspection functions
+"
+" QUICK START:
+" 1. Open an R file (.r, .rmd, .qmd)
+" 2. Press <LocalLeader>r to open R terminal
+" 3. Use <CR> to send current line or visual selection to R
+" 4. Navigate chunks with <LocalLeader>j/k, execute with <LocalLeader>l
+" 5. Use inspection shortcuts: <LocalLeader>h for head(), etc.
+"
+" CONFIGURATION:
+" See g:zzvim_r_* variables below for customization options.
+" ==============================================================================
+
+" Prevent multiple loading and enforce minimum Vim version
+if exists('g:loaded_zzvim_r') || v:version < 800 || !has('terminal')
+    finish
+endif
+let g:loaded_zzvim_r = 1
+
+" Store user's cpoptions and set to Vim defaults during script processing
+let s:save_cpo = &cpoptions
+set cpoptions&vim
+
+"==============================================================================
+" CONFIGURATION VARIABLES
+"==============================================================================
+" These variables control plugin behavior and can be customized in vimrc.
+" All use get() for safe initialization with sensible defaults.
+
+" Terminal configuration
+let g:zzvim_r_command = get(g:, 'zzvim_r_command', 'R --no-save --quiet')
+let g:zzvim_r_terminal_width = get(g:, 'zzvim_r_terminal_width', 100)
+
+" Key mapping configuration  
+let g:zzvim_r_disable_mappings = get(g:, 'zzvim_r_disable_mappings', 0)
+
+" R Markdown chunk patterns (configurable for different formats)
+let g:zzvim_r_chunk_start = get(g:, 'zzvim_r_chunk_start', '^```{[rR]')
+let g:zzvim_r_chunk_end = get(g:, 'zzvim_r_chunk_end', '^```\s*$')
+
+" Debug and logging
+let g:zzvim_r_debug = get(g:, 'zzvim_r_debug', 0)
+let g:zzvim_r_log_file = get(g:, 'zzvim_r_log_file', '~/zzvim_r.log')
+
+" Validate and sanitize configuration
+if g:zzvim_r_terminal_width < 30 || g:zzvim_r_terminal_width > 300
+    let g:zzvim_r_terminal_width = 100
+    call s:warn('Invalid terminal width, using default: 100')
+endif
+
+" Define supported file types
+let s:supported_filetypes = ['r', 'rmd', 'rnw', 'qmd']
+
+"==============================================================================
+" UTILITY FUNCTIONS
+"==============================================================================
+" Core utility functions for logging, messaging, and common operations.
+" These maintain consistency across the plugin and enable effective debugging.
+
+" ==============================================================================
+" s:log(msg, level) - Structured logging system
+" ==============================================================================
+" PURPOSE: Provides hierarchical logging with configurable verbosity
+" PARAMETERS:
+"   msg   - String: message to log
+"   level - Number: log level (1=error, 2=warn, 3=info, 4=debug)
+" BEHAVIOR:
+"   - Only logs if g:zzvim_r_debug >= level
+"   - Writes timestamped entries to configured log file
+"   - Optionally echoes to command line for interactive debugging
+" ==============================================================================
+function! s:log(msg, level) abort
+    if g:zzvim_r_debug >= a:level
+        let l:levels = ['', 'ERROR', 'WARN', 'INFO', 'DEBUG']
+        let l:level_name = get(l:levels, a:level, 'UNKNOWN')
+        let l:timestamp = strftime('%Y-%m-%d %H:%M:%S')
+        let l:log_entry = printf('[%s] %s: %s', 
+                                \ l:timestamp, l:level_name, a:msg)
+        
+        try
+            call writefile([l:log_entry], expand(g:zzvim_r_log_file), 'a')
+        catch
+            " Silently ignore logging errors to avoid recursion
+        endtry
+        
+        if g:zzvim_r_debug >= 4
+            echom 'zzvim-R ' . l:level_name . ': ' . a:msg
+        endif
+    endif
+endfunction
+" ------------------------------------------------------------------------------
+
+" ==============================================================================
+" s:error(msg) - Display error messages
+" ==============================================================================
+" PURPOSE: Shows error messages with consistent formatting and logging
+" PARAMETERS:
+"   msg - String: error message to display
+" BEHAVIOR:
+"   - Uses ErrorMsg highlight for visibility
+"   - Prefixes with plugin name for context
+"   - Logs at error level for debugging
+" ==============================================================================
+function! s:error(msg) abort
+    echohl ErrorMsg
+    echom 'zzvim-R Error: ' . a:msg
+    echohl None
+    call s:log(a:msg, 1)
+endfunction
+" ------------------------------------------------------------------------------
+
+" ==============================================================================
+" s:warn(msg) - Display warning messages
+" ==============================================================================
+" PURPOSE: Shows warning messages with distinctive formatting
+" PARAMETERS:
+"   msg - String: warning message to display
+" ==============================================================================
+function! s:warn(msg) abort
+    echohl WarningMsg
+    echom 'zzvim-R Warning: ' . a:msg
+    echohl None
+    call s:log(a:msg, 2)
+endfunction
+" ------------------------------------------------------------------------------
+
+" ==============================================================================
+" s:info(msg) - Display informational messages
+" ==============================================================================
+" PURPOSE: Shows informational messages to user
+" PARAMETERS:
+"   msg - String: information message to display
+" ==============================================================================
+function! s:info(msg) abort
+    echom 'zzvim-R: ' . a:msg
+    call s:log(a:msg, 3)
+endfunction
+" ------------------------------------------------------------------------------
+
+" ==============================================================================
+" s:is_supported_filetype() - Check if current buffer is supported
+" ==============================================================================
+" PURPOSE: Validates that current buffer is an R-related file type
+" RETURNS: Boolean: v:true if supported, v:false otherwise
+" LOGIC: Checks current buffer filetype against supported types list
+" ==============================================================================
+function! s:is_supported_filetype() abort
+    return index(s:supported_filetypes, &filetype) >= 0
+endfunction
+" ------------------------------------------------------------------------------
+
+"==============================================================================
+" TERMINAL MANAGEMENT
+"==============================================================================
+" Robust terminal session management with persistent tracking across Vim
+" sessions. Uses both buffer ID and job ID for reliable state detection.
+
+" ==============================================================================
+" s:is_r_terminal_active() - Verify R terminal is running
+" ==============================================================================
+" PURPOSE: Comprehensive check for active R terminal in current tab
+" RETURNS: Boolean: v:true if terminal active, v:false otherwise
+" LOGIC:
+"   1. Verify terminal tracking variables exist
+"   2. Check buffer still exists in Vim
+"   3. Validate job/process is still running
+"   4. Clean up stale references if terminal died
+" VARIABLES:
+"   t:zzvim_r_terminal_id - Buffer number of R terminal
+"   t:zzvim_r_job_id      - Job ID of R process
+" ==============================================================================
+function! s:is_r_terminal_active() abort
+    " Quick exit if no tracking variables
+    if !exists('t:zzvim_r_terminal_id') || !exists('t:zzvim_r_job_id')
+        call s:log('No terminal tracking variables found', 4)
+        return v:false
+    endif
+    
+    " Verify buffer exists
+    if !bufexists(t:zzvim_r_terminal_id)
+        call s:log('Terminal buffer no longer exists', 3)
+        call s:cleanup_terminal_vars()
+        return v:false
+    endif
+    
+    " Check job status
+    let l:job_status = job_status(t:zzvim_r_job_id)
+    if l:job_status !=# 'run'
+        call s:log(printf('Terminal job not running: %s', l:job_status), 3)
+        call s:cleanup_terminal_vars()
+        return v:false
+    endif
+    
+    call s:log('R terminal confirmed active', 4)
+    return v:true
+endfunction
+" ------------------------------------------------------------------------------
+
+" ==============================================================================
+" s:cleanup_terminal_vars() - Remove stale terminal references
+" ==============================================================================
+" PURPOSE: Safely removes terminal tracking variables
+" LOGIC:
+"   - Uses exists() to avoid errors on undefined variables
+"   - Unlets both terminal ID and job ID
+"   - Logs cleanup for debugging
+" CALLED BY: s:is_r_terminal_active() when terminal becomes invalid
+" ==============================================================================
+function! s:cleanup_terminal_vars() abort
+    if exists('t:zzvim_r_terminal_id')
+        unlet t:zzvim_r_terminal_id
+    endif
+    if exists('t:zzvim_r_job_id')
+        unlet t:zzvim_r_job_id
+    endif
+    call s:log('Terminal tracking variables cleaned up', 4)
+endfunction
+" ------------------------------------------------------------------------------
+
+" ==============================================================================
+" s:open_r_terminal() - Create and configure new R terminal
+" ==============================================================================
+" PURPOSE: Opens R terminal in vertical split with proper configuration
+" RETURNS: Boolean: v:true if successful, v:false on failure
+" LOGIC:
+"   1. Validate R executable availability
+"   2. Check for existing terminal (prevent duplicates)
+"   3. Save current window context
+"   4. Create vertical terminal with configured command
+"   5. Store terminal/job IDs for tracking
+"   6. Apply terminal-specific settings
+"   7. Restore window focus
+" ERROR HANDLING:
+"   - Validates R installation before proceeding
+"   - Uses try/catch for terminal creation
+"   - Cleans up on failure to prevent inconsistent state
+" ==============================================================================
+function! s:open_r_terminal() abort
+    " Validate R availability
+    if !executable('R')
+        call s:error('R executable not found in PATH')
+        return v:false
+    endif
+
+    " Prevent duplicate terminals
+    if s:is_r_terminal_active()
+        call s:info('R terminal already active')
+        return v:true
+    endif
+
+    " Store current context
+    let l:current_window = winnr()
+    
+    try
+        " Create vertical terminal
+        execute 'vertical terminal ' . g:zzvim_r_command
+        
+        " Store tracking information
+        let t:zzvim_r_terminal_id = bufnr('%')
+        let t:zzvim_r_job_id = term_getjob(t:zzvim_r_terminal_id)
+        
+        " Configure terminal appearance and behavior
+        call s:configure_terminal_window()
+        
+        " Return to original window
+        execute l:current_window . 'wincmd w'
+        
+        call s:info('R terminal opened successfully')
+        call s:log(printf('Terminal created - Buffer: %d, Job: %s',
+                         \ t:zzvim_r_terminal_id, string(t:zzvim_r_job_id)), 3)
+        return v:true
+        
+    catch /^Vim\%((\a\+)\)\=:E/
+        call s:error('Failed to create R terminal: ' . v:exception)
+        call s:cleanup_terminal_vars()
+        return v:false
+    endtry
+endfunction
+" ------------------------------------------------------------------------------
+
+" ==============================================================================
+" s:configure_terminal_window() - Apply terminal-specific settings
+" ==============================================================================
+" PURPOSE: Configures terminal window for optimal R development experience
+" LOGIC:
+"   - Resizes to configured width
+"   - Disables UI elements inappropriate for terminals
+"   - Sets buffer-specific options for terminal behavior
+"   - Names buffer for easy identification
+" CALLED BY: s:open_r_terminal() after terminal creation
+" ==============================================================================
+function! s:configure_terminal_window() abort
+    " Resize to configured width
+    execute 'vertical resize ' . g:zzvim_r_terminal_width
+    
+    " Disable UI elements
+    setlocal norelativenumber
+    setlocal nonumber
+    setlocal signcolumn=no
+    setlocal nobuflisted
+    setlocal bufhidden=wipe
+    setlocal nospell
+    
+    " Set descriptive buffer name
+    silent! file [R-Terminal]
+    
+    call s:log('Terminal window configured', 4)
+endfunction
+" ------------------------------------------------------------------------------
+
+"==============================================================================
+" CORE COMMUNICATION FUNCTIONS
+"==============================================================================
+" Functions that handle sending commands and data to the R terminal,
+" including error handling and user feedback.
+
+" ==============================================================================
+" s:send_to_r(cmd, stay_on_line) - Send command to R terminal
+" ==============================================================================
+" PURPOSE: Core function for sending R commands with cursor management
+" PARAMETERS:
+"   cmd          - String: R command to execute
+"   stay_on_line - Boolean: whether to advance cursor after sending
+" RETURNS: Boolean: v:true if successful, v:false on failure
+" LOGIC:
+"   1. Ensure terminal availability (create if needed)
+"   2. Validate and clean command string
+"   3. Send command with newline terminator
+"   4. Optionally advance cursor to next line
+" ERROR HANDLING:
+"   - Auto-creates terminal if none exists
+"   - Handles empty commands gracefully
+"   - Provides detailed error messages on failure
+" ==============================================================================
+function! s:send_to_r(cmd, stay_on_line) abort
+    " Ensure R terminal exists
+    if !s:is_r_terminal_active()
+        call s:info('Creating R terminal...')
+        
+        if !s:open_r_terminal()
+            call s:error('Could not create R terminal')
+            return v:false
+        endif
+        
+        " Allow terminal to initialize
+        sleep 100m
+    endif
+
+    " Process command
+    let l:cmd = trim(a:cmd)
+    if empty(l:cmd)
+        call s:log('Empty command received, advancing cursor only', 4)
+        if !a:stay_on_line
+            normal! j
+        endif
+        return v:true
+    endif
+
+    " Send to terminal
+    try
+        call term_sendkeys(t:zzvim_r_terminal_id, l:cmd . "\n")
+        call s:log(printf('Sent command: %s', l:cmd), 4)
+        
+        " Brief pause for terminal processing
+        sleep 20m
+        
+        " Cursor management
+        if !a:stay_on_line
+            normal! j
+        endif
+        
+        return v:true
+        
+    catch /^Vim\%((\a\+)\)\=:E/
+        call s:error('Failed to send command: ' . v:exception)
+        return v:false
+    endtry
+endfunction
+" ------------------------------------------------------------------------------
+
+" ==============================================================================
+" s:send_control_keys(key) - Send control sequences to R
+" ==============================================================================
+" PURPOSE: Sends control characters for R session management
+" PARAMETERS:
+"   key - String: control sequence to send (e.g., "\<C-c>")
+" RETURNS: Boolean: v:true if successful, v:false on failure
+" USAGE:
+"   - Ctrl-C to interrupt running commands
+"   - Other control sequences for R interaction
+" ==============================================================================
+function! s:send_control_keys(key) abort
+    if !s:is_r_terminal_active()
+        call s:error('No active R terminal found')
+        return v:false
+    endif
+
+    try
+        call term_sendkeys(t:zzvim_r_terminal_id, a:key)
+        
+        " Create readable description for user feedback
+        let l:key_desc = substitute(a:key, "\<C-c>", 'Ctrl-C', '')
+        let l:key_desc = substitute(l:key_desc, "\n", 'Enter', 'g')
+        
+        call s:info('Sent: ' . l:key_desc)
+        call s:log('Control key sent: ' . l:key_desc, 3)
+        return v:true
+        
+    catch /^Vim\%((\a\+)\)\=:E/
+        call s:error('Failed to send control key: ' . v:exception)
+        return v:false
+    endtry
+endfunction
+" ------------------------------------------------------------------------------
+
+" ==============================================================================
+" s:source_temp_file(lines, description) - Create and source temporary file
+" ==============================================================================
+" PURPOSE: Common function for creating and sourcing temporary R files
+" PARAMETERS:
+"   lines       - List: lines of R code to write to file
+"   description - String: description for user feedback
+" RETURNS: Boolean: v:true if successful, v:false on failure
+" LOGIC:
+"   1. Filter out empty lines
+"   2. Create temporary .R file
+"   3. Write lines to file
+"   4. Source file in R with echo=TRUE
+"   5. Provide user feedback
+" USAGE: Used by both chunk execution and visual selection functions
+" ==============================================================================
+function! s:source_temp_file(lines, description) abort
+    " Filter executable lines
+    let l:filtered_lines = filter(copy(a:lines), '!empty(trim(v:val))')
+    
+    if empty(l:filtered_lines)
+        call s:warn(printf('%s contains no executable code', a:description))
+        return v:false
+    endif
+    
+    try
+        " Create temporary file
+        let l:temp_file = tempname() . '.R'
+        call writefile(a:lines, l:temp_file)
+        
+        " Source with echo
+        let l:cmd = printf("source('%s', echo=TRUE)", l:temp_file)
+        if s:send_to_r(l:cmd, v:true)
+            let l:line_count = len(l:filtered_lines)
+            let l:plural = l:line_count == 1 ? '' : 's'
+            call s:info(printf('Sourced %d line%s from %s',
+                              \ l:line_count, l:plural, a:description))
+            return v:true
+        endif
+        
+        return v:false
+        
+    catch /^Vim\%((\a\+)\)\=:E/
+        call s:error(printf('Failed to source %s: %s', 
+                           \ a:description, v:exception))
+        return v:false
+    endtry
+endfunction
+" ------------------------------------------------------------------------------
+
+"==============================================================================
+" VISUAL SELECTION FUNCTIONS
+"==============================================================================
+" Functions for handling visual mode selections and sending them to R.
+
+" ==============================================================================
+" s:get_visual_selection() - Extract text from visual selection
+" ==============================================================================
+" PURPOSE: Accurately extracts selected text preserving formatting
+" RETURNS: String: selected text with newlines preserved
+" LOGIC:
+"   1. Get selection boundaries from Vim marks
+"   2. Extract lines within selection range
+"   3. Handle single-line vs multi-line selections
+"   4. Trim to exact column boundaries for precision
+" EDGE CASES:
+"   - Character-wise selections within single line
+"   - Line-wise selections spanning multiple lines
+"   - Block-wise (visual-block) selections
+" ==============================================================================
+function! s:get_visual_selection() abort
+    let l:pos_start = getpos("'<")
+    let l:pos_end = getpos("'>")
+    let l:line_start = l:pos_start[1]
+    let l:col_start = l:pos_start[2]
+    let l:line_end = l:pos_end[1]
+    let l:col_end = l:pos_end[2]
+    
+    let l:lines = getline(l:line_start, l:line_end)
+    
+    if empty(l:lines)
+        return ''
+    endif
+    
+    " Handle selection types
+    if len(l:lines) == 1
+        " Single line selection
+        let l:lines[0] = l:lines[0][l:col_start - 1 : l:col_end - 1]
+    else
+        " Multi-line selection
+        let l:lines[-1] = l:lines[-1][: l:col_end - 1]
+        let l:lines[0] = l:lines[0][l:col_start - 1:]
+    endif
+    
+    return join(l:lines, "\n")
+endfunction
+" ------------------------------------------------------------------------------
+
+" ==============================================================================
+" s:send_visual_to_r() - Send visual selection to R via temporary file
+" ==============================================================================
+" PURPOSE: Sends selected text to R using temporary file sourcing
+" RETURNS: Boolean: v:true if successful, v:false on failure
+" LOGIC:
+"   1. Store selection positions for cursor management
+"   2. Extract selection text
+"   3. Validate selection contains content
+"   4. Ensure R terminal availability
+"   5. Create and source temporary file
+"   6. Exit visual mode and position cursor
+" ADVANTAGES:
+"   - Consistent with chunk execution approach
+"   - Better error handling in R
+"   - Preserves code structure and context
+"   - Shows executed code with echo=TRUE
+" ==============================================================================
+function! s:send_visual_to_r() abort
+    " Store positions for cursor management
+    let l:pos_start = getpos("'<")
+    let l:pos_end = getpos("'>")
+    
+    " Extract selection
+    let l:selection = s:get_visual_selection()
+    
+    if empty(trim(l:selection))
+        call s:error('No text selected')
+        return v:false
+    endif
+
+    " Ensure terminal availability
+    if !s:is_r_terminal_active()
+        if !s:open_r_terminal()
+            call s:error('Could not create R terminal')
+            return v:false
+        endif
+        sleep 100m
+    endif
+
+    try
+        " Convert to lines and source
+        let l:lines = split(l:selection, "\n")
+        let l:success = s:source_temp_file(l:lines, 'selection')
+        
+        " Always exit visual mode and position cursor
+        execute "normal! \<Esc>"
+        if l:success
+            call cursor(l:pos_end[1] + 1, 1)
+        endif
+        
+        return l:success
+        
+    catch /^Vim\%((\a\+)\)\=:E/
+        call s:error('Failed to process selection: ' . v:exception)
+        execute "normal! \<Esc>"
+        return v:false
+    endtry
+endfunction
+" ------------------------------------------------------------------------------
+
+"==============================================================================
+" R MARKDOWN CHUNK FUNCTIONS
+"==============================================================================
+" Navigation and execution functions for R Markdown code chunks.
+" Uses configurable patterns to identify chunk boundaries.
+
+" ==============================================================================
+" s:find_chunk_boundaries(direction) - Locate chunk start/end positions
+" ==============================================================================
+" PURPOSE: Helper function to find chunk boundaries in either direction
+" PARAMETERS:
+"   direction - String: 'forward' or 'backward'
+" RETURNS: Dict: {start: line_num, end: line_num} or empty dict if not found
+" LOGIC:
+"   - Uses configured chunk patterns for flexibility
+"   - Returns both start and end positions for validation
+" ==============================================================================
+function! s:find_chunk_boundaries(direction) abort
+    let l:flags = a:direction ==# 'forward' ? 'W' : 'bW'
+    let l:chunk_start = search(g:zzvim_r_chunk_start, l:flags)
+    
+    if l:chunk_start == 0
+        return {}
+    endif
+    
+    let l:chunk_end = search(g:zzvim_r_chunk_end, 'W')
+    if l:chunk_end == 0
+        return {}
+    endif
+    
+    return {'start': l:chunk_start, 'end': l:chunk_end}
+endfunction
+" ------------------------------------------------------------------------------
+
+" ==============================================================================
+" s:move_next_chunk() - Navigate to next R Markdown chunk
+" ==============================================================================
+" PURPOSE: Moves cursor to beginning of next code chunk
+" BEHAVIOR:
+"   - Searches forward from current position
+"   - Positions cursor inside chunk (after opening fence)
+"   - Provides feedback on navigation result
+" ==============================================================================
+function! s:move_next_chunk() abort
+    let l:chunk_start = search(g:zzvim_r_chunk_start, 'W')
+    
+    if l:chunk_start > 0
+        " Move inside chunk if possible
+        if line('.') < line('$')
+            normal! j
+            call s:info(printf('Moved to chunk at line %d', line('.')))
+        else
+            call s:warn('Chunk found but contains no code')
+        endif
+    else
+        call s:warn('No more chunks found')
+    endif
+endfunction
+" ------------------------------------------------------------------------------
+
+" ==============================================================================
+" s:move_prev_chunk() - Navigate to previous R Markdown chunk
+" ==============================================================================
+" PURPOSE: Moves cursor to beginning of previous code chunk
+" LOGIC:
+"   1. Save current position for error recovery
+"   2. Find current chunk boundaries
+"   3. Locate previous chunk start
+"   4. Handle edge cases (first chunk, no chunks)
+"   5. Position cursor appropriately
+" ==============================================================================
+function! s:move_prev_chunk() abort
+    let l:save_pos = getpos('.')
+    
+    " Find current chunk
+    let l:chunk_start = search(g:zzvim_r_chunk_start, 'bW')
+    if l:chunk_start == 0
+        call s:warn('No chunks found')
+        return
+    endif
+    
+    " Find previous chunk end
+    let l:chunk_end = search(g:zzvim_r_chunk_end, 'bW')
+    if l:chunk_end == 0
+        " First chunk - move to its beginning
+        call setpos('.', [0, l:chunk_start + 1, 1, 0])
+        call s:info(printf('Moved to first chunk at line %d', line('.')))
+        return
+    endif
+    
+    " Find previous chunk start
+    let l:prev_start = search(g:zzvim_r_chunk_start, 'bW')
+    if l:prev_start > 0
+        call setpos('.', [0, l:prev_start + 1, 1, 0])
+        call s:info(printf('Moved to chunk at line %d', line('.')))
+    else
+        call s:warn('No previous chunk found')
+        call setpos('.', l:save_pos)
+    endif
+endfunction
+" ------------------------------------------------------------------------------
+
+" ==============================================================================
+" s:submit_chunk() - Execute current R Markdown chunk
+" ==============================================================================
+" PURPOSE: Finds and executes the R code chunk containing the cursor
+" RETURNS: Boolean: v:true if successful, v:false on failure
+" LOGIC:
+"   1. Save cursor position for error recovery
+"   2. Find chunk boundaries using search patterns
+"   3. Extract chunk content between boundaries
+"   4. Validate chunk contains executable code
+"   5. Source chunk content via temporary file
+"   6. Navigate to next chunk on success
+" ERROR RECOVERY:
+"   - Restores cursor position if chunk not found
+"   - Handles empty chunks gracefully
+"   - Provides detailed error messages
+" ==============================================================================
+function! s:submit_chunk() abort
+    let l:save_pos = getpos('.')
+    
+    " Find chunk boundaries
+    let l:chunk_start = search(g:zzvim_r_chunk_start, 'bW')
+    if l:chunk_start == 0
+        call s:error('Not inside an R chunk')
+        return v:false
+    endif
+    
+    let l:chunk_end = search(g:zzvim_r_chunk_end, 'W')
+    if l:chunk_end == 0
+        call s:error('Chunk end not found')
+        call setpos('.', l:save_pos)
+        return v:false
+    endif
+    
+    " Extract chunk content
+    let l:chunk_lines = getline(l:chunk_start + 1, l:chunk_end - 1)
+    
+    " Source the chunk
+    if s:source_temp_file(l:chunk_lines, 'chunk')
+        " Navigate to next chunk
+        call setpos('.', [0, l:chunk_end, 1, 0])
+        let l:next_chunk = search(g:zzvim_r_chunk_start, 'W')
+        if l:next_chunk > 0
+            call setpos('.', [0, l:next_chunk + 1, 1, 0])
+        endif
+        return v:true
+    endif
+    
+    call setpos('.', l:save_pos)
+    return v:false
+endfunction
+" ------------------------------------------------------------------------------
+
+" ==============================================================================
+" s:collect_previous_chunks() - Gather code from all preceding chunks
+" ==============================================================================
+" PURPOSE: Collects executable R code from chunks before cursor position
+" RETURNS: List: lines of R code from all previous chunks
+" LOGIC:
+"   1. Scan from file start to current position
+"   2. Track chunk state (inside/outside)
+"   3. Collect non-empty lines when inside chunks
+"   4. Return as list for flexible usage
+" USE CASES:
+"   - Re-running setup code
+"   - Ensuring dependencies are loaded
+"   - Incremental analysis workflows
+" ==============================================================================
+function! s:collect_previous_chunks() abort
+    let l:current_line = line('.')
+    let l:collected_lines = []
+    let l:inside_chunk = v:false
+
+    for l:line_num in range(1, l:current_line)
+        let l:line_content = getline(l:line_num)
+        
+        " Check for chunk boundaries
+        if l:line_content =~# g:zzvim_r_chunk_start
+            let l:inside_chunk = v:true
+            continue
+        elseif l:line_content =~# g:zzvim_r_chunk_end
+            let l:inside_chunk = v:false
+            continue
+        endif
+
+        " Collect code lines
+        if l:inside_chunk && !empty(trim(l:line_content))
+            call add(l:collected_lines, l:line_content)
+        endif
+    endfor
+
+    return l:collected_lines
+endfunction
+" ------------------------------------------------------------------------------
+
+" ==============================================================================
+" s:submit_previous_chunks() - Execute all chunks before cursor
+" ==============================================================================
+" PURPOSE: Executes all R chunks preceding the current cursor position
+" RETURNS: Boolean: v:true if successful, v:false if no chunks or failed
+" WORKFLOW: Collects previous chunks and sources them as single file
+" ==============================================================================
+function! s:submit_previous_chunks() abort
+    let l:previous_lines = s:collect_previous_chunks()
+
+    if empty(l:previous_lines)
+        call s:info('No previous chunks found')
+        return v:false
+    endif
+
+    return s:source_temp_file(l:previous_lines, 'previous chunks')
+endfunction
+" ------------------------------------------------------------------------------
+
+"==============================================================================
+" R OBJECT INSPECTION FUNCTIONS
+"==============================================================================
+" Quick access functions for common R operations and object inspection.
+
+" ==============================================================================
+" s:add_pipe_and_newline() - Insert pipe operator for fluent programming
+" ==============================================================================
+" PURPOSE: Adds magrittr pipe operator (%>%) for dplyr/tidyverse workflows
+" BEHAVIOR:
+"   - Inserts ' %>%' on new line after current line
+"   - Moves cursor to new line for continued coding
+"   - Maintains proper indentation context
+" ==============================================================================
+function! s:add_pipe_and_newline() abort
+    call append(line('.'), ' %>%')
+    normal! j
+    call s:log('Added pipe operator', 4)
+endfunction
+" ------------------------------------------------------------------------------
+
+" ==============================================================================
+" s:r_action(action, stay_on_line) - Apply R function to word under cursor
+" ==============================================================================
+" PURPOSE: Quick R object inspection by applying functions to current word
+" PARAMETERS:
+"   action       - String: R function name (e.g., 'head', 'str', 'dim')
+"   stay_on_line - Boolean: whether cursor should remain on current line
+" RETURNS: Boolean: v:true if successful, v:false on failure
+" LOGIC:
+"   1. Extract word under cursor
+"   2. Validate word exists
+"   3. Construct R function call: action(word)
+"   4. Send to R terminal
+"   5. Provide user feedback
+" COMMON FUNCTIONS:
+"   - head(): first few rows/elements
+"   - str(): object structure
+"   - dim(): dimensions
+"   - names(): element names
+"   - summary(): statistical summary
+" ==============================================================================
+function! s:r_action(action, stay_on_line) abort
+    let l:word = expand('<cword>')
+    if empty(l:word)
+        call s:error('No word under cursor')
+        return v:false
+    endif
+    
+    " Validate word looks like R identifier
+    if l:word !~# '^[a-zA-Z_.][a-zA-Z0-9_.\$]*
+        call s:warn(printf('"%s" may not be a valid R object name', l:word))
+    endif
+    
+    let l:cmd = printf('%s(%s)', a:action, l:word)
+    if s:send_to_r(l:cmd, a:stay_on_line)
+        call s:info(printf('Applied %s() to %s', a:action, l:word))
+        return v:true
+    endif
+    
+    return v:false
+endfunction
+" ------------------------------------------------------------------------------
+
+"==============================================================================
+" PUBLIC API FUNCTIONS
+"==============================================================================
+" Clean public interface for external access to plugin functionality.
+" These functions provide stable API for user commands and other plugins.
+
+" ==============================================================================
+" zzvim_r#open_terminal() - Public terminal creation interface
+" ==============================================================================
+" PURPOSE: External API for R terminal creation
+" RETURNS: Boolean: success status
+" USAGE: User commands, custom mappings, other plugins
+" ==============================================================================
+function! zzvim_r#open_terminal() abort
+    if !s:is_supported_filetype()
+        call s:error('Not in supported file type (' . 
+                    \ join(s:supported_filetypes, ', ') . ')')
+        return v:false
+    endif
+    
+    return s:open_r_terminal()
+endfunction
+" ------------------------------------------------------------------------------
+
+" ==============================================================================
+" zzvim_r#submit_line() - Public line submission interface
+" ==============================================================================
+" PURPOSE: External API for sending current line to R
+" RETURNS: Boolean: success status
+" ==============================================================================
+function! zzvim_r#submit_line() abort
+    if !s:is_supported_filetype()
+        call s:error('Not in supported file type')
+        return v:false
+    endif
+    
+    return s:send_to_r(getline('.'), v:false)
+endfunction
+" ------------------------------------------------------------------------------
+
+" ==============================================================================
+" zzvim_r#submit_selection() - Public selection submission interface
+" ==============================================================================
+" PURPOSE: External API for sending visual selection to R
+" RETURNS: Boolean: success status
+" ==============================================================================
+function! zzvim_r#submit_selection() abort
+    if !s:is_supported_filetype()
+        call s:error('Not in supported file type')
+        return v:false
+    endif
+    
+    return s:send_visual_to_r()
+endfunction
+" ------------------------------------------------------------------------------
+
+" ==============================================================================
+" zzvim_r#terminal_status() - Display terminal connection status
+" ==============================================================================
+" PURPOSE: Show current R terminal status for debugging
+" BEHAVIOR: Echoes detailed status information to command line
+" ==============================================================================
+function! zzvim_r#terminal_status() abort
+    if s:is_r_terminal_active()
+        echo printf('R terminal active (Buffer: %d, Job: %s)',
+                   \ t:zzvim_r_terminal_id, string(t:zzvim_r_job_id))
+    else
+        echo 'No active R terminal found'
+    endif
+endfunction
+" ------------------------------------------------------------------------------
+
+" ==============================================================================
+" zzvim_r#toggle_debug() - Toggle debug logging
+" ==============================================================================
+" PURPOSE: Runtime toggle for debug logging level
+" BEHAVIOR: Cycles through debug levels 0-4
+" ==============================================================================
+function! zzvim_r#toggle_debug() abort
+    let g:zzvim_r_debug = (g:zzvim_r_debug + 1) % 5
+    call s:info(printf('Debug level set to %d', g:zzvim_r_debug))
+endfunction
+" ------------------------------------------------------------------------------
+
+"==============================================================================
+" USER COMMANDS
+"==============================================================================
+" Vim commands providing command-line access to plugin functionality.
+
+command! -nargs=0 ROpenTerminal    call zzvim_r#open_terminal()
+command! -nargs=0 RSubmitLine      call zzvim_r#submit_line()
+command! -nargs=0 RSubmitSelection call zzvim_r#submit_selection()
+command! -nargs=0 RTerminalStatus  call zzvim_r#terminal_status()
+command! -nargs=0 RToggleDebug     call zzvim_r#toggle_debug()
+
+"==============================================================================
+" KEY MAPPINGS
+"==============================================================================
+" Buffer-local key mappings for interactive plugin usage.
+" Organized by functional category with consistent patterns.
+"
+" DESIGN PRINCIPLES:
+" - <LocalLeader> prefix prevents conflicts with global mappings
+" - <CR> for most frequent action (send line/selection)
+" - Logical grouping: navigation (j/k), execution (l/t), control (q/c)
+" - Buffer-local scope prevents interference in non-R files
+" - Silent execution avoids command-line clutter
+" - :<C-u> clears any range before function calls
+"
+" MAPPING CATEGORIES:
+" 1. CORE: Essential send/terminal operations
+" 2. NAVIGATION: Chunk movement in R Markdown
+" 3. EXECUTION: Chunk and batch execution
+" 4. CONTROL: R session management
+" 5. INSPECTION: Object exploration shortcuts
+" 6. UTILITIES: Code editing helpers
+
+if !g:zzvim_r_disable_mappings
+    augroup zzvim_r_mappings
+        autocmd!
+        
+        " Core functionality - most frequently used
+        autocmd FileType r,rmd,qmd,rnw nnoremap <buffer> <silent>
+                    \ <LocalLeader>r :<C-u>call <SID>open_r_terminal()<CR>
+        autocmd FileType r,rmd,qmd,rnw nnoremap <buffer> <silent>
+                    \ <CR> :<C-u>call <SID>send_to_r(getline('.'), v:false)<CR>
+        autocmd FileType r,rmd,qmd,rnw xnoremap <buffer> <silent>
+                    \ <CR> :<C-u>call <SID>send_visual_to_r()<CR>
+        
+        " Chunk navigation - R Markdown specific
+        autocmd FileType rmd,qmd,rnw nnoremap <buffer> <silent>
+                    \ <LocalLeader>j :<C-u>call <SID>move_next_chunk()<CR>
+        autocmd FileType rmd,qmd,rnw nnoremap <buffer> <silent>
+                    \ <LocalLeader>k :<C-u>call <SID>move_prev_chunk()<CR>
+        
+        " Chunk execution - R Markdown specific
+        autocmd FileType rmd,qmd,rnw nnoremap <buffer> <silent>
+                    \ <LocalLeader>l :<C-u>call <SID>submit_chunk()<CR>zz
+        autocmd FileType rmd,qmd,rnw nnoremap <buffer> <silent>
+                    \ <LocalLeader>t :<C-u>call <SID>submit_previous_chunks()<CR>
+        
+        " R session control
+        autocmd FileType r,rmd,qmd,rnw nnoremap <buffer> <silent>
+                    \ <LocalLeader>q :<C-u>call <SID>send_to_r('Q', v:true)<CR>
+        autocmd FileType r,rmd,qmd,rnw nnoremap <buffer> <silent>
+                    \ <LocalLeader>c :<C-u>call <SID>send_control_keys("\<C-c>")<CR>
+        
+        " Object inspection - apply R functions to word under cursor
+        autocmd FileType r,rmd,qmd,rnw nnoremap <buffer> <silent>
+                    \ <LocalLeader>d :<C-u>call <SID>r_action('dim', v:true)<CR>
+        autocmd FileType r,rmd,qmd,rnw nnoremap <buffer> <silent>
+                    \ <LocalLeader>h :<C-u>call <SID>r_action('head', v:true)<CR>
+        autocmd FileType r,rmd,qmd,rnw nnoremap <buffer> <silent>
+                    \ <LocalLeader>u :<C-u>call <SID>r_action('tail', v:true)<CR>
+        autocmd FileType r,rmd,qmd,rnw nnoremap <buffer> <silent>
+                    \ <LocalLeader>s :<C-u>call <SID>r_action('str', v:true)<CR>
+        autocmd FileType r,rmd,qmd,rnw nnoremap <buffer> <silent>
+                    \ <LocalLeader>p :<C-u>call <SID>r_action('print', v:true)<CR>
+        autocmd FileType r,rmd,qmd,rnw nnoremap <buffer> <silent>
+                    \ <LocalLeader>n :<C-u>call <SID>r_action('names', v:true)<CR>
+        autocmd FileType r,rmd,qmd,rnw nnoremap <buffer> <silent>
+                    \ <LocalLeader>f :<C-u>call <SID>r_action('length', v:true)<CR>
+        autocmd FileType r,rmd,qmd,rnw nnoremap <buffer> <silent>
+                    \ <LocalLeader>g :<C-u>call <SID>r_action('glimpse', v:true)<CR>
+        autocmd FileType r,rmd,qmd,rnw nnoremap <buffer> <silent>
+                    \ <LocalLeader>b :<C-u>call <SID>r_action('summary', v:true)<CR>
+        autocmd FileType r,rmd,qmd,rnw nnoremap <buffer> <silent>
+                    \ <LocalLeader>y :<C-u>call <SID>r_action('help', v:true)<CR>
+        
+        " Code editing utilities
+        autocmd FileType r,rmd,qmd,rnw nnoremap <buffer> <silent>
+                    \ <LocalLeader>o :<C-u>call <SID>add_pipe_and_newline()<CR>
+        
+    augroup END
+endif
+
+"==============================================================================
+" PLUGIN FINALIZATION
+"==============================================================================
+" Restore user environment and provide final setup.
+
+" Restore user's cpoptions setting
+let &cpoptions = s:save_cpo
+unlet s:save_cpo
+
+" ==============================================================================
+" PLUGIN DOCUMENTATION
+" ==============================================================================
+" 
+" QUICK REFERENCE:
+" 
+" Core Commands:
+"   <LocalLeader>r  - Open R terminal
+"   <CR>            - Send line/selection to R
+"   
+" Chunk Navigation (R Markdown):
+"   <LocalLeader>j  - Next chunk
+"   <LocalLeader>k  - Previous chunk
+"   <LocalLeader>l  - Execute current chunk
+"   <LocalLeader>t  - Execute all previous chunks
+"   
+" Session Control:
+"   <LocalLeader>q  - Send Q (quit browser/debugger)
+"   <LocalLeader>c  - Send Ctrl-C (interrupt)
+"   
+" Object Inspection (word under cursor):
+"   <LocalLeader>h  - head()     | <LocalLeader>d  - dim()
+"   <LocalLeader>s  - str()      | <LocalLeader>n  - names()
+"   <LocalLeader>p  - print()    | <LocalLeader>f  - length()
+"   <LocalLeader>g  - glimpse()  | <LocalLeader>b  - summary()
+"   <LocalLeader>y  - help()
+"   
+" Utilities:
+"   <LocalLeader>o  - Add pipe operator (%>%)
+"   
+" Commands:
+"   :ROpenTerminal    - Open R terminal
+"   :RSubmitLine      - Send current line
+"   :RTerminalStatus  - Show terminal status
+"   :RToggleDebug     - Toggle debug logging
+"   
+" Configuration Variables:
+"   g:zzvim_r_command           - R startup command
+"   g:zzvim_r_terminal_width    - Terminal width
+"   g:zzvim_r_disable_mappings  - Disable default mappings
+"   g:zzvim_r_chunk_start       - Chunk start pattern
+"   g:zzvim_r_chunk_end         - Chunk end pattern
+"   g:zzvim_r_debug             - Debug level (0-4)
+"   g:zzvim_r_log_file          - Log file location
+" 
+" ==============================================================================
