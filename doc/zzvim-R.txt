@@ -2,7 +2,7 @@
 
 Author:  RG Thomas <rgthomas@ucsd.edu>
 License: GPL-3.0
-Version: 2.3
+Version: 2.3.2
 
 ==============================================================================
 CONTENTS                                                      *zzvim-r-contents*
@@ -13,7 +13,8 @@ CONTENTS                                                      *zzvim-r-contents*
     4. Usage ....................................... |zzvim-r-usage|
     5. Commands .................................... |zzvim-r-commands|
     6. Mappings .................................... |zzvim-r-mappings|
-    7. Troubleshooting ............................. |zzvim-r-troubleshooting|
+    7. Technical Details ........................... |zzvim-r-technical|
+    8. Troubleshooting ............................. |zzvim-r-troubleshooting|
 
 ==============================================================================
 1. INTRODUCTION                                           *zzvim-r-introduction*
@@ -204,7 +205,50 @@ Utilities:~
     <LocalLeader>o      Add pipe operator (%>%)
 
 ==============================================================================
-7. TROUBLESHOOTING                                     *zzvim-r-troubleshooting*
+7. TECHNICAL DETAILS                                        *zzvim-r-technical*
+
+Architecture:~
+The plugin uses a layered architecture with clear separation of concerns:
+
+1. Core Engine Layer (plugin/zzvim_r.vim):
+   • Configuration management
+   • Core engines: terminal, text, execute, package, data, directory
+   • Command and mapping definitions
+
+2. Public API Layer (autoload/zzvim_r.vim):
+   • User-facing functions with comprehensive documentation
+   • Lazy-loaded through Vim's autoload mechanism
+   • Delegates to core engines for implementation
+
+3. Communication Layer (between plugin and autoload):
+   • Plugin functions are imported by autoload when needed
+   • Autoload functions validate context before execution
+   • Robust error handling and messaging
+
+Function Categories:~
+   • Core terminal management: open_terminal, submit_line, etc.
+   • Terminal control: send_quit, send_interrupt
+   • Chunk navigation: navigate_next/prev_chunk, execute_chunk
+   • Package management: install/load/update_package
+   • Data operations: read/write_csv, read/save_rds
+   • Directory management: print/change/list/home_directory
+   • Object inspection: inspect_* functions, browse_workspace
+   • Help functions: help_examples, apropos_help, find_definition
+
+Key Design Patterns:~
+   • Command Dispatch: s:engine() routes operations to specialized handlers
+   • Action-based API: Engines use string actions to determine operations
+   • Configuration-driven: Behavior controlled by configuration variables
+   • Lazy Loading: Autoload mechanism defers loading until functions are used
+   • Clean Delegation: Autoload functions delegate to plugin engines
+
+Customization:~
+The plugin supports extensive customization through global variables (see
+|zzvim-r-configuration|) and provides a clean, well-documented codebase for
+those who wish to extend functionality.
+
+==============================================================================
+8. TROUBLESHOOTING                                     *zzvim-r-troubleshooting*
 
 Check terminal status:~
 >
@@ -226,6 +270,14 @@ Common issues:~
     • R not found: Ensure R is in PATH
     • Terminal not responding: Check :RTerminalStatus
     • Mappings not working: Verify file type and mapping settings
+    • Plugin functions not loading: Check installation paths and autoload
+    • "Not inside an R chunk" error: Verify cursor position within ``` markers
+
+Implementation Issues:~
+    • If you encounter errors with `s:config not defined`, try reloading the
+      plugin with `:runtime plugin/zzvim_r.vim`
+    • For conflicts with other plugins, try using different LocalLeader
+    • For multiple terminal instances, use separate Vim tabs
 
 ==============================================================================
 vim:tw=78:ts=8:ft=help:norl:

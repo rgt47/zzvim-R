@@ -3,7 +3,7 @@
 " ==============================================================================
 " File:        plugin/zzvim_r.vim
 " Maintainer:  RG Thomas <rgthomas@ucsd.edu>
-" Version:     2.3
+" Version:     2.3.2
 " License:     GPL-3.0
 " Description: Comprehensive R integration for Vim with terminal management,
 "              chunk navigation, and object inspection capabilities.
@@ -58,7 +58,8 @@ let s:config = {}
 
 " User configuration
 let s:config.command = get(g:, 'zzvim_r_command', 'R --no-save --quiet')
-let s:config.width = max([30, min([300, get(g:, 'zzvim_r_terminal_width', 100)])])
+let s:config.width = max([30, min([300, 
+                        \ get(g:, 'zzvim_r_terminal_width', 100)])])
 let s:config.disable_mappings = get(g:, 'zzvim_r_disable_mappings', 0)
 let s:config.chunk_start = get(g:, 'zzvim_r_chunk_start', '^```{[rR]')
 let s:config.chunk_end = get(g:, 'zzvim_r_chunk_end', '^```\s*$')
@@ -67,16 +68,19 @@ let s:config.log_file = get(g:, 'zzvim_r_log_file', '~/zzvim_r.log')
 
 " Internal configuration
 let s:config.supported_types = ['r', 'rmd', 'rnw', 'qmd']
-let s:config.msg_types = {'error': [1, 'ErrorMsg', 0], 'warn': [2, 'WarningMsg', 1], 'info': [3, 'None', 1]}
+let s:config.msg_types = {'error': [1, 'ErrorMsg', 0], 'warn': [2, 'WarningMsg', 1], 
+                        \ 'info': [3, 'None', 1]}
 let s:config.log_levels = ['', 'ERROR', 'WARN', 'INFO', 'DEBUG']
-let s:config.terminal_settings = ['norelativenumber', 'nonumber', 'signcolumn=no', 'nobuflisted', 'bufhidden=wipe', 'nospell']
+let s:config.terminal_settings = ['norelativenumber', 'nonumber', 'signcolumn=no', 
+                               \ 'nobuflisted', 'bufhidden=wipe', 'nospell']
 let s:config.r_functions = {'help': '"%s"', 'exists': '"%s"'}
 
 " Enhanced inspections
 let s:config.enhanced_inspections = {}
 let s:config.enhanced_inspections.browse = 'ls.str()'
 let s:config.enhanced_inspections.workspace = 'ls()'
-let s:config.enhanced_inspections.class = 'cat("Class:", class(%s), "\nType:", typeof(%s), "\n")'
+let s:config.enhanced_inspections.class = 'cat("Class:", class(%s), 
+                                        \ "\nType:", typeof(%s), "\n")'
 let s:config.enhanced_inspections.detailed = 'str(%s, max.level=2)'
 
 " Package operations
@@ -102,19 +106,25 @@ let s:config.directory_operations.home = 'setwd("~")'
 
 " Content types
 let s:config.content_types = {}
-let s:config.content_types.line = {'getter': 'getline(".")', 'single': 1, 'nav': 'normal! j'}
-let s:config.content_types.selection = {'bounds': ["getpos(\"'<\")", "getpos(\"'>\")"], 'nav': 'cursor(%s[1] + 1, 1)'}
-let s:config.content_types.chunk = {'pattern': ['chunk_start', 'chunk_end'], 'nav': 'search(%s, "W") | normal! j | normal! zz'}
+let s:config.content_types.line = {'getter': 'getline(".")', 'single': 1, 
+                                \ 'nav': 'normal! j'}
+let s:config.content_types.selection = {'bounds': ["getpos(\"'<\")", 
+                                     \ "getpos(\"'>\")"], 
+                                     \ 'nav': 'cursor(%s[1] + 1, 1)'}
+let s:config.content_types.chunk = {'pattern': ['chunk_start', 'chunk_end'], 
+                                 \ 'nav': 'search(%s, "W") | normal! j | normal! zz'}
 let s:config.content_types.previous = {'collect': 1}
 
-" Expose width for backward compatibility
-let g:zzvim_r_terminal_width = s:config.width
+" NOTE: We don't expose s:config.width globally anymore to avoid unnecessary
+" global namespace pollution. For backward compatibility, we still read
+" g:zzvim_r_terminal_width if it exists, but don't set it.
 
 "==============================================================================
 " CORE ENGINE FUNCTIONS
 "==============================================================================
-" Ultra-consolidated core functions that handle all plugin operations through
-" unified interfaces with action-based dispatch patterns.
+" These functions are shared between the plugin and autoload files to ensure
+" consistent behavior. They provide the low-level functionality that the 
+" public API builds upon.
 
 " ==============================================================================
 " s:engine(operation, ...) - Master plugin operation engine
@@ -130,19 +140,29 @@ function! s:engine(operation, ...) abort
     if a:operation ==# 'log'
         " s:engine('log', msg, level)
         if len(a:000) >= 2 && s:config.debug >= a:2
-            let l:entry = printf('[%s] %s: %s', strftime('%H:%M:%S'), 
+            let l:entry = printf('[%s] %s: %s', strftime('%H:%M:%S'),
                                \ s:config.log_levels[a:2], a:1)
-            try | call writefile([l:entry], expand(s:config.log_file), 'a') | catch | endtry
-            if s:config.debug >= 4 | echom 'zzvim-R: ' . a:1 | endif
+            try
+                call writefile([l:entry], expand(s:config.log_file), 'a')
+            catch
+            endtry
+            if s:config.debug >= 4
+                echom 'zzvim-R: ' . a:1
+            endif
         endif
-        return v:true
+        return 1  " Use integers (0/1) consistently for return values
         
     elseif a:operation ==# 'msg'
         " s:engine('msg', msg, type)
-        let [l:level, l:hl, l:ret] = get(s:config.msg_types, a:2, [3, 'None', 1])
-        if l:hl !=# 'None' | execute 'echohl ' . l:hl | endif
+        let [l:level, l:hl, l:ret] = get(s:config.msg_types, a:2, 
+                                      \ [3, 'None', 1])
+        if l:hl !=# 'None' 
+            execute 'echohl ' . l:hl 
+        endif
         echom 'zzvim-R: ' . a:1
-        if l:hl !=# 'None' | echohl None | endif
+        if l:hl !=# 'None' 
+            echohl None 
+        endif
         call s:engine('log', a:1, l:level)
         return l:ret
         
@@ -172,12 +192,14 @@ function! s:engine(operation, ...) abort
         
     elseif a:operation ==# 'validate'
         " s:engine('validate', type, value)
-        return a:1 ==# 'filetype' ? index(s:config.supported_types, &filetype) >= 0 :
-             \ a:1 ==# 'word' ? (!empty(a:2) && a:2 =~# '^[a-zA-Z_\.][a-zA-Z0-9_\.\$]*$') :
-             \ a:1 ==# 'r_executable' ? executable('R') : v:false
+        return a:1 ==# 'filetype' ? 
+             \ index(s:config.supported_types, &filetype) >= 0 :
+             \ a:1 ==# 'word' ? 
+             \ (!empty(a:2) && a:2 =~# '^[a-zA-Z_\.][a-zA-Z0-9_\.\$]*$') :
+             \ a:1 ==# 'r_executable' ? executable('R') : 0
     endif
-    
-    return v:false
+
+    return 0  " Use integers (0/1) consistently for return values
 endfunction
 " ------------------------------------------------------------------------------
 
@@ -193,10 +215,12 @@ endfunction
 function! s:terminal_engine(action, options) abort
     if a:action ==# 'cleanup'
         for l:var in ['t:zzvim_r_terminal_id', 't:zzvim_r_job_id']
-            if exists(l:var) | execute 'unlet ' . l:var | endif
+            if exists(l:var) 
+                execute 'unlet ' . l:var 
+            endif
         endfor
         call s:engine('log', 'Terminal variables cleaned', 4)
-        return v:false
+        return 0  " Use integers (0/1) consistently for return values
         
     elseif a:action ==# 'check'
         if !exists('t:zzvim_r_terminal_id') || !exists('t:zzvim_r_job_id')
@@ -206,7 +230,8 @@ function! s:terminal_engine(action, options) abort
         
         for [l:check, l:msg] in [
             \ [bufexists(t:zzvim_r_terminal_id), 'Buffer missing'],
-            \ [getbufvar(t:zzvim_r_terminal_id, '&buftype') ==# 'terminal', 'Not terminal']
+            \ [getbufvar(t:zzvim_r_terminal_id, '&buftype') ==# 'terminal', 
+            \ 'Not terminal']
         \ ]
             if !l:check
                 call s:engine('log', l:msg, 3)
@@ -215,7 +240,8 @@ function! s:terminal_engine(action, options) abort
         endfor
         
         try
-            return job_status(t:zzvim_r_job_id) ==# 'run' ? v:true : s:terminal_engine('cleanup', {})
+            return job_status(t:zzvim_r_job_id) ==# 'run' ?
+                \ 1 : s:terminal_engine('cleanup', {})
         catch
             return s:terminal_engine('cleanup', {})
         endtry
@@ -230,31 +256,41 @@ function! s:terminal_engine(action, options) abort
         
         let l:context = [winnr(), bufnr('%')]
         try
-            execute printf('vertical terminal %s | vertical resize %d', s:config.command, s:config.width)
-            for l:setting in s:config.terminal_settings | execute 'setlocal ' . l:setting | endfor
+            execute printf('vertical terminal %s | vertical resize %d', 
+                        \ s:config.command, s:config.width)
+            for l:setting in s:config.terminal_settings 
+                execute 'setlocal ' . l:setting 
+            endfor
             silent! file [R-Terminal]
-            let [t:zzvim_r_terminal_id, t:zzvim_r_job_id] = [bufnr('%'), term_getjob(bufnr('%'))]
-            execute printf('%dwincmd w | if bufnr("%%") != %d | buffer %d | endif', l:context[0], l:context[1], l:context[1])
+            let t:zzvim_r_terminal_id = bufnr('%')
+            let t:zzvim_r_job_id = term_getjob(bufnr('%'))
+            execute printf('%dwincmd w | if bufnr("%%") != %d | buffer %d | endif', 
+                        \ l:context[0], l:context[1], l:context[1])
             call s:engine('msg', 'R terminal opened successfully', 'info')
-            return v:true
+            return 1  " Use integers (0/1) consistently for return values
         catch
             call s:terminal_engine('cleanup', {})
-            return s:engine('msg', 'Failed to create terminal: ' . v:exception, 'error')
+            return s:engine('msg', 'Failed to create terminal: ' . v:exception, 
+                          \ 'error')
         endtry
         
     elseif a:action ==# 'send'
-        if !s:terminal_engine('check', {}) && !s:terminal_engine('create', {}) | return v:false | endif
+        if !s:terminal_engine('check', {}) && !s:terminal_engine('create', {}) 
+            return v:false 
+        endif
         
         let l:content = get(a:options, 'content', '')
         let l:desc = get(a:options, 'desc', 'command')
         
         if type(l:content) == v:t_string
             let l:cmd = trim(l:content)
-            if empty(l:cmd) | return v:true | endif
+            if empty(l:cmd)
+                return 1  " Use integers (0/1) consistently
+            endif
             try
                 call term_sendkeys(t:zzvim_r_terminal_id, l:cmd . "\n")
                 call s:engine('log', 'Sent: ' . l:cmd, 4)
-                return v:true
+                return 1  " Use integers (0/1) consistently
             catch
                 return s:engine('msg', 'Send failed: ' . v:exception, 'error')
             endtry
@@ -266,8 +302,12 @@ function! s:terminal_engine(action, options) abort
             try
                 let l:temp = tempname() . '.R'
                 call writefile(l:content, l:temp)
-                let l:success = s:terminal_engine('send', {'content': printf("source('%s', echo=TRUE)", l:temp), 'desc': 'source'})
-                if l:success | call s:engine('msg', 'Sourced ' . l:desc, 'info') | endif
+                let l:success = s:terminal_engine('send', 
+                            \ {'content': printf("source('%s', echo=TRUE)", l:temp), 
+                            \ 'desc': 'source'})
+                if l:success 
+                    call s:engine('msg', 'Sourced ' . l:desc, 'info') 
+                endif
                 return l:success
             catch
                 return s:engine('msg', 'Source failed: ' . v:exception, 'error')
@@ -275,7 +315,9 @@ function! s:terminal_engine(action, options) abort
         endif
         
     elseif a:action ==# 'control'
-        if !s:terminal_engine('check', {}) | return s:engine('msg', 'No terminal active', 'error') | endif
+        if !s:terminal_engine('check', {}) 
+            return s:engine('msg', 'No terminal active', 'error') 
+        endif
         try
             call term_sendkeys(t:zzvim_r_terminal_id, get(a:options, 'key', ''))
             return s:engine('msg', 'Sent control key', 'info')
@@ -285,7 +327,8 @@ function! s:terminal_engine(action, options) abort
         
     elseif a:action ==# 'info'
         return exists('t:zzvim_r_terminal_id') ? 
-             \ {'id': t:zzvim_r_terminal_id, 'active': s:terminal_engine('check', {})} : {}
+             \ {'id': t:zzvim_r_terminal_id, 
+             \ 'active': s:terminal_engine('check', {})} : {}
     endif
     
     return v:false
@@ -310,18 +353,23 @@ function! s:text_engine(type, options) abort
     elseif a:type ==# 'selection'
         let [l:start, l:end] = [getpos("'<"), getpos("'>")]
         let l:lines = getline(l:start[1], l:end[1])
-        if empty(l:lines) | return [] | endif
+        if empty(l:lines) 
+            return [] 
+        endif
         
         if len(l:lines) == 1
             let l:lines[0] = l:lines[0][l:start[2]-1 : l:end[2]-1]
         else
-            let [l:lines[0], l:lines[-1]] = [l:lines[0][l:start[2]-1:], l:lines[-1][:l:end[2]-1]]
+            let l:lines[0] = l:lines[0][l:start[2]-1:]
+            let l:lines[-1] = l:lines[-1][:l:end[2]-1]
         endif
         return empty(trim(join(l:lines, "\n"))) ? [] : l:lines
         
     elseif a:type ==# 'chunk'
         let l:start = search(s:config.chunk_start, 'bcnW')
-        if l:start == 0 | return [] | endif
+        if l:start == 0 
+            return [] 
+        endif
         
         let l:pos = getpos('.')
         call setpos('.', [0, l:start, 1, 0])
@@ -337,7 +385,9 @@ function! s:text_engine(type, options) abort
             let l:line = getline(l:i)
             let l:in_chunk = l:line =~# s:config.chunk_start ? v:true :
                            \ l:line =~# s:config.chunk_end ? v:false : l:in_chunk
-            if l:in_chunk && !empty(trim(l:line)) | call add(l:lines, l:line) | endif
+            if l:in_chunk && !empty(trim(l:line)) 
+                call add(l:lines, l:line) 
+            endif
         endfor
         return l:lines
     endif
@@ -357,17 +407,20 @@ endfunction
 " ==============================================================================
 function! s:execute_engine(type, options) abort
     let l:content = s:text_engine(a:type, a:options)
-    let l:names = {'line': 'current line', 'selection': 'selection', 'chunk': 'current chunk', 'previous': 'previous chunks'}
+    let l:names = {'line': 'current line', 'selection': 'selection', 
+                \ 'chunk': 'current chunk', 'previous': 'previous chunks'}
     
     if empty(l:content)
         let l:msg = a:type ==# 'chunk' ? 'Not inside R chunk' :
                   \ a:type ==# 'previous' ? 'No previous chunks' : 'No content'
-        return s:engine('msg', l:msg, a:type ==# 'previous' ? 'info' : 'error')
+        return s:engine('msg', l:msg, 
+                      \ a:type ==# 'previous' ? 'info' : 'error')
     endif
     
     " Execute content
     let l:send_content = a:type ==# 'line' ? l:content[0] : l:content
-    let l:success = s:terminal_engine('send', {'content': l:send_content, 'desc': l:names[a:type]})
+    let l:success = s:terminal_engine('send', 
+                  \ {'content': l:send_content, 'desc': l:names[a:type]})
     
     " Handle navigation
     if l:success
@@ -381,7 +434,9 @@ function! s:execute_engine(type, options) abort
             let l:end = search(s:config.chunk_end, 'nW')
             if l:end > 0
                 call setpos('.', [0, l:end + 1, 1, 0])
-                if search(s:config.chunk_start, 'W') > 0 | normal! j | endif
+                if search(s:config.chunk_start, 'W') > 0 
+                    normal! j 
+                endif
                 normal! zz
             endif
         endif
@@ -405,12 +460,17 @@ function! s:package_engine(action, package) abort
         return s:engine('msg', 'Package name required', 'error')
     endif
     
-    let l:format = get(s:config.package_operations, a:action, s:config.package_operations.load)
+    let l:format = get(s:config.package_operations, a:action, 
+                    \ s:config.package_operations.load)
     let l:cmd = printf(l:format, a:package)
-    let l:success = s:terminal_engine('send', {'content': l:cmd, 'desc': printf('%s package %s', a:action, a:package)})
+    let l:success = s:terminal_engine('send', 
+                  \ {'content': l:cmd, 
+                  \ 'desc': printf('%s package %s', a:action, a:package)})
     
     if l:success 
-        call s:engine('msg', printf('Executed %s on package %s', a:action, a:package), 'info') 
+        call s:engine('msg', 
+                    \ printf('Executed %s on package %s', a:action, a:package), 
+                    \ 'info') 
     endif
     return l:success
 endfunction
@@ -439,8 +499,12 @@ function! s:data_engine(action, ...) abort
         return s:engine('msg', 'Unknown data operation: ' . a:action, 'error')
     endif
     
-    let l:cmd = a:action =~# '^write\|^save' ? printf(l:format, l:variable, l:file) : printf(l:format, l:file)
-    let l:success = s:terminal_engine('send', {'content': l:cmd, 'desc': printf('%s on %s', a:action, l:file)})
+    let l:cmd = a:action =~# '^write\|^save' ? 
+              \ printf(l:format, l:variable, l:file) : 
+              \ printf(l:format, l:file)
+    let l:success = s:terminal_engine('send', 
+                  \ {'content': l:cmd, 
+                  \ 'desc': printf('%s on %s', a:action, l:file)})
     
     if l:success
         call s:engine('msg', printf('Executed %s on %s', a:action, l:file), 'info')
@@ -467,7 +531,9 @@ function! s:directory_engine(action, ...) abort
     endif
     
     let l:cmd = a:action ==# 'cd' ? printf(l:format, l:path) : l:format
-    let l:success = s:terminal_engine('send', {'content': l:cmd, 'desc': printf('directory %s', a:action)})
+    let l:success = s:terminal_engine('send', 
+                  \ {'content': l:cmd, 
+                  \ 'desc': printf('directory %s', a:action)})
     
     if l:success
         call s:engine('msg', printf('Executed directory %s', a:action), 'info')
@@ -477,148 +543,64 @@ endfunction
 " ------------------------------------------------------------------------------
 
 "==============================================================================
-" CONVENIENCE FUNCTIONS
-"==============================================================================
-" High-level convenience functions that provide simple interfaces to the
-" engine functions for common operations.
-
-" ==============================================================================
-" s:r_inspect(action) - Enhanced R object inspection via engine
-" ==============================================================================
-" PURPOSE: Apply R inspection function to word under cursor
-" PARAMETERS:
-"   action - String: R function name or special inspection action
-" RETURNS: Boolean success status
-" ==============================================================================
-function! s:r_inspect(action) abort
-    let l:word = expand('<cword>')
-    
-    " Special cases that don't require a word under cursor
-    if a:action ==# 'browse'
-        return s:terminal_engine('send', {'content': 'ls.str()', 'desc': 'workspace browser'})
-    elseif a:action ==# 'workspace'
-        return s:terminal_engine('send', {'content': 'ls()', 'desc': 'workspace list'})
-    endif
-    
-    " For actions that need a word under cursor
-    if empty(l:word) 
-        return s:engine('msg', 'No word under cursor', 'error') 
-    endif
-    
-    if !s:engine('validate', 'word', l:word) 
-        call s:engine('msg', l:word . ' may not be valid R object', 'warn') 
-    endif
-    
-    " Enhanced inspection options
-    if a:action ==# 'class'
-        let l:cmd = printf(s:config.enhanced_inspections.class, l:word, l:word)
-        return s:terminal_engine('send', {'content': l:cmd, 'desc': printf('class(%s)', l:word)})
-    elseif a:action ==# 'detailed'
-        let l:cmd = printf(s:config.enhanced_inspections.detailed, l:word)
-        return s:terminal_engine('send', {'content': l:cmd, 'desc': printf('detailed(%s)', l:word)})
-    elseif a:action ==# 'help_ex'
-        let l:cmd = printf('help(%s); example(%s)', l:word, l:word)
-        return s:terminal_engine('send', {'content': l:cmd, 'desc': printf('help_ex(%s)', l:word)})
-    elseif a:action ==# 'apropos'
-        let l:cmd = printf('apropos("%s")', l:word)
-        return s:terminal_engine('send', {'content': l:cmd, 'desc': printf('apropos(%s)', l:word)})
-    elseif a:action ==# 'find'
-        let l:cmd = printf('find("%s")', l:word)
-        return s:terminal_engine('send', {'content': l:cmd, 'desc': printf('find(%s)', l:word)})
-    else
-        " Default case - use standard r_functions mapping or direct function call
-        let l:format = get(s:config.r_functions, a:action, '%s')
-        let l:cmd = printf('%s(' . l:format . ')', a:action, l:word)
-        let l:success = s:terminal_engine('send', {'content': l:cmd, 'desc': printf('%s(%s)', a:action, l:word)})
-        
-        if l:success 
-            call s:engine('msg', printf('Applied %s() to %s', a:action, l:word), 'info') 
-        endif
-        return l:success
-    endif
-endfunction
-" ------------------------------------------------------------------------------
-
-" ==============================================================================
-" s:navigate_chunk(direction) - Chunk navigation via engine
-" ==============================================================================
-" PURPOSE: Navigate between R Markdown chunks
-" PARAMETERS:
-"   direction - String: 'next' or 'prev'
-" ==============================================================================
-function! s:navigate_chunk(direction) abort
-    let l:pos = search(s:config.chunk_start, a:direction ==# 'next' ? 'W' : 'bW')
-    if l:pos > 0
-        normal! j
-        call s:engine('msg', 'Moved to ' . a:direction . ' chunk', 'info')
-    else
-        call s:engine('msg', 'No ' . a:direction . ' chunk found', 'warn')
-    endif
-endfunction
-" ------------------------------------------------------------------------------
-
-" ==============================================================================
-" s:add_pipe() - Insert pipe operator
-" ==============================================================================
-" PURPOSE: Adds magrittr pipe operator for dplyr workflows
-" ==============================================================================
-function! s:add_pipe() abort
-    call append(line('.'), ' %>%')
-    normal! j
-endfunction
-" ------------------------------------------------------------------------------
-
-"==============================================================================
 " PUBLIC API FUNCTIONS
 "==============================================================================
-" Clean public interface using the engine for validation and execution.
+" Provides direct public API functions for use by autoload module.
+" This bypasses the circular dependency issue by keeping the API
+" implementation directly in the plugin file.
 
+" Public API wrapper for validation
 function! s:public_wrapper(Func, ...) abort
-    return s:engine('validate', 'filetype', '') ? call(a:Func, a:000) : 
+    " Use 0/1 return values consistently throughout the plugin API
+    return s:engine('validate', 'filetype', '') ? call(a:Func, a:000) :
          \ s:engine('msg', 'File type not supported', 'error')
 endfunction
 
-" Load the autoload functions if they exist, otherwise define them inline
-if !exists('*zzvim_r#open_terminal')
-    function! zzvim_r#open_terminal() abort
-        return s:public_wrapper(function('s:terminal_engine'), 'create', {})
-    endfunction
+" ==============================================================================
+" Core API functions used directly by command mappings
+" These can be overridden by the autoload versions if loaded
+" ==============================================================================
 
-    function! zzvim_r#submit_line() abort
-        return s:public_wrapper(function('s:execute_engine'), 'line', {})
-    endfunction
+function! zzvim_r#open_terminal() abort
+    return s:public_wrapper(function('s:terminal_engine'), 'create', {})
+endfunction
 
-    function! zzvim_r#submit_selection() abort
-        return s:public_wrapper(function('s:execute_engine'), 'selection', {})
-    endfunction
+function! zzvim_r#submit_line() abort
+    return s:public_wrapper(function('s:execute_engine'), 'line', {})
+endfunction
 
-    function! zzvim_r#package_management(...) abort
-        return s:public_wrapper(function('s:package_engine'), a:1, a:2)
-    endfunction
+function! zzvim_r#submit_selection() abort
+    return s:public_wrapper(function('s:execute_engine'), 'selection', {})
+endfunction
 
-    function! zzvim_r#data_operation(...) abort
-        return s:public_wrapper(function('s:data_engine'), a:1, a:2)
-    endfunction
+function! zzvim_r#terminal_status() abort
+    let l:info = s:terminal_engine('info', {})
+    echo '=== zzvim-R Status ==='
+    echo empty(l:info) ? 'No R terminal' : printf('R terminal %s (Buffer: %d)', 
+         \ l:info.active ? 'ACTIVE' : 'INACTIVE', l:info.id)
+    echo printf('File: %s | Debug: %d | R: %s', &filetype, s:config.debug, 
+              \ s:engine('validate', 'r_executable', '') ? 'Found' : 'Missing')
+    echo '====================='
+    return 1
+endfunction
 
-    function! zzvim_r#directory_operation(...) abort
-        return s:public_wrapper(function('s:directory_engine'), a:1, a:2)
-    endfunction
+function! zzvim_r#toggle_debug() abort
+    let s:config.debug = (s:config.debug + 1) % 5
+    call s:engine('msg', 'Debug level: ' . s:config.debug, 'info')
+    return 1
+endfunction
 
-    function! zzvim_r#terminal_status() abort
-        let l:info = s:terminal_engine('info', {})
-        echo '=== zzvim-R Status ==='
-        echo empty(l:info) ? 'No R terminal' : printf('R terminal %s (Buffer: %d)', 
-             \ l:info.active ? 'ACTIVE' : 'INACTIVE', l:info.id)
-        echo printf('File: %s | Debug: %d | R: %s', &filetype, s:config.debug, 
-                   \ s:engine('validate', 'r_executable', '') ? 'Found' : 'Missing')
-        echo '====================='
-    endfunction
+function! zzvim_r#package_management(action, package) abort
+    return s:public_wrapper(function('s:package_engine'), a:action, a:package)
+endfunction
 
-    function! zzvim_r#toggle_debug() abort
-        let s:config.debug = (s:config.debug + 1) % 5
-        call s:engine('msg', 'Debug level: ' . s:config.debug, 'info')
-    endfunction
-endif
+function! zzvim_r#data_operation(action, ...) abort
+    return call('s:public_wrapper', [function('s:data_engine'), a:action] + a:000)
+endfunction
+
+function! zzvim_r#directory_operation(action, ...) abort
+    return call('s:public_wrapper', [function('s:directory_engine'), a:action] + a:000)
+endfunction
 
 "==============================================================================
 " COMMANDS & MAPPINGS
@@ -632,14 +614,17 @@ let s:cmd_list = [
     \ ['RSubmitSelection', 'zzvim_r#submit_selection()'],
     \ ['RTerminalStatus', 'zzvim_r#terminal_status()'],
     \ ['RToggleDebug', 'zzvim_r#toggle_debug()'],
-    \ ['RPackage', 'zzvim_r#package_management(get(a:000, 0, "load"), get(a:000, 1, ""))'],
-    \ ['RData', 'zzvim_r#data_operation(get(a:000, 0, "read_csv"), get(a:000, 1, ""))'],
-    \ ['RDirectory', 'zzvim_r#directory_operation(get(a:000, 0, "pwd"), get(a:000, 1, ""))']
+    \ ['RPackage', 'zzvim_r#package_management(get(a:000, 0, "load"), 
+    \ get(a:000, 1, ""))'],
+    \ ['RData', 'zzvim_r#data_operation(get(a:000, 0, "read_csv"), 
+    \ get(a:000, 1, ""))'],
+    \ ['RDirectory', 'zzvim_r#directory_operation(get(a:000, 0, "pwd"), 
+    \ get(a:000, 1, ""))']
 \ ]
-for s:item in s:cmd_list
-    let s:cmd = s:item[0]
-    let s:func = s:item[1]
-    execute printf('command! -nargs=* %s call %s', s:cmd, s:func)
+for l:item in s:cmd_list
+    let l:cmd = l:item[0]
+    let l:func = l:item[1]
+    execute printf('command! -nargs=* %s call %s', l:cmd, l:func)
 endfor
 
 " Comprehensive mapping system
@@ -681,22 +666,28 @@ if !s:config.disable_mappings
         \ ]
 
         " Add additional inspect mappings with proper public API calls
-        for s:inspect_item in ['h:head', 's:str', 'd:dim', 'n:names', 'p:print', 'f:length', 'g:glimpse', 'b:summary', 'y:help']
-            let s:key = split(s:inspect_item, ':')[0]
-            let s:func = split(s:inspect_item, ':')[1]
-            call add(s:mapping_defs, ['<LocalLeader>' . s:key, 'zzvim_r#inspect_' . s:func . '()', 'all', 'n'])
+        for l:inspect_item in ['h:head', 's:str', 'd:dim', 'n:names', 'p:print',
+                            \ 'f:length', 'g:glimpse', 'b:summary', 'y:help']
+            let l:key = split(l:inspect_item, ':')[0]
+            let l:func = split(l:inspect_item, ':')[1]
+            call add(s:mapping_defs,
+                  \ ['<LocalLeader>' . l:key,
+                  \ 'zzvim_r#inspect_' . l:func . '()', 'all', 'n'])
         endfor
         
         " Generate all mappings
-        for s:mapping in s:mapping_defs
-            let s:key = s:mapping[0]
-            let s:cmd = s:mapping[1]
-            let s:scope = s:mapping[2]
-            let s:mode = s:mapping[3]
+        for l:mapping in s:mapping_defs
+            let l:key = l:mapping[0]
+            let l:cmd = l:mapping[1]
+            let l:scope = l:mapping[2]
+            let l:mode = l:mapping[3]
 
-            let s:types = s:scope ==# 'all' ? s:config.supported_types : filter(copy(s:config.supported_types), 'v:val !=# "r"')
-            for s:ft in s:types
-                execute printf('autocmd FileType %s %snoremap <buffer> <silent> %s :<C-u>call %s<CR>', s:ft, s:mode, s:key, s:cmd)
+            let l:types = l:scope ==# 'all' ? s:config.supported_types :
+                      \ filter(copy(s:config.supported_types), 'v:val !=# "r"')
+            for l:ft in l:types
+                execute printf('autocmd FileType %s %snoremap <buffer> <silent> %s
+                            \ :<C-u>call %s<CR>',
+                            \ l:ft, l:mode, l:key, l:cmd)
             endfor
         endfor
     augroup END
@@ -760,4 +751,4 @@ unlet s:save_cpo
 "
 " Utilities:
 "   <LocalLeader>o  - Add pipe operator (%>%)
-" ==============================================================================" 
+" ==============================================================================

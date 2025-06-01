@@ -1,17 +1,18 @@
 # zzvim-R - Enhanced R Development Plugin for Vim
 
-A lightweight, powerful plugin for R development in Vim/Neovim with a clean, elegant architecture.
+A lightweight, powerful plugin for R development in Vim/Neovim with a clean, 
+elegant architecture.
 
 ## Features
 
 - **Terminal Integration**: Persistent R terminal session management per Vim tab
 - **Code Execution**: Send lines, visual selections, and R Markdown chunks to R
 - **Navigation**: Quick navigation between R Markdown code chunks
-- **Enhanced Object Inspection**: Inspect objects, browse workspace, and view object structure
+- **Enhanced Object Inspection**: Inspect objects, browse workspace, view structure
 - **Package Management**: Install, load, and update R packages
 - **Data Import/Export**: Quick CSV and RDS file operations
 - **Directory Management**: Navigate and manage working directories
-- **Enhanced Help System**: Access help with examples, search documentation, and find functions
+- **Enhanced Help System**: Access help with examples, search docs, find functions
 - **Configurability**: Extensive customization options with sensible defaults
 - **Support**: Works with R, R Markdown, Quarto, and Sweave files
 
@@ -160,15 +161,53 @@ let g:zzvim_r_chunk_start = '^```{[rR]'
 let g:zzvim_r_chunk_end = '^```\s*$'
 ```
 
+## Technical Details
+
+### Architecture
+
+The plugin uses a layered architecture with clear separation of concerns:
+
+1. **Core Engine Layer** (`plugin/zzvim_r.vim`):
+   - Configuration management
+   - Core engine functions (terminal, text, execute, package, data, directory)
+   - Command and mapping registration
+
+2. **Public API Layer** (`autoload/zzvim_r.vim`):
+   - User-facing functions with comprehensive documentation
+   - Lazy-loaded through Vim's autoload mechanism 
+   - Delegates to core engines for implementation
+
+3. **Communication Layer**:
+   - Plugin functions are imported by autoload as needed
+   - Autoload functions validate context before execution
+   - Robust error handling throughout
+
+### Key Design Patterns
+
+- **Command Dispatch**: Central `s:engine()` routes operations to handlers
+- **Action-based API**: String actions determine behavior in engine functions
+- **Lazy Loading**: Autoload mechanism improves startup time
+- **Clean Delegation**: Public functions delegate to specialized engines
+- **Configuration-driven**: Behavior controlled by settings, not hardcoded values
+
 ## Comparison with Other R Plugins
 
-zzvim-R provides **~95% of daily-use functionality** with a clean, modular architecture:
+zzvim-R provides **~95% of daily-use functionality** with a clean, modular 
+architecture:
 
 - **Modular design**: Organized into logical components
 - **No dependencies**: Works out of the box
 - **Fast loading**: Autoload pattern for on-demand loading
 - **Clean architecture**: Well-documented, easy to extend and customize
 - **Focused design**: All essential features, no bloat
+
+## Version History
+
+- **2.3.2**: Fixed code style issues, improved error handling, added helper functions
+- **2.3.1**: Optimized code structure and architecture, improved documentation
+- **2.3.0**: Fixed chunk navigation, eliminated key mapping conflicts
+- **2.2.0**: Added enhanced object inspection, package and data management
+- **2.1.0**: Initial release with core features
 
 ## License
 
