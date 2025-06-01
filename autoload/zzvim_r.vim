@@ -354,8 +354,22 @@ endfunction
 "   - Moves the cursor to the new line
 " ------------------------------------------------------------------------------
 function! zzvim_r#add_pipe() abort
-    call append(line('.'), ' %>%')
+    " Add pipe operator with two spaces to end of current line
+    call setline('.', getline('.') . '  %>%')
+    
+    " Add a blank line below current line
+    call append(line('.'), '')
+    
+    " Move to the new blank line
     normal! j
+    
+    " Add indentation matching the previous line (or use automatic indentation)
+    let l:indent_level = indent(line('.') - 1)
+    call setline('.', repeat(' ', l:indent_level))
+    
+    " Position cursor at end of indentation
+    normal! $
+    
     return 1
 endfunction
 
