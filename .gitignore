@@ -32,7 +32,7 @@ Session.vim
 # Tags
 tags.lock
 tags.temp
-
+docs/tags
 # OS-specific files
 .DS_Store
 Thumbs.db
