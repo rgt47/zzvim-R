@@ -1,163 +1,175 @@
-# zzvim-R.vim
+# zzvim-R - Enhanced R Development Plugin for Vim
 
-A Vim plugin for seamless R development within Vim, providing integration between Vim and R terminal sessions. Work efficiently with R scripts, R Markdown, and Quarto documents.
+A lightweight, powerful plugin for R development in Vim/Neovim with a clean, elegant architecture.
 
 ## Features
 
-- Send commands directly from Vim to an R terminal
-- Navigate and execute R Markdown chunks
-- Quick access to common R functions
-- Support for multiple R terminal sessions
-- Pipe operator (`|>`) integration
-- Visual selection support
-- Comprehensive chunk management
+- **Terminal Integration**: Persistent R terminal session management per Vim tab
+- **Code Execution**: Send lines, visual selections, and R Markdown chunks to R
+- **Navigation**: Quick navigation between R Markdown code chunks
+- **Enhanced Object Inspection**: Inspect objects, browse workspace, and view object structure
+- **Package Management**: Install, load, and update R packages
+- **Data Import/Export**: Quick CSV and RDS file operations
+- **Directory Management**: Navigate and manage working directories
+- **Enhanced Help System**: Access help with examples, search documentation, and find functions
+- **Configurability**: Extensive customization options with sensible defaults
+- **Support**: Works with R, R Markdown, Quarto, and Sweave files
 
 ## Requirements
 
-- Vim 8.1 or newer with `+terminal` feature
-- R installed and available in your PATH
+- Vim 8.0+ with terminal support
+- R executable in PATH
+- Optional: tidyverse packages for enhanced inspection functions
 
 ## Installation
 
-Using [vim-plug](https://github.com/junegunn/vim-plug):
+### For Vim
 
+Using vim-plug:
 ```vim
-Plug 'your-username/zzvim-r.vim'
+Plug 'rgt47/zzvim-r'
 ```
 
 Using Vundle:
 ```vim
-Plugin 'your-username/zzvim-r.vim'
+Plugin 'rgt47/zzvim-r'
 ```
 
 Manual installation:
 ```bash
-git clone https://github.com/your-username/zzvim-r.vim.git ~/.vim/pack/plugins/start/zzvim-r.vim
+git clone https://github.com/rgt47/zzvim-r.git ~/.vim/pack/plugins/start/zzvim-r
 ```
 
-## Configuration
+### For Neovim
 
-Add any of these settings to your `vimrc` to customize the plugin:
+Using lazy.nvim (the most popular Neovim plugin manager):
+```lua
+{
+  "rgt47/zzvim-r",
+  ft = {"r", "rmd", "rnw", "qmd"},  -- Load only for R-related files
+},
+```
 
+Using vim-plug in Neovim:
 ```vim
-" Default terminal name for R sessions
-let g:zzvim_r_default_terminal = 'R'
-
-" Disable default mappings if you prefer to define your own
-let g:zzvim_r_disable_mappings = 0
-
-" Customize the submit line mapping
-let g:zzvim_r_map_submit = '<CR>'
+Plug 'rgt47/zzvim-r'
 ```
 
-## Default Mappings
+Manual installation for Neovim:
+```bash
+git clone https://github.com/rgt47/zzvim-r.git ~/.config/nvim/pack/plugins/start/zzvim-r
+```
 
-### Normal Mode
+## Quick Start
 
-| Mapping           | Description                    |
-|------------------|--------------------------------|
-| `<CR>`           | Submit current line to R       |
-| `<localleader>o` | Add pipe operator and new line |
-| `<localleader>j` | Move to next chunk             |
-| `<localleader>k` | Move to previous chunk         |
-| `<localleader>l` | Select and submit chunk        |
-| `<localleader>'` | Submit all previous chunks     |
-| `<localleader>q` | Send 'Q' to R terminal         |
-| `<localleader>c` | Send Ctrl-C to R terminal      |
+1. Open an R file (`.r`, `.rmd`, `.qmd`)
+2. Press `<LocalLeader>r` to open R terminal
+3. Use `<CR>` to send current line or visual selection to R
+4. Navigate chunks with `<LocalLeader>j/k`, execute with `<LocalLeader>l`
+5. Use inspection shortcuts like `<LocalLeader>h` for head()
 
-### R Function Shortcuts
+## Key Mappings
 
-| Mapping           | Function                       |
-|------------------|--------------------------------|
-| `<localleader>d` | Run `dim()` on word           |
-| `<localleader>h` | Run `head()` on word          |
-| `<localleader>s` | Run `str()` on word           |
-| `<localleader>p` | Run `print()` on word         |
-| `<localleader>n` | Run `names()` on word         |
-| `<localleader>f` | Run `length()` on word        |
-| `<localleader>g` | Run `glimpse()` on word       |
-| `<localleader>b` | Run `dt()` on word            |
+### Core Operations
+- `<LocalLeader>r` - Open R terminal
+- `<CR>` - Send line/selection to R
 
-### Visual Mode
+### Chunk Navigation (R Markdown)
+- `<LocalLeader>j` - Next chunk
+- `<LocalLeader>k` - Previous chunk
+- `<LocalLeader>l` - Execute current chunk
+- `<LocalLeader>t` - Execute all previous chunks
 
-| Mapping           | Description                    |
-|------------------|--------------------------------|
-| `<localleader>z` | Submit visual selection        |
+### Session Control
+- `<LocalLeader>q` - Send Q (quit browser/debugger)
+- `<LocalLeader>c` - Send Ctrl-C (interrupt)
+
+### Object Inspection (Single-Letter)
+- `<LocalLeader>h` - head()
+- `<LocalLeader>s` - str()
+- `<LocalLeader>d` - dim()
+- `<LocalLeader>n` - names()
+- `<LocalLeader>p` - print()
+- `<LocalLeader>f` - length()
+- `<LocalLeader>g` - glimpse()
+- `<LocalLeader>b` - summary()
+- `<LocalLeader>y` - help()
+
+### Object Browser & Workspace
+- `<LocalLeader>wb` - Object browser (ls.str())
+- `<LocalLeader>wl` - Workspace listing (ls())
+- `<LocalLeader>wc` - Class & type info of object
+- `<LocalLeader>wd` - Detailed object structure
+
+### Package Management
+- `<LocalLeader>xi` - Install package
+- `<LocalLeader>xl` - Load package
+- `<LocalLeader>xu` - Update package
+
+### Data Import/Export
+- `<LocalLeader>zr` - Read CSV file
+- `<LocalLeader>zw` - Write CSV file
+- `<LocalLeader>zl` - Load RDS file
+- `<LocalLeader>zs` - Save RDS file
+
+### Directory Management
+- `<LocalLeader>vd` - Print working directory
+- `<LocalLeader>vc` - Change directory
+- `<LocalLeader>vl` - List directory contents
+- `<LocalLeader>vh` - Change to home directory
+
+### Enhanced Help
+- `<LocalLeader>ue` - Help with examples
+- `<LocalLeader>ua` - Search help (apropos)
+- `<LocalLeader>uf` - Find function definition
+
+### Utilities
+- `<LocalLeader>o` - Add pipe operator (%>%)
 
 ## Commands
 
-The plugin provides the following commands:
+- `:ROpenTerminal` - Open R terminal
+- `:RSubmitLine` - Send current line to R
+- `:RSubmitSelection` - Send visual selection to R
+- `:RPackage [action] [name]` - Manage R packages
+- `:RData [action] [file]` - Import/export data files
+- `:RDirectory [action] [path]` - Manage working directory
+- `:RTerminalStatus` - Display terminal status
+- `:RToggleDebug` - Toggle debug level
 
-- `:RSubmitLine` - Submit current line to R
-- `:RNextChunk` - Move to next chunk
-- `:RPrevChunk` - Move to previous chunk
-- `:RSelectChunk` - Select current chunk
-- `:RSubmitChunks` - Submit all previous chunks
+## Configuration
 
-## Usage Examples
+```vim
+" R command for terminal sessions
+let g:zzvim_r_command = 'R --no-save --quiet'
 
-### Basic R Script Usage
+" Width of R terminal in vertical split
+let g:zzvim_r_terminal_width = 100
 
-```r
-# Write your R code
-x <- c(1, 2, 3, 4, 5)
-mean(x)
+" Disable default mappings (set to 1 to disable)
+let g:zzvim_r_disable_mappings = 0
 
-# Press Enter to send each line to R
-# Use <localleader>h with cursor on 'x' to run head(x)
+" Debug logging level (0-4)
+let g:zzvim_r_debug = 0
+
+" Path for debug log file
+let g:zzvim_r_log_file = '~/zzvim_r.log'
+
+" R Markdown chunk patterns
+let g:zzvim_r_chunk_start = '^```{[rR]'
+let g:zzvim_r_chunk_end = '^```\s*$'
 ```
 
-### R Markdown Chunk Navigation
+## Comparison with Other R Plugins
 
-````markdown
-```{r}
-# Use <localleader>j and <localleader>k to navigate between chunks
-data <- read.csv("data.csv")
-```
+zzvim-R provides **~95% of daily-use functionality** with a clean, modular architecture:
 
-```{r}
-# Use <localleader>l to select and execute the current chunk
-summary(data)
-```
-````
-
-### Using Pipe Operator
-
-```r
-data %>%
-  filter(year > 2000) %>%
-  group_by(category) %>%
-  summarize(mean_value = mean(value))
-
-# Use <localleader>o to add a pipe operator and create a new line
-```
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
+- **Modular design**: Organized into logical components
+- **No dependencies**: Works out of the box
+- **Fast loading**: Autoload pattern for on-demand loading
+- **Clean architecture**: Well-documented, easy to extend and customize
+- **Focused design**: All essential features, no bloat
 
 ## License
 
-This project is licensed under the Vim License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- Inspired by various R development tools and Vim plugins
-- Thanks to the Vim and R communities for their valuable feedback
-
-## Troubleshooting
-
-### Common Issues
-
-1. **No R terminal available**
-   - Make sure you have started an R terminal session before trying to send commands
-
-2. **Commands not being sent to R**
-   - Verify that Vim was compiled with terminal support
-   - Check that R is properly installed and in your PATH
-   - Ensure there is an active R terminal session
-
-3. **Multiple terminals**
-   - If multiple terminal sessions are open, the plugin will prompt you to choose which terminal to send commands to
-
-For more detailed help, use `:help zzvim-r` within Vim.
+GPL-3.0

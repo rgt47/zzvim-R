@@ -18,3 +18,46 @@ cache/
 sudoku_apple.pdf
 preamble.tex
 library.bib
+
+# Vim swap files
+*.swp
+*.swo
+*~
+
+# Session files
+Session.vim
+.vim/
+.nvim/
+
+# Tags
+tags.lock
+tags.temp
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Build directories
+.build/
+build/
+dist/
+
+# Dependency directories
+node_modules/
+vendor/
+
+# Log files
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+temp.*
+**/.claude/settings.local.json
+test.r
+test_minimal.vim
+test_plugin.vim
+test_plugin_final.vim
+vimrc
+plugin/ex.Rmd
+plugin/ex.html
