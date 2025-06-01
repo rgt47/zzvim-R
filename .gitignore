@@ -61,3 +61,6 @@ test_plugin_final.vim
 vimrc
 plugin/ex.Rmd
 plugin/ex.html
+code_quality_report.md
+improvements.md
+test_plan
