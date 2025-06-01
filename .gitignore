@@ -65,3 +65,5 @@ code_quality_report.md
 improvements.md
 test_plan
 test_files/
+CLAUDE.md
+.gitignore
