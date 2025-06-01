@@ -621,10 +621,10 @@ let s:cmd_list = [
     \ ['RDirectory', 'zzvim_r#directory_operation(get(a:000, 0, "pwd"), 
     \ get(a:000, 1, ""))']
 \ ]
-for l:item in s:cmd_list
-    let l:cmd = l:item[0]
-    let l:func = l:item[1]
-    execute printf('command! -nargs=* %s call %s', l:cmd, l:func)
+for item in s:cmd_list
+    let cmd = item[0]
+    let func = item[1]
+    execute printf('command! -nargs=* %s call %s', cmd, func)
 endfor
 
 " Comprehensive mapping system
@@ -665,28 +665,28 @@ if !s:config.disable_mappings
         \ ]
 
         " Add additional inspect mappings with proper public API calls
-        for l:inspect_item in ['h:head', 's:str', 'd:dim', 'n:names', 'p:print',
+        for inspect_item in ['h:head', 's:str', 'd:dim', 'n:names', 'p:print',
                             \ 'f:length', 'g:glimpse', 'b:summary', 'y:help']
-            let l:key = split(l:inspect_item, ':')[0]
-            let l:func = split(l:inspect_item, ':')[1]
+            let key = split(inspect_item, ':')[0]
+            let func = split(inspect_item, ':')[1]
             call add(s:mapping_defs,
-                  \ ['<LocalLeader>' . l:key,
-                  \ 'zzvim_r#inspect_' . l:func . '()', 'all', 'n'])
+                  \ ['<LocalLeader>' . key,
+                  \ 'zzvim_r#inspect_' . func . '()', 'all', 'n'])
         endfor
         
         " Generate all mappings
-        for l:mapping in s:mapping_defs
-            let l:key = l:mapping[0]
-            let l:cmd = l:mapping[1]
-            let l:scope = l:mapping[2]
-            let l:mode = l:mapping[3]
+        for mapping in s:mapping_defs
+            let key = mapping[0]
+            let cmd = mapping[1]
+            let scope = mapping[2]
+            let mode = mapping[3]
 
-            let l:types = l:scope ==# 'all' ? s:config.supported_types :
+            let types = scope ==# 'all' ? s:config.supported_types :
                       \ filter(copy(s:config.supported_types), 'v:val !=# "r"')
-            for l:ft in l:types
+            for ft in types
                 execute printf('autocmd FileType %s %snoremap <buffer> <silent> %s
                             \ :<C-u>call %s<CR>',
-                            \ l:ft, l:mode, l:key, l:cmd)
+                            \ ft, mode, key, cmd)
             endfor
         endfor
     augroup END
