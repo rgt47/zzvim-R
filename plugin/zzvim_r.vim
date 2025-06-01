@@ -3,7 +3,7 @@
 " ==============================================================================
 " File:        plugin/zzvim_r.vim
 " Maintainer:  RG Thomas <rgthomas@ucsd.edu>
-" Version:     2.3.2
+" Version:     3.0.0
 " License:     GPL-3.0
 " Description: Comprehensive R integration for Vim with terminal management,
 "              chunk navigation, and object inspection capabilities.
@@ -225,7 +225,7 @@ function! s:terminal_engine(action, options) abort
     elseif a:action ==# 'check'
         if !exists('t:zzvim_r_terminal_id') || !exists('t:zzvim_r_job_id')
             call s:engine('log', 'No terminal variables', 4)
-            return v:false
+            return 0
         endif
         
         for [l:check, l:msg] in [
@@ -276,7 +276,7 @@ function! s:terminal_engine(action, options) abort
         
     elseif a:action ==# 'send'
         if !s:terminal_engine('check', {}) && !s:terminal_engine('create', {}) 
-            return v:false 
+            return 0  " Use integers (0/1) consistently for return values 
         endif
         
         let l:content = get(a:options, 'content', '')
@@ -331,7 +331,7 @@ function! s:terminal_engine(action, options) abort
              \ 'active': s:terminal_engine('check', {})} : {}
     endif
     
-    return v:false
+    return 0  " Use integers (0/1) consistently for return values
 endfunction
 " ------------------------------------------------------------------------------
 
@@ -380,11 +380,11 @@ function! s:text_engine(type, options) abort
              \ getline(l:start + 1, l:end - 1) : []
         
     elseif a:type ==# 'previous'
-        let [l:lines, l:in_chunk] = [[], v:false]
+        let [l:lines, l:in_chunk] = [[], 0]
         for l:i in range(1, line('.'))
             let l:line = getline(l:i)
-            let l:in_chunk = l:line =~# s:config.chunk_start ? v:true :
-                           \ l:line =~# s:config.chunk_end ? v:false : l:in_chunk
+            let l:in_chunk = l:line =~# s:config.chunk_start ? 1 :
+                           \ l:line =~# s:config.chunk_end ? 0 : l:in_chunk
             if l:in_chunk && !empty(trim(l:line)) 
                 call add(l:lines, l:line) 
             endif
@@ -644,7 +644,6 @@ if !s:config.disable_mappings
             \ ['<LocalLeader>k', 'zzvim_r#navigate_prev_chunk()', 'doc', 'n'],
             \ ['<LocalLeader>l', 'zzvim_r#execute_chunk()', 'doc', 'n'],
             \ ['<LocalLeader>t', 'zzvim_r#execute_previous_chunks()', 'doc', 'n'],
-            \ ['<LocalLeader>xb', 'zzvim_r#install_package()', 'all', 'n'],
             \ ['<LocalLeader>xi', 'zzvim_r#install_package()', 'all', 'n'],
             \ ['<LocalLeader>xl', 'zzvim_r#load_package()', 'all', 'n'],
             \ ['<LocalLeader>xu', 'zzvim_r#update_package()', 'all', 'n'],

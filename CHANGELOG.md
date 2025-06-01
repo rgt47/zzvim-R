@@ -1,5 +1,27 @@
 # Changelog
 
+## [3.0.0] - 2025-06-03
+### Breaking Changes
+- Removed deprecated zzvim_r#wrapper function
+- Removed redundant terminal function implementations from autoload file
+- Removed redundant directory operation functions
+- Consolidated object inspection functions into a unified zzvim_r#inspect() function
+- Removed duplicated command registration code
+- Standardized return values to use integers (0/1) consistently throughout the plugin
+
+### Added
+- New Breaking Changes section in documentation to highlight API changes
+- Helper functions for improved error handling and configuration access
+- Unified inspection function that supports all inspection types
+- Improved architecture with better separation between plugin and autoload files
+
+### Technical
+- Updated version numbers in all files
+- Enhanced code organization and reduced redundancy
+- Improved API consistency and maintainability
+- Fixed potential issues with function dependencies
+- Streamlined codebase for better performance and maintainability
+
 ## [2.3.2] - 2025-06-02
 ### Changed
 - Fixed script-local loop variables to use function-local scope for better maintainability

@@ -2,7 +2,7 @@
 
 Author:  RG Thomas <rgthomas@ucsd.edu>
 License: GPL-3.0
-Version: 2.3.2
+Version: 3.0.0
 
 ==============================================================================
 CONTENTS                                                      *zzvim-r-contents*
@@ -13,8 +13,9 @@ CONTENTS                                                      *zzvim-r-contents*
     4. Usage ....................................... |zzvim-r-usage|
     5. Commands .................................... |zzvim-r-commands|
     6. Mappings .................................... |zzvim-r-mappings|
-    7. Technical Details ........................... |zzvim-r-technical|
-    8. Troubleshooting ............................. |zzvim-r-troubleshooting|
+    7. Breaking Changes in 3.0.0 ................... |zzvim-r-breaking-changes|
+    8. Technical Details ........................... |zzvim-r-technical|
+    9. Troubleshooting ............................. |zzvim-r-troubleshooting|
 
 ==============================================================================
 1. INTRODUCTION                                           *zzvim-r-introduction*
@@ -205,7 +206,58 @@ Utilities:~
     <LocalLeader>o      Add pipe operator (%>%)
 
 ==============================================================================
-7. TECHNICAL DETAILS                                        *zzvim-r-technical*
+7. BREAKING CHANGES IN 3.0.0                           *zzvim-r-breaking-changes*
+
+Version 3.0.0 of zzvim-R introduces significant architectural improvements and
+code cleanup. These changes prioritize code quality and maintainability over
+backward compatibility. The following breaking changes have been made:
+
+API Changes:~
+    • The deprecated zzvim_r#wrapper() function has been removed
+      (This function previously handled function delegation with filetype checks)
+    • Core functions have been consolidated in the plugin file
+    • Terminal, directory, and inspection functions have been streamlined
+
+Usage Example:~
+    Previous way to inspect objects (now deprecated):
+>
+        call zzvim_r#inspect_head()  " Show head() of object under cursor
+<
+    New unified API for inspection:
+>
+        call zzvim_r#inspect('head')      " Same as inspect_head()
+        call zzvim_r#inspect('head', 20)  " Show head() with n=20
+
+Architectural Improvements:~
+    • Removed redundant terminal function implementations from autoload file
+    • Consolidated object inspection functions into a unified zzvim_r#inspect()
+    • Removed duplicated command registration code
+    • Standardized return values to use integers (0/1) consistently
+    • Improved error handling with helper functions
+
+Affected Code:~
+    If you have custom code that directly calls any of these functions, you may
+    need to update it:
+    
+    • zzvim_r#wrapper() - Removed entirely, use direct function calls instead
+    • zzvim_r#print_directory(), zzvim_r#change_directory(), etc. - Now use the
+      unified zzvim_r#directory_operation() function
+    • Custom terminal function implementations - Now delegate to plugin file
+
+Implementation Notes:~
+    • The plugin now uses consistent 0/1 integer return values instead of v:true/v:false
+    • All functions have improved error handling and dependency checking
+    • Helper functions have been added for common operations
+    • Configuration access now uses fallback values for better reliability
+
+Why These Changes:~
+    These changes were made to eliminate redundancy, improve maintainability,
+    reduce circular dependencies, and provide a cleaner, more consistent API.
+    The code is now better organized with a clear separation between the plugin
+    core (loaded at startup) and autoload functions (loaded on demand).
+
+==============================================================================
+8. TECHNICAL DETAILS                                        *zzvim-r-technical*
 
 Architecture:~
 The plugin uses a layered architecture with clear separation of concerns:
@@ -232,7 +284,7 @@ Function Categories:~
    • Package management: install/load/update_package
    • Data operations: read/write_csv, read/save_rds
    • Directory management: print/change/list/home_directory
-   • Object inspection: inspect_* functions, browse_workspace
+   • Object inspection: inspect function, browse_workspace
    • Help functions: help_examples, apropos_help, find_definition
 
 Key Design Patterns:~
@@ -248,7 +300,7 @@ The plugin supports extensive customization through global variables (see
 those who wish to extend functionality.
 
 ==============================================================================
-8. TROUBLESHOOTING                                     *zzvim-r-troubleshooting*
+9. TROUBLESHOOTING                                     *zzvim-r-troubleshooting*
 
 Check terminal status:~
 >

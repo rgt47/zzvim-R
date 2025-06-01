@@ -161,6 +161,41 @@ let g:zzvim_r_chunk_start = '^```{[rR]'
 let g:zzvim_r_chunk_end = '^```\s*$'
 ```
 
+## Breaking Changes in 3.0.0
+
+Version 3.0.0 introduces significant architectural improvements and code cleanup that prioritize code quality and maintainability over backward compatibility:
+
+### API Changes
+- The deprecated `zzvim_r#wrapper()` function has been removed
+- Core functions have been consolidated in the plugin file
+- Terminal, directory, and inspection functions have been streamlined
+
+### Architectural Improvements
+- Removed redundant terminal function implementations from autoload file
+- Consolidated object inspection functions into a unified `zzvim_r#inspect()`
+- Removed duplicated command registration code
+- Standardized return values to use integers (0/1) consistently
+- Improved error handling with helper functions
+
+### If You're Upgrading
+If you have custom code that directly calls any of these functions, you may need to update it:
+
+- `zzvim_r#wrapper()` - Removed entirely, use direct function calls instead (previously handled function delegation with filetype checks)
+- `zzvim_r#print_directory()`, `zzvim_r#change_directory()`, etc. - Now use the unified `zzvim_r#directory_operation()` function
+- Individual inspection functions now delegate to the unified `zzvim_r#inspect()` function
+
+Example usage of the new unified API:
+```vim
+" Previous way (still supported for backward compatibility)
+call zzvim_r#inspect_head()
+
+" New unified API
+call zzvim_r#inspect('head')      " Same as inspect_head()
+call zzvim_r#inspect('head', 20)  " With custom arguments (n=20)
+```
+
+See the documentation (`:help zzvim-r-breaking-changes`) for more details.
+
 ## Technical Details
 
 ### Architecture
@@ -203,6 +238,7 @@ architecture:
 
 ## Version History
 
+- **3.0.0**: Major code cleanup and API streamlining with breaking changes
 - **2.3.2**: Fixed code style issues, improved error handling, added helper functions
 - **2.3.1**: Optimized code structure and architecture, improved documentation
 - **2.3.0**: Fixed chunk navigation, eliminated key mapping conflicts

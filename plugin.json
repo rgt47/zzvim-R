@@ -1,6 +1,6 @@
 {
     "name": "zzvim-r",
-    "version": "2.3.0",
+    "version": "3.0.0",
     "description": "Comprehensive R integration for Vim with enhanced features",
     "author": "RG Thomas",
     "repository": "https://github.com/rgt47/zzvim-r",

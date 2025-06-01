@@ -1,0 +1,44 @@
+# zzvim-R Test Document
+
+This is a test R Markdown document to test the zzvim-R plugin's chunk navigation and execution.
+
+## First Chunk
+
+```{r setup}
+# Setup chunk
+library(stats)
+options(width=80)
+```
+
+Text between chunks to test navigation.
+
+## Second Chunk
+
+```{r create_data}
+# Data creation chunk
+test_data <- data.frame(
+  x = 1:20,
+  y = rnorm(20),
+  group = rep(c("A", "B"), each = 10)
+)
+
+head(test_data)
+```
+
+More text between chunks.
+
+## Third Chunk
+
+```{r analysis}
+# Analysis chunk
+summary(test_data)
+plot(test_data$x, test_data$y, col = as.factor(test_data$group))
+```
+
+## Fourth Chunk
+
+```{r results}
+# Results chunk
+model <- lm(y ~ x + group, data = test_data)
+summary(model)
+```

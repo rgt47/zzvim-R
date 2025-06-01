@@ -3,7 +3,7 @@
 " ==============================================================================
 " File:        autoload/zzvim_r.vim
 " Maintainer:  RG Thomas <rgthomas@ucsd.edu>
-" Version:     2.3.2
+" Version:     3.0.0
 " License:     GPL-3.0
 " Description: Autoload functions for zzvim_r plugin for lazy loading.
 "
@@ -16,13 +16,11 @@
 " directory operations, and help functionality.
 "
 " FUNCTION CATEGORIES:
-" - Core terminal management: open_terminal, submit_line, submit_selection
 " - Terminal control: send_quit, send_interrupt
 " - Chunk operations: navigate_next/prev_chunk, execute_chunk/previous_chunks
 " - Package management: install/load/update_package
 " - Data operations: read/write_csv, read/save_rds
-" - Directory operations: print/change/list/home_directory
-" - Object inspection: inspect_* functions, browse_workspace, etc.
+" - Object inspection: inspect function, browse_workspace, etc.
 " - Help functions: help_examples, apropos_help, find_definition
 "
 " ARCHITECTURE:
@@ -81,101 +79,6 @@ function! s:get_config(section, key, default) abort
         return s:config[a:section][a:key]
     else
         return a:default
-    endif
-endfunction
-
-" ------------------------------------------------------------------------------
-" DEPRECATED - Use s:public_wrapper from plugin file instead
-" ------------------------------------------------------------------------------
-" This function is kept for backward compatibility but should not be used in
-" new code. It duplicates the functionality of s:public_wrapper() from the
-" plugin file.
-" ------------------------------------------------------------------------------
-function! zzvim_r#wrapper(Func, ...) abort
-    if exists('*s:public_wrapper')
-        " Delegate to the plugin's public_wrapper if available
-        return s:public_wrapper(a:Func, a:000)
-    elseif index(['r', 'rmd', 'rnw', 'qmd'], &filetype) >= 0
-        return call(a:Func, a:000)
-    else
-        echom 'zzvim-R: File type not supported'
-        return 0
-    endif
-endfunction
-
-" ==============================================================================
-" TERMINAL MANAGEMENT FUNCTIONS
-" ==============================================================================
-
-" ------------------------------------------------------------------------------
-" Function: zzvim_r#open_terminal()
-"
-" Creates a new R terminal in a vertical split on the right side of the screen
-"
-" Creates a persistent terminal running R that is associated with the current
-" tab. The terminal can be used to send R commands from Vim.
-"
-" Parameters:
-"   None
-"
-" Returns:
-"   1 if successful, 0 if failed
-"
-" Side effects:
-"   - Creates a new terminal window
-"   - Sets terminal buffer options
-"   - Sets tab-local variables to track the terminal
-" ------------------------------------------------------------------------------
-function! zzvim_r#open_terminal() abort
-    if exists('*s:public_wrapper') && exists('*s:terminal_engine')
-        return s:public_wrapper(function('s:terminal_engine'), 'create', {})
-    else
-        return s:error_msg('Plugin core functions not available')
-    endif
-endfunction
-
-" ------------------------------------------------------------------------------
-" Function: zzvim_r#submit_line()
-"
-" Sends the current line to the R terminal
-"
-" Gets the text from the current line, ensures a terminal exists, sends the
-" line to the R terminal, and advances the cursor to the next line.
-"
-" Parameters:
-"   None
-"
-" Returns:
-"   1 if successful, 0 if failed
-" ------------------------------------------------------------------------------
-function! zzvim_r#submit_line() abort
-    if exists('*s:public_wrapper') && exists('*s:execute_engine')
-        return s:public_wrapper(function('s:execute_engine'), 'line', {})
-    else
-        return s:error_msg('Plugin core functions not available')
-    endif
-endfunction
-
-" ------------------------------------------------------------------------------
-" Function: zzvim_r#submit_selection()
-"
-" Sends the visually selected text to the R terminal
-"
-" Gets the text from the current visual selection, ensures a terminal exists,
-" sends the selection to the R terminal, and moves the cursor after selection.
-"
-" Parameters:
-"   None
-"
-" Returns:
-"   1 if successful, 0 if failed
-" ------------------------------------------------------------------------------
-function! zzvim_r#submit_selection() abort
-    if exists('*s:public_wrapper') && exists('*s:execute_engine')
-        return s:public_wrapper(function('s:execute_engine'), 'selection', {})
-    else
-        echom 'zzvim-R: Plugin core functions not available'
-        return 0
     endif
 endfunction
 
@@ -740,110 +643,6 @@ function! zzvim_r#save_rds() abort
 endfunction
 
 " ==============================================================================
-" DIRECTORY OPERATION FUNCTIONS
-" ==============================================================================
-
-" ------------------------------------------------------------------------------
-" Function: zzvim_r#print_directory()
-"
-" Prints the current working directory in R
-"
-" Sends the getwd() command to the R terminal to display the current
-" working directory.
-"
-" Parameters:
-"   None
-"
-" Returns:
-"   1 if successful, 0 if failed
-" ------------------------------------------------------------------------------
-function! zzvim_r#print_directory() abort
-    if exists('*zzvim_r#directory_operation')
-        return zzvim_r#directory_operation('pwd', '')
-    else
-        echom 'zzvim-R: Plugin core functions not available'
-        return 0
-    endif
-endfunction
-
-" ------------------------------------------------------------------------------
-" Function: zzvim_r#change_directory()
-"
-" Changes the working directory in R
-"
-" Prompts the user for a directory path and sends the setwd() command
-" to the R terminal.
-"
-" Parameters:
-"   None
-"
-" Returns:
-"   1 if successful, 0 if failed
-" ------------------------------------------------------------------------------
-function! zzvim_r#change_directory() abort
-    if exists('*s:engine')
-        " Default to current file's directory
-        let l:default_dir = expand('%:p:h')
-        let l:dir = input('Change to directory: ', l:default_dir, 'dir')
-        if empty(l:dir)
-            call s:engine('msg', 'No directory provided', 'error')
-            return 0
-        endif
-        
-        return zzvim_r#directory_operation('cd', l:dir)
-    else
-        echom 'zzvim-R: Plugin core functions not available'
-        return 0
-    endif
-endfunction
-
-" ------------------------------------------------------------------------------
-" Function: zzvim_r#list_directory()
-"
-" Lists the contents of the current directory in R
-"
-" Sends the list.files() command to the R terminal to display the files
-" in the current working directory.
-"
-" Parameters:
-"   None
-"
-" Returns:
-"   1 if successful, 0 if failed
-" ------------------------------------------------------------------------------
-function! zzvim_r#list_directory() abort
-    if exists('*zzvim_r#directory_operation')
-        return zzvim_r#directory_operation('ls', '')
-    else
-        echom 'zzvim-R: Plugin core functions not available'
-        return 0
-    endif
-endfunction
-
-" ------------------------------------------------------------------------------
-" Function: zzvim_r#home_directory()
-"
-" Changes to the home directory in R
-"
-" Sends the setwd("~") command to the R terminal to change to the user's
-" home directory.
-"
-" Parameters:
-"   None
-"
-" Returns:
-"   1 if successful, 0 if failed
-" ------------------------------------------------------------------------------
-function! zzvim_r#home_directory() abort
-    if exists('*zzvim_r#directory_operation')
-        return zzvim_r#directory_operation('home', '')
-    else
-        echom 'zzvim-R: Plugin core functions not available'
-        return 0
-    endif
-endfunction
-
-" ==============================================================================
 " WORKSPACE AND OBJECT INSPECTION FUNCTIONS
 " ==============================================================================
 
@@ -1167,85 +966,85 @@ endfunction
 " OBJECT INSPECTION FUNCTIONS
 " ==============================================================================
 
-" Inspection functions using the s:send_inspect_command helper
+" ------------------------------------------------------------------------------
+" Function: zzvim_r#inspect(type, ...)
+"
+" Unified object inspection function that replaces individual inspection functions
+"
+" Parameters:
+"   type  - String: Type of inspection (head, str, dim, names, etc.)
+"   ...   - Any: Optional extra arguments for the R function
+"
+" Returns:
+"   1 if successful, 0 if failed
+" ------------------------------------------------------------------------------
+function! zzvim_r#inspect(type, ...) abort
+    " Define a dictionary mapping inspection types to R functions and default args
+    let l:inspect_map = {
+        \ 'head': ['head', 'n = 10'],
+        \ 'str': ['str', ''],
+        \ 'dim': ['dim', ''],
+        \ 'names': ['names', ''],
+        \ 'print': ['print', ''],
+        \ 'length': ['length', ''],
+        \ 'glimpse': ['dplyr::glimpse', ''],
+        \ 'summary': ['summary', ''],
+        \ 'help': ['help', '']
+    \ }
 
-function! zzvim_r#inspect_head() abort
-    if exists('*s:send_inspect_command')
-        return s:send_inspect_command('head', 'n = 10')
-    else
-        echom 'zzvim-R: Plugin core functions not available'
-        return 0
+    " Check if the requested inspection type is supported
+    if !has_key(l:inspect_map, a:type)
+        return s:error_msg('Unknown inspection type: ' . a:type)
     endif
+
+    " Get the R function and default args for this inspection type
+    let [l:func, l:default_args] = l:inspect_map[a:type]
+
+    " Override default args if provided
+    let l:extra_args = get(a:, 1, l:default_args)
+
+    " Delegate to send_inspect_command
+    if exists('*s:send_inspect_command')
+        return s:send_inspect_command(l:func, l:extra_args)
+    else
+        return s:error_msg('Plugin core functions not available')
+    endif
+endfunction
+
+" For backward compatibility, provide the individual inspection functions
+" that delegate to the unified function
+function! zzvim_r#inspect_head() abort
+    return zzvim_r#inspect('head')
 endfunction
 
 function! zzvim_r#inspect_str() abort
-    if exists('*s:send_inspect_command')
-        return s:send_inspect_command('str', '')
-    else
-        echom 'zzvim-R: Plugin core functions not available'
-        return 0
-    endif
+    return zzvim_r#inspect('str')
 endfunction
 
 function! zzvim_r#inspect_dim() abort
-    if exists('*s:send_inspect_command')
-        return s:send_inspect_command('dim', '')
-    else
-        echom 'zzvim-R: Plugin core functions not available'
-        return 0
-    endif
+    return zzvim_r#inspect('dim')
 endfunction
 
 function! zzvim_r#inspect_names() abort
-    if exists('*s:send_inspect_command')
-        return s:send_inspect_command('names', '')
-    else
-        echom 'zzvim-R: Plugin core functions not available'
-        return 0
-    endif
+    return zzvim_r#inspect('names')
 endfunction
 
 function! zzvim_r#inspect_print() abort
-    if exists('*s:send_inspect_command')
-        return s:send_inspect_command('print', '')
-    else
-        echom 'zzvim-R: Plugin core functions not available'
-        return 0
-    endif
+    return zzvim_r#inspect('print')
 endfunction
 
 function! zzvim_r#inspect_length() abort
-    if exists('*s:send_inspect_command')
-        return s:send_inspect_command('length', '')
-    else
-        echom 'zzvim-R: Plugin core functions not available'
-        return 0
-    endif
+    return zzvim_r#inspect('length')
 endfunction
 
 function! zzvim_r#inspect_glimpse() abort
-    if exists('*s:send_inspect_command')
-        return s:send_inspect_command('dplyr::glimpse', '')
-    else
-        echom 'zzvim-R: Plugin core functions not available'
-        return 0
-    endif
+    return zzvim_r#inspect('glimpse')
 endfunction
 
 function! zzvim_r#inspect_summary() abort
-    if exists('*s:send_inspect_command')
-        return s:send_inspect_command('summary', '')
-    else
-        echom 'zzvim-R: Plugin core functions not available'
-        return 0
-    endif
+    return zzvim_r#inspect('summary')
 endfunction
 
 function! zzvim_r#inspect_help() abort
-    if exists('*s:send_inspect_command')
-        return s:send_inspect_command('help', '')
-    else
-        echom 'zzvim-R: Plugin core functions not available'
-        return 0
-    endif
+    return zzvim_r#inspect('help')
 endfunction
