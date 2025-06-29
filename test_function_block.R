@@ -1,5 +1,5 @@
 # Test file for function block detection
-
+1
 # Simple function definition
 aa <- function(x) {
   result <- x * 2

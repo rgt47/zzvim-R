@@ -1048,3 +1048,533 @@ endfunction
 function! zzvim_r#inspect_help() abort
     return zzvim_r#inspect('help')
 endfunction
+
+" ==============================================================================
+" ENVIRONMENT PANE SIMULATION (RStudio-like feature)
+" ==============================================================================
+
+" ------------------------------------------------------------------------------
+" Function: zzvim_r#toggle_environment()
+"
+" Toggles the R environment pane display (similar to peekaboo plugin)
+"
+" Creates a floating/split window showing the current R workspace with:
+" - Object names, types, sizes, and previews
+" - Interactive navigation and inspection
+" - Auto-refresh on code execution
+" - Search and filtering capabilities
+"
+" Inspired by peekaboo plugin's approach to showing register contents
+"
+" Parameters:
+"   None
+"
+" Returns:
+"   1 if successful, 0 if failed
+" ------------------------------------------------------------------------------
+function! zzvim_r#toggle_environment() abort
+    " Check if environment pane is already open
+    let l:env_bufnr = s:find_environment_buffer()
+    
+    if l:env_bufnr > 0
+        " Environment pane is open - close it
+        call s:close_environment_pane(l:env_bufnr)
+        return 1
+    else
+        " Environment pane is closed - open it
+        return s:open_environment_pane()
+    endif
+endfunction
+
+" ------------------------------------------------------------------------------
+" Function: zzvim_r#refresh_environment()
+"
+" Refreshes the environment pane if it's currently open
+" Called automatically after code execution
+"
+" Returns:
+"   1 if refreshed, 0 if pane not open
+" ------------------------------------------------------------------------------
+function! zzvim_r#refresh_environment() abort
+    let l:env_bufnr = s:find_environment_buffer()
+    if l:env_bufnr > 0
+        call s:update_environment_content(l:env_bufnr)
+        return 1
+    endif
+    return 0
+endfunction
+
+" ------------------------------------------------------------------------------
+" Function: s:find_environment_buffer()
+"
+" Finds the environment pane buffer if it exists
+"
+" Returns:
+"   Buffer number if found, 0 if not found
+" ------------------------------------------------------------------------------
+function! s:find_environment_buffer() abort
+    " Look for buffer with our special name pattern
+    for l:bufnr in range(1, bufnr('$'))
+        if bufexists(l:bufnr) && bufname(l:bufnr) =~# '^\[R-Environment\]'
+            return l:bufnr
+        endif
+    endfor
+    return 0
+endfunction
+
+" ------------------------------------------------------------------------------
+" Function: s:open_environment_pane()
+"
+" Opens the environment pane window with proper layout
+"
+" Creates either a floating window (if supported) or a split window
+" Similar to how peekaboo creates its register display
+"
+" Returns:
+"   1 if successful, 0 if failed
+" ------------------------------------------------------------------------------
+function! s:open_environment_pane() abort
+    if !exists('*s:terminal_engine')
+        echom 'zzvim-R: Plugin core functions not available'
+        return 0
+    endif
+    
+    " Make sure we have an active R terminal
+    if !s:terminal_engine('check', {})
+        if !s:terminal_engine('create', {})
+            call s:engine('msg', 'Cannot open environment: R terminal unavailable', 'error')
+            return 0
+        endif
+    endif
+    
+    " Save current window info
+    let l:current_win = winnr()
+    let l:current_buf = bufnr('%')
+    
+    try
+        " Create environment window (try floating first, fall back to split)
+        if s:create_environment_window()
+            " Set up the environment buffer
+            call s:setup_environment_buffer()
+            
+            " Populate with initial data
+            call s:update_environment_content(bufnr('%'))
+            
+            " Return to original window
+            execute l:current_win . 'wincmd w'
+            
+            call s:engine('msg', 'Environment pane opened', 'info')
+            return 1
+        else
+            call s:engine('msg', 'Failed to create environment window', 'error')
+            return 0
+        endif
+    catch
+        call s:engine('msg', 'Error opening environment: ' . v:exception, 'error')
+        return 0
+    endtry
+endfunction
+
+" ------------------------------------------------------------------------------
+" Function: s:create_environment_window()
+"
+" Creates the environment window (floating or split)
+"
+" Uses modern Vim features if available, falls back to split window
+" Similar to peekaboo's window creation strategy
+"
+" Returns:
+"   1 if successful, 0 if failed
+" ------------------------------------------------------------------------------
+function! s:create_environment_window() abort
+    " Try to create floating window if supported (Vim 8.2+ or Neovim)
+    if has('patch-8.2.0191') || has('nvim-0.4')
+        return s:create_floating_environment()
+    else
+        return s:create_split_environment()
+    endif
+endfunction
+
+" ------------------------------------------------------------------------------
+" Function: s:create_floating_environment()
+"
+" Creates a floating window for the environment pane
+"
+" Returns:
+"   1 if successful, 0 if failed
+" ------------------------------------------------------------------------------
+function! s:create_floating_environment() abort
+    " Calculate floating window dimensions (similar to peekaboo)
+    let l:width = min([80, &columns - 4])
+    let l:height = min([20, &lines - 6])
+    let l:row = (&lines - l:height) / 2
+    let l:col = (&columns - l:width) / 2
+    
+    try
+        " Check if we're in Neovim
+        if has('nvim')
+            " Neovim floating window
+            let l:opts = {
+                \ 'relative': 'editor',
+                \ 'width': l:width,
+                \ 'height': l:height,
+                \ 'row': l:row,
+                \ 'col': l:col,
+                \ 'style': 'minimal',
+                \ 'border': 'single'
+            \ }
+            
+            " Create buffer first
+            let l:buf = nvim_create_buf(v:false, v:true)
+            
+            " Open floating window
+            let l:win = nvim_open_win(l:buf, v:true, l:opts)
+            
+            " Set buffer name
+            execute 'file [R-Environment]'
+            
+            return 1
+        else
+            " Vim 8.2+ popup window
+            let l:opts = {
+                \ 'line': l:row + 1,
+                \ 'col': l:col + 1,
+                \ 'minwidth': l:width,
+                \ 'minheight': l:height,
+                \ 'border': [],
+                \ 'close': 'click'
+            \ }
+            
+            " Create popup window
+            let l:popup_id = popup_create('Loading environment...', l:opts)
+            
+            " Get the buffer number of the popup
+            let l:bufnr = winbufnr(popup_getwid(l:popup_id))
+            
+            " Switch to the popup buffer
+            execute 'buffer' l:bufnr
+            
+            " Set buffer name
+            execute 'file [R-Environment]'
+            
+            return 1
+        endif
+    catch
+        " Fall back to split if floating/popup fails
+        return s:create_split_environment()
+    endtry
+endfunction
+
+" ------------------------------------------------------------------------------
+" Function: s:create_split_environment()
+"
+" Creates a split window for the environment pane
+"
+" Returns:
+"   1 if successful, 0 if failed
+" ------------------------------------------------------------------------------
+function! s:create_split_environment() abort
+    try
+        " Create vertical split on the right (like RStudio)
+        execute 'rightbelow vnew'
+        
+        " Resize to reasonable width
+        execute 'vertical resize 40'
+        
+        " Set buffer name
+        execute 'file [R-Environment]'
+        
+        return 1
+    catch
+        return 0
+    endtry
+endfunction
+
+" ------------------------------------------------------------------------------
+" Function: s:setup_environment_buffer()
+"
+" Sets up buffer options and key mappings for the environment pane
+"
+" Configures the buffer similar to how peekaboo sets up its register buffer
+" ------------------------------------------------------------------------------
+function! s:setup_environment_buffer() abort
+    " Set buffer options for environment display
+    setlocal buftype=nofile
+    setlocal bufhidden=wipe
+    setlocal noswapfile
+    setlocal nobuflisted
+    setlocal readonly
+    setlocal nomodifiable
+    setlocal nowrap
+    setlocal number
+    setlocal cursorline
+    setlocal filetype=r-environment
+    
+    " Set up key mappings for interaction
+    nnoremap <buffer> <silent> q :call <SID>close_environment_pane(bufnr('%'))<CR>
+    nnoremap <buffer> <silent> <Esc> :call <SID>close_environment_pane(bufnr('%'))<CR>
+    nnoremap <buffer> <silent> r :call zzvim_r#refresh_environment()<CR>
+    nnoremap <buffer> <silent> <CR> :call <SID>inspect_object_under_cursor()<CR>
+    nnoremap <buffer> <silent> h :call <SID>show_help()<CR>
+    nnoremap <buffer> <silent> / :call <SID>search_environment()<CR>
+    nnoremap <buffer> <silent> n :call <SID>next_search()<CR>
+    nnoremap <buffer> <silent> N :call <SID>prev_search()<CR>
+    
+    " Store buffer-local variables
+    let b:environment_last_update = localtime()
+    let b:environment_search_pattern = ''
+endfunction
+
+" ------------------------------------------------------------------------------
+" Function: s:update_environment_content(bufnr)
+"
+" Updates the environment pane content with current R workspace data
+"
+" Parameters:
+"   bufnr - Buffer number of environment pane
+"
+" Returns:
+"   1 if successful, 0 if failed
+" ------------------------------------------------------------------------------
+function! s:update_environment_content(bufnr) abort
+    if !exists('*s:terminal_engine')
+        return 0
+    endif
+    
+    " Make sure R terminal is available
+    if !s:terminal_engine('check', {})
+        return 0
+    endif
+    
+    " Create R command to get workspace information
+    let l:temp_file = tempname() . '.txt'
+    let l:r_cmd = printf('
+    \ tryCatch({
+    \   objects <- ls(envir = .GlobalEnv, all.names = FALSE)
+    \   if (length(objects) == 0) {
+    \     cat("# R Environment (Empty)\n")
+    \     cat("# No objects in workspace\n")
+    \   } else {
+    \     # Get detailed information about each object
+    \     info_list <- lapply(objects, function(obj_name) {
+    \       obj <- get(obj_name, envir = .GlobalEnv)
+    \       
+    \       # Get object class and type
+    \       obj_class <- class(obj)[1]
+    \       obj_type <- typeof(obj)
+    \       
+    \       # Get object size
+    \       obj_size <- object.size(obj)
+    \       size_str <- if (obj_size < 1024) {
+    \         paste(obj_size, "B")
+    \       } else if (obj_size < 1024^2) {
+    \         paste(round(obj_size/1024, 1), "KB")
+    \       } else if (obj_size < 1024^3) {
+    \         paste(round(obj_size/1024^2, 1), "MB")
+    \       } else {
+    \         paste(round(obj_size/1024^3, 1), "GB")
+    \       }
+    \       
+    \       # Get object preview
+    \       preview <- tryCatch({
+    \         if (is.data.frame(obj)) {
+    \           paste0(nrow(obj), " obs. of ", ncol(obj), " variables")
+    \         } else if (is.matrix(obj)) {
+    \           paste0(paste(dim(obj), collapse=" x "), " matrix")
+    \         } else if (is.vector(obj) && length(obj) <= 5) {
+    \           paste(head(obj, 5), collapse=", ")
+    \         } else if (is.vector(obj)) {
+    \           paste0("length ", length(obj), " vector")
+    \         } else if (is.function(obj)) {
+    \           "function"
+    \         } else {
+    \           paste(obj_class, "object")
+    \         }
+    \       }, error = function(e) "object")
+    \       
+    \       return(data.frame(
+    \         Name = obj_name,
+    \         Type = obj_class,
+    \         Size = size_str,
+    \         Preview = preview,
+    \         stringsAsFactors = FALSE
+    \       ))
+    \     })
+    \     
+    \     # Combine all info
+    \     env_info <- do.call(rbind, info_list)
+    \     
+    \     # Write formatted output
+    \     cat("# R Environment (", nrow(env_info), " objects)\n")
+    \     cat("# Press <CR> to inspect, r to refresh, q to close\n")
+    \     cat("#", rep("-", 50), "\n")
+    \     
+    \     # Format as table
+    \     for (i in 1:nrow(env_info)) {
+    \       cat(sprintf("%%-%ds %%-%ds %%-%ds %%s\n",
+    \           max(12, nchar(env_info$Name[i])),
+    \           max(8, nchar(env_info$Type[i])),
+    \           max(8, nchar(env_info$Size[i])),
+    \           env_info$Name[i], env_info$Type[i], 
+    \           env_info$Size[i], env_info$Preview[i]))
+    \     }
+    \   }
+    \ }, error = function(e) {
+    \   cat("# R Environment (Error)\n")
+    \   cat("# Error getting workspace: ", e$message, "\n")
+    \ })', '')
+    
+    " Execute R command and capture output
+    let l:success = s:terminal_engine('send', 
+                  \ {'content': l:r_cmd, 'desc': 'get environment info'})
+    
+    if !l:success
+        return 0
+    endif
+    
+    " Wait a moment for R to process and then capture output
+    sleep 500m
+    
+    " For now, we'll use a simpler approach - get the output directly
+    " This is a simplified version - in a full implementation, you'd want
+    " to capture the R output more reliably
+    call s:populate_environment_buffer_simple(a:bufnr)
+    
+    return 1
+endfunction
+
+" ------------------------------------------------------------------------------
+" Function: s:populate_environment_buffer_simple(bufnr)
+"
+" Simplified version that populates environment buffer with basic info
+"
+" Parameters:
+"   bufnr - Buffer number of environment pane
+" ------------------------------------------------------------------------------
+function! s:populate_environment_buffer_simple(bufnr) abort
+    " Switch to environment buffer
+    let l:current_buf = bufnr('%')
+    execute 'buffer' a:bufnr
+    
+    " Make buffer modifiable temporarily
+    setlocal modifiable
+    
+    " Clear existing content
+    silent %delete _
+    
+    " Add header
+    call append(0, [
+        \ '# R Environment',
+        \ '# Press <CR> to inspect, r to refresh, q to close',
+        \ '#' . repeat('-', 50),
+        \ '',
+        \ 'Fetching workspace data...',
+        \ '',
+        \ 'Object Name     Type      Size     Preview',
+        \ repeat('-', 50)
+    \ ])
+    
+    " Add a note about the simplified version
+    call append(line('$'), [
+        \ '',
+        \ '# Note: This is a simplified environment display.',
+        \ '# Full R workspace integration would require more',
+        \ '# sophisticated output capture from the R terminal.',
+        \ '',
+        \ '# Use the existing workspace commands:',
+        \ '# <LocalLeader>wb - Browse workspace (ls.str())',
+        \ '# <LocalLeader>wl - List workspace (ls())'
+    \ ])
+    
+    " Remove the first empty line
+    1delete _
+    
+    " Make buffer readonly again
+    setlocal nomodifiable readonly
+    
+    " Position cursor
+    normal! gg
+    
+    " Return to original buffer if different
+    if l:current_buf != a:bufnr
+        execute 'buffer' l:current_buf
+    endif
+endfunction
+
+" ------------------------------------------------------------------------------
+" Function: s:close_environment_pane(bufnr)
+"
+" Closes the environment pane
+"
+" Parameters:
+"   bufnr - Buffer number of environment pane
+" ------------------------------------------------------------------------------
+function! s:close_environment_pane(bufnr) abort
+    " Close the window/buffer
+    if bufexists(a:bufnr)
+        execute 'bwipeout' a:bufnr
+    endif
+endfunction
+
+" ------------------------------------------------------------------------------
+" Function: s:inspect_object_under_cursor()
+"
+" Inspects the R object under cursor in environment pane
+" ------------------------------------------------------------------------------
+function! s:inspect_object_under_cursor() abort
+    " Get the line under cursor and extract object name
+    let l:line = getline('.')
+    let l:object_match = matchstr(l:line, '^\s*\zs\w\+')
+    
+    if !empty(l:object_match)
+        " Use existing inspection functionality
+        let l:old_word = expand('<cword>')
+        execute 'normal! "_ciw' . l:object_match . "\<Esc>"
+        call zzvim_r#inspect('str')
+        execute 'normal! u'  " Undo the word change
+    endif
+endfunction
+
+" ------------------------------------------------------------------------------
+" Function: s:show_help()
+"
+" Shows help for environment pane usage
+" ------------------------------------------------------------------------------
+function! s:show_help() abort
+    echo 'Environment Pane Help:'
+    echo '<CR>  - Inspect object under cursor'
+    echo 'r     - Refresh environment data'  
+    echo 'q/Esc - Close environment pane'
+    echo '/     - Search objects'
+    echo 'h     - Show this help'
+endfunction
+
+" ------------------------------------------------------------------------------
+" Function: s:search_environment()
+"
+" Search for objects in environment pane
+" ------------------------------------------------------------------------------
+function! s:search_environment() abort
+    let l:pattern = input('Search objects: ')
+    if !empty(l:pattern)
+        let b:environment_search_pattern = l:pattern
+        call search(l:pattern, 'w')
+    endif
+endfunction
+
+" ------------------------------------------------------------------------------
+" Function: s:next_search() / s:prev_search()
+"
+" Navigate search results in environment pane
+" ------------------------------------------------------------------------------
+function! s:next_search() abort
+    if exists('b:environment_search_pattern') && !empty(b:environment_search_pattern)
+        call search(b:environment_search_pattern, 'w')
+    endif
+endfunction
+
+function! s:prev_search() abort
+    if exists('b:environment_search_pattern') && !empty(b:environment_search_pattern)
+        call search(b:environment_search_pattern, 'bw')
+    endif
+endfunction

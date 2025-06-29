@@ -767,8 +767,16 @@ function! s:execute_engine(type, options) abort
     let l:success = s:terminal_engine('send', 
                   \ {'content': l:send_content, 'desc': l:names[a:type]})
     
-    " Handle navigation
+    " Handle navigation and auto-refresh environment pane
     if l:success
+        " Auto-refresh environment pane if it's open
+        " (only if we're not already in the environment pane)
+        if bufname('%') !~# '^\[R-Environment\]'
+            if exists('*zzvim_r#refresh_environment')
+                call zzvim_r#refresh_environment()
+            endif
+        endif
+        
         if a:type ==# 'line' && !get(a:options, 'stay_on_line', 0)
             normal! j
         elseif a:type ==# 'selection'
@@ -1175,7 +1183,8 @@ if !s:config.disable_mappings
             \ ['<LocalLeader>wd', 'zzvim_r#show_detailed()', 'all', 'n'],
             \ ['<LocalLeader>ue', 'zzvim_r#help_examples()', 'all', 'n'],
             \ ['<LocalLeader>ua', 'zzvim_r#apropos_help()', 'all', 'n'],
-            \ ['<LocalLeader>uf', 'zzvim_r#find_definition()', 'all', 'n']
+            \ ['<LocalLeader>uf', 'zzvim_r#find_definition()', 'all', 'n'],
+            \ ['<LocalLeader>we', 'zzvim_r#toggle_environment()', 'all', 'n']
         \ ]
 
         " Add additional inspect mappings with proper public API calls
@@ -1198,8 +1207,7 @@ if !s:config.disable_mappings
             let types = scope ==# 'all' ? s:config.supported_types :
                       \ filter(copy(s:config.supported_types), 'v:val !=# "r"')
             for ft in types
-                execute printf('autocmd FileType %s %snoremap <buffer> <silent> %s
-                            \ :<C-u>call %s<CR>',
+                execute printf('autocmd FileType %s %snoremap <buffer> <silent> %s :<C-u>call %s<CR>',
                             \ ft, mode, key, cmd)
             endfor
         endfor
@@ -1243,6 +1251,7 @@ unlet s:save_cpo
 "   <LocalLeader>wl  - Workspace listing (ls())
 "   <LocalLeader>wc  - Class & type info of object
 "   <LocalLeader>wd  - Detailed object structure
+"   <LocalLeader>we  - Toggle environment pane (RStudio-like)
 "
 " Package Management:
 "   <LocalLeader>xi  - Install package
