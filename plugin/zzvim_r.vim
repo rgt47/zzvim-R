@@ -256,8 +256,8 @@ function! s:terminal_engine(action, options) abort
         
         let l:context = [winnr(), bufnr('%')]
         try
-            execute printf('vertical terminal %s | vertical resize %d', 
-                        \ s:config.command, s:config.width)
+            execute printf('vertical terminal %s', s:config.command)
+            execute printf('vertical resize %d', s:config.width)
             for l:setting in s:config.terminal_settings 
                 execute 'setlocal ' . l:setting 
             endfor
