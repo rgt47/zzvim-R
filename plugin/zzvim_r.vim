@@ -55,81 +55,212 @@ set cpoptions&vim
 "==============================================================================
 " CONFIGURATION VARIABLES
 "==============================================================================
-" These variables control plugin behavior and can be customized in vimrc.
-" All configuration is centralized for easier management and validation.
+" This section defines all configuration variables and their default values.
+" The configuration uses a centralized dictionary approach for better
+" organization and validation. All user-configurable options use the pattern:
+" get(g:, 'global_var_name', 'default_value') to safely read global variables.
+"
+" DESIGN PATTERN:
+" - s:config dictionary holds all plugin configuration
+" - User variables prefixed with g:zzvim_r_*
+" - Internal configuration stored in sub-dictionaries for organization
+" - Validation applied where necessary (e.g., width bounds)
 
-" Master configuration dictionary with all settings, defaults, and metadata
+" Master configuration dictionary - serves as single source of truth for all
+" plugin settings, both user-configurable and internal constants
 let s:config = {}
 
-" User configuration
+" ==============================================================================
+" USER-CONFIGURABLE OPTIONS
+" ==============================================================================
+" These options can be set in the user's vimrc file to customize behavior
+
+" R command to execute when starting terminal
+" Default: 'R --no-save --quiet' (starts R without saving workspace, minimal output)
+" User can override with: let g:zzvim_r_command = 'R --vanilla'
 let s:config.command = get(g:, 'zzvim_r_command', 'R --no-save --quiet')
+
+" Terminal width in columns - clamped between 30 and 300 for usability
+" get() safely reads global variable, max()/min() enforce bounds
+" Default: 100 columns wide
 let s:config.width = max([30, min([300, 
                         \ get(g:, 'zzvim_r_terminal_width', 100)])])
+
+" Flag to disable all key mappings (useful for custom mapping schemes)
+" Set g:zzvim_r_disable_mappings = 1 to disable default mappings
+" Default: 0 (mappings enabled)
 let s:config.disable_mappings = get(g:, 'zzvim_r_disable_mappings', 0)
+
+" Regular expressions for R Markdown chunk detection
+" chunk_start: matches opening code fences like ```{r} or ```{R}
+" ^: start of line, \s*: optional whitespace, [rR]: r or R language tag
 let s:config.chunk_start = get(g:, 'zzvim_r_chunk_start', '^```{[rR]')
+
+" chunk_end: matches closing code fences
+" ^: start of line, ```: literal backticks, \s*: optional whitespace, $: end of line
 let s:config.chunk_end = get(g:, 'zzvim_r_chunk_end', '^```\s*$')
+
+" Debug level: 0=off, 1=errors, 2=warnings, 3=info, 4=verbose
+" Higher numbers include lower levels (4 includes all messages)
+" Default: 0 (no debug output)
 let s:config.debug = get(g:, 'zzvim_r_debug', 0)
+
+" Log file path for debug messages (when debug > 0)
+" ~ expands to user home directory
+" Default: ~/zzvim_r.log
 let s:config.log_file = get(g:, 'zzvim_r_log_file', '~/zzvim_r.log')
 
-" Internal configuration
+" ==============================================================================
+" INTERNAL CONFIGURATION (NOT USER-MODIFIABLE)
+" ==============================================================================
+" These are internal constants and configurations that define plugin behavior.
+" Users should not modify these directly as they affect core functionality.
+
+" File types that this plugin supports
+" Used in autocommands and validation functions to ensure plugin only
+" activates for appropriate file types
+" r: R script files, rmd: R Markdown, rnw: R noweb (Sweave), qmd: Quarto
 let s:config.supported_types = ['r', 'rmd', 'rnw', 'qmd']
+
+" Message type configuration for the messaging system
+" Each type maps to: [debug_level, highlight_group, return_value]
+" debug_level: minimum debug level to show this message type
+" highlight_group: vim highlight group for colored output
+" return_value: what the message function should return (0=failure, 1=success)
 let s:config.msg_types = {'error': [1, 'ErrorMsg', 0], 'warn': [2, 'WarningMsg', 1], 
                         \ 'info': [3, 'None', 1]}
+
+" Log level names for debug output
+" Index corresponds to debug level: log_levels[1] = 'ERROR', etc.
+" Empty string at index 0 means no logging when debug=0
 let s:config.log_levels = ['', 'ERROR', 'WARN', 'INFO', 'DEBUG']
+
+" Terminal buffer settings to apply when creating R terminal
+" These settings optimize the terminal for R interaction:
+" - norelativenumber/nonumber: no line numbers (cleaner look)
+" - signcolumn=no: no sign column (more space for R output)
+" - nobuflisted: don't show in buffer list
+" - bufhidden=wipe: automatically delete buffer when hidden
+" - nospell: disable spell checking in terminal
 let s:config.terminal_settings = ['norelativenumber', 'nonumber', 'signcolumn=no', 
                                \ 'nobuflisted', 'bufhidden=wipe', 'nospell']
+
+" Template strings for R function calls
+" %s placeholder gets replaced with actual function/object names
+" Used by help system and object validation functions
 let s:config.r_functions = {'help': '"%s"', 'exists': '"%s"'}
 
-" Enhanced inspections
+" ==============================================================================
+" R COMMAND TEMPLATES
+" ==============================================================================
+" These dictionaries contain R command templates with %s placeholders
+" that get replaced with actual values using printf(). This approach
+" centralizes R code and makes it easier to modify R function calls.
+
+" Enhanced object inspection commands
+" These provide more detailed object information than basic R functions
 let s:config.enhanced_inspections = {}
-let s:config.enhanced_inspections.browse = 'ls.str()'
-let s:config.enhanced_inspections.workspace = 'ls()'
+let s:config.enhanced_inspections.browse = 'ls.str()'  " Structured workspace listing
+let s:config.enhanced_inspections.workspace = 'ls()'   " Simple object names list
+
+" Multi-line R command with \n for line breaks in output
+" %s gets replaced twice with the same object name for class() and typeof()
 let s:config.enhanced_inspections.class = 'cat("Class:", class(%s), 
                                         \ "\nType:", typeof(%s), "\n")'
+" str() with limited depth to avoid overwhelming output
 let s:config.enhanced_inspections.detailed = 'str(%s, max.level=2)'
 
-" Package operations
+" Package management R commands
+" Note: library() doesn't need quotes around package name, others do
 let s:config.package_operations = {}
-let s:config.package_operations.install = 'install.packages("%s")'
-let s:config.package_operations.load = 'library(%s)'
-let s:config.package_operations.update = 'update.packages("%s")'
-let s:config.package_operations.remove = 'remove.packages("%s")'
+let s:config.package_operations.install = 'install.packages("%s")'  " Install from CRAN
+let s:config.package_operations.load = 'library(%s)'                " Load into namespace
+let s:config.package_operations.update = 'update.packages("%s")'    " Update single package
+let s:config.package_operations.remove = 'remove.packages("%s")'    " Uninstall package
 
-" Data operations
+" Data import/export R commands
+" Two-parameter templates: first %s = variable/object, second %s = file path
 let s:config.data_operations = {}
-let s:config.data_operations.read_csv = 'read.csv("%s")'
-let s:config.data_operations.write_csv = 'write.csv(%s, "%s")'
-let s:config.data_operations.read_rds = 'readRDS("%s")'
-let s:config.data_operations.save_rds = 'saveRDS(%s, "%s")'
+let s:config.data_operations.read_csv = 'read.csv("%s")'         " Single %s = file path
+let s:config.data_operations.write_csv = 'write.csv(%s, "%s")'   " object, file path
+let s:config.data_operations.read_rds = 'readRDS("%s")'          " Single %s = file path  
+let s:config.data_operations.save_rds = 'saveRDS(%s, "%s")'      " object, file path
 
-" Directory operations
+" Working directory management R commands
 let s:config.directory_operations = {}
-let s:config.directory_operations.pwd = 'getwd()'
-let s:config.directory_operations.cd = 'setwd("%s")'
-let s:config.directory_operations.ls = 'list.files()'
-let s:config.directory_operations.home = 'setwd("~")'
+let s:config.directory_operations.pwd = 'getwd()'        " Print working directory
+let s:config.directory_operations.cd = 'setwd("%s")'     " Change directory
+let s:config.directory_operations.ls = 'list.files()'    " List files in current dir
+let s:config.directory_operations.home = 'setwd("~")'    " Change to home directory
 
-" Content types
+" ==============================================================================
+" CONTENT TYPE CONFIGURATION
+" ==============================================================================
+" These dictionaries define how different types of content are processed.
+" Each content type has specific extraction and navigation behaviors.
+" This is part of the plugin's modular architecture for handling different
+" code structures (lines, selections, chunks, etc.)
+
 let s:config.content_types = {}
+
+" Single line content type
+" getter: VimScript expression to get content, single: flag for single-line behavior
+" nav: VimScript command for cursor navigation after execution
 let s:config.content_types.line = {'getter': 'getline(".")', 'single': 1, 
                                 \ 'nav': 'normal! j'}
+
+" Visual selection content type  
+" bounds: list of VimScript expressions to get selection start/end positions
+" getpos() returns [bufnum, lnum, col, off] for mark positions
+" '< and '> are automatic marks for visual selection start/end
 let s:config.content_types.selection = {'bounds': ["getpos(\"'<\")", 
                                      \ "getpos(\"'>\")"], 
                                      \ 'nav': 'cursor(%s[1] + 1, 1)'}
+
+" R Markdown chunk content type
+" pattern: references to config keys for chunk delimiters  
+" search() with "W" flag = forward search without wrapping, zz centers screen
 let s:config.content_types.chunk = {'pattern': ['chunk_start', 'chunk_end'], 
                                  \ 'nav': 'search(%s, "W") | normal! j | normal! zz'}
+
+" Previous chunks content type (executes all chunks before current position)
+" collect: flag indicating this type collects multiple chunks
 let s:config.content_types.previous = {'collect': 1}
 
-" Smart execution patterns (centralized)
+" ==============================================================================
+" SMART EXECUTION PATTERNS (RStudio-like features)
+" ==============================================================================
+" Regular expressions for detecting different R code structures.
+" These patterns enable intelligent block execution similar to RStudio.
+" All patterns are anchored to start of line (^) and allow leading whitespace (\s*)
+
 let s:config.smart_patterns = {}
+
+" Function definition pattern
+" Matches: variable_name <- function(parameters) 
+" Breakdown: ^\s* = start + optional whitespace, \w+ = identifier, 
+" \s*<-\s* = assignment with optional spaces, function\s*( = function keyword + opening paren
 let s:config.smart_patterns.function = '^\s*\w\+\s*<-\s*function\s*('
+
+" Variable assignment pattern  
+" Matches: variable_name <- value
+" Used for assignment-with-output feature and pipe chain detection
 let s:config.smart_patterns.assignment = '^\s*\w\+\s*<-'
+
+" Pipe operator pattern (multiple R pipe variants)
+" %>% = magrittr pipe, %<>% = compound assignment pipe
+" %T>% = tee pipe, %$>% = exposition pipe
+" | = alternation (OR) in regex
 let s:config.smart_patterns.pipe = '%>%\|%<>%\|%T>%\|%$>%'
+
+" Control structure patterns (if/for/while/repeat)
+" Array of patterns for different control flow statements
+" Each pattern matches the keyword followed by opening parenthesis (except repeat)
 let s:config.smart_patterns.control = [
-    \ '^\s*if\s*(',
-    \ '^\s*for\s*(',
-    \ '^\s*while\s*(',
-    \ '^\s*repeat\s*{'
+    \ '^\s*if\s*(',      " if (condition)
+    \ '^\s*for\s*(',     " for (variable in sequence)  
+    \ '^\s*while\s*(',   " while (condition)
+    \ '^\s*repeat\s*{'   " repeat { ... } (no condition)
 \ ]
 
 " NOTE: We don't expose s:config.width globally anymore to avoid unnecessary
@@ -147,68 +278,147 @@ let s:config.smart_patterns.control = [
 " s:engine(operation, ...) - Master plugin operation engine
 " ==============================================================================
 " PURPOSE: Central dispatch engine for all plugin operations
+" 
+" ARCHITECTURE OVERVIEW:
+" This function implements the Command Pattern, acting as a central dispatcher
+" that routes operations to specialized handler functions. This design provides:
+" 1. Single entry point for all core operations
+" 2. Consistent error handling and logging
+" 3. Unified return value conventions (0/1 for failure/success)
+" 4. Easy extensibility for new operation types
+"
 " PARAMETERS:
-"   operation - String: operation type (log, msg, terminal, text, execute)
-"   ...       - Variable: operation-specific parameters
-" RETURNS: Operation-dependent results
-" LOGIC: Single entry point dispatching to specialized operation handlers
+"   operation - String: operation type to dispatch
+"               Valid values: 'log', 'msg', 'terminal', 'text', 'execute', 
+"                           'package', 'data', 'directory', 'validate'
+"   ...       - Variable: operation-specific parameters passed to handlers
+"               Uses a:000 to capture variable argument list
+"
+" RETURNS: 
+"   Integer: 0 for failure, 1 for success (consistent across all operations)
+"   Some operations may return other values (e.g., text_engine returns lists)
+"
+" DESIGN PATTERNS:
+" - Command Pattern: encapsulates operations as objects
+" - Strategy Pattern: different handlers for different operation types
+" - Fail-fast: unknown operations return 0 immediately
+"
+" ERROR HANDLING:
+" - Unknown operations return 0 (failure)
+" - Individual handlers manage their own error conditions
+" - Logging operations are safe (catch exceptions internally)
 " ==============================================================================
 function! s:engine(operation, ...) abort
+    " ============================================================================
+    " LOGGING OPERATION HANDLER
+    " ============================================================================
     if a:operation ==# 'log'
-        " s:engine('log', msg, level)
+        " Usage: s:engine('log', message, debug_level)
+        " Writes debug messages to log file when debug level is sufficient
+        " 
+        " ALGORITHM:
+        " 1. Check if we have enough arguments and debug level is sufficient
+        " 2. Format log entry with timestamp and level name
+        " 3. Safely append to log file (catch any file I/O errors)
+        " 4. Optionally echo to screen for very verbose debugging
+        "
+        " PARAMETERS: a:1 = message, a:2 = debug_level
+        " SAFETY: len() check prevents index errors, try/catch prevents crashes
         if len(a:000) >= 2 && s:config.debug >= a:2
+            " Create timestamped log entry: [HH:MM:SS] LEVEL: message
             let l:entry = printf('[%s] %s: %s', strftime('%H:%M:%S'),
                                \ s:config.log_levels[a:2], a:1)
             try
+                " 'a' flag appends to file, expand() handles ~ in path
                 call writefile([l:entry], expand(s:config.log_file), 'a')
             catch
+                " Silently fail if log file can't be written (avoid infinite loops)
             endtry
+            " At maximum debug level, also echo to screen for immediate feedback
             if s:config.debug >= 4
                 echom 'zzvim-R: ' . a:1
             endif
         endif
-        return 1  " Use integers (0/1) consistently for return values
+        return 1  " Always return success for logging operations
         
+    " ============================================================================
+    " MESSAGING OPERATION HANDLER  
+    " ============================================================================
     elseif a:operation ==# 'msg'
-        " s:engine('msg', msg, type)
+        " Usage: s:engine('msg', message, type)
+        " Displays colored messages to user and logs them
+        "
+        " ALGORITHM:
+        " 1. Look up message type configuration (level, highlight, return_value)
+        " 2. Apply syntax highlighting if specified
+        " 3. Display message with plugin prefix
+        " 4. Reset highlighting
+        " 5. Log the message at appropriate level
+        "
+        " PARAMETERS: a:1 = message, a:2 = type ('error'|'warn'|'info')
+        " get() provides safe lookup with fallback for unknown types
         let [l:level, l:hl, l:ret] = get(s:config.msg_types, a:2, 
                                       \ [3, 'None', 1])
+        " Apply syntax highlighting for visual feedback
         if l:hl !=# 'None' 
             execute 'echohl ' . l:hl 
         endif
-        echom 'zzvim-R: ' . a:1
+        echom 'zzvim-R: ' . a:1  " echom saves to message history (:messages)
         if l:hl !=# 'None' 
-            echohl None 
+            echohl None  " Reset highlighting to normal
         endif
+        " Also log the message at the appropriate debug level
         call s:engine('log', a:1, l:level)
-        return l:ret
+        return l:ret  " Return value depends on message type (error=0, others=1)
         
+    " ============================================================================
+    " OPERATION DELEGATION TO SPECIALIZED ENGINES
+    " ============================================================================
+    " The following operations delegate to specialized engine functions.
+    " This maintains separation of concerns while providing unified access.
+    
     elseif a:operation ==# 'terminal'
-        " s:engine('terminal', action, ...)
+        " Terminal operations: create, check, send, control, cleanup, info
+        " get() safely extracts second argument, defaults to empty dict
         return s:terminal_engine(a:1, get(a:000, 1, {}))
         
     elseif a:operation ==# 'text'
-        " s:engine('text', type, ...)
+        " Text extraction: line, selection, chunk, previous, function_block, etc.
         return s:text_engine(a:1, get(a:000, 1, {}))
         
     elseif a:operation ==# 'execute'
-        " s:engine('execute', type, options)
+        " Code execution: wraps text extraction + terminal sending + navigation
         return s:execute_engine(a:1, get(a:000, 1, {}))
         
     elseif a:operation ==# 'package'
-        " s:engine('package', 'action', 'package_name')
+        " Package management: install, load, update, remove
+        " Requires exactly 2 parameters: action and package_name
         return s:package_engine(a:1, a:2)
         
     elseif a:operation ==# 'data'
-        " s:engine('data', 'action', 'file_path', 'variable')
+        " Data import/export: read_csv, write_csv, read_rds, save_rds
+        " Optional parameters with empty string defaults
         return s:data_engine(a:1, get(a:000, 1, ''), get(a:000, 2, ''))
         
     elseif a:operation ==# 'directory'
-        " s:engine('directory', 'action', 'path')
+        " Directory operations: pwd, cd, ls, home
+        " Optional path parameter
         return s:directory_engine(a:1, get(a:000, 1, ''))
         
+    " ============================================================================
+    " INLINE VALIDATION OPERATIONS (no separate engine needed)
+    " ============================================================================
     elseif a:operation ==# 'validate'
-        " s:engine('validate', type, value)
+        " Quick validation checks used throughout the plugin
+        " Uses ternary operators for compact conditional logic
+        " 
+        " VALIDATION TYPES:
+        " - filetype: check if current file type is supported
+        " - word: validate R identifier syntax  
+        " - r_executable: check if R is available in PATH
+        "
+        " ALGORITHM: nested ternary for multiple validation types
+        " Pattern: condition ? value_if_true : next_condition ? value2 : default
         return a:1 ==# 'filetype' ? 
              \ index(s:config.supported_types, &filetype) >= 0 :
              \ a:1 ==# 'word' ? 
@@ -216,29 +426,76 @@ function! s:engine(operation, ...) abort
              \ a:1 ==# 'r_executable' ? executable('R') : 0
     endif
 
-    return 0  " Use integers (0/1) consistently for return values
+    " ============================================================================
+    " FALLBACK FOR UNKNOWN OPERATIONS
+    " ============================================================================
+    return 0  " Unknown operation = failure (fail-fast principle)
 endfunction
 " ------------------------------------------------------------------------------
 
 " ==============================================================================
 " s:terminal_engine(action, options) - Terminal operation engine
 " ==============================================================================
-" PURPOSE: Handles all terminal-related operations through unified interface
+" PURPOSE: Manages R terminal lifecycle and communication
+" 
+" ARCHITECTURE OVERVIEW:
+" This engine encapsulates all terminal-related operations using tab-local
+" variables to track terminal state. Each vim tab can have its own R session.
+" The engine uses Vim's built-in terminal functionality (:terminal command).
+"
+" TERMINAL STATE TRACKING:
+" - t:zzvim_r_terminal_id: buffer number of the terminal buffer
+" - t:zzvim_r_job_id: job ID for the R process running in terminal
+" Tab-local variables (t:) ensure each tab has independent R sessions.
+"
+" ACTION TYPES:
+" - cleanup: Remove terminal variables (cleanup state)
+" - check: Validate terminal exists and R process is running  
+" - create: Start new R terminal with proper configuration
+" - send: Send commands/code to R terminal
+" - control: Send control characters (Ctrl-C, etc.)
+" - info: Return terminal status information
+"
 " PARAMETERS:
-"   action  - String: 'check', 'create', 'send', 'control', 'cleanup', 'info'
-"   options - Dict: action-specific options
-" RETURNS: Action-dependent results
+"   action  - String: action type (see above)
+"   options - Dict: action-specific configuration
+"             For 'send': {content: "R code", desc: "description"}
+"             For 'control': {key: "\<C-c>"}
+"             For others: typically empty {}
+"
+" RETURNS: 
+"   Integer: 0/1 for most operations
+"   Dict: for 'info' action
+"   
+" ERROR HANDLING:
+" - Graceful degradation: if terminal check fails, cleanup and return false
+" - Auto-creation: some operations will create terminal if missing
+" - Exception handling: wrapped in try/catch blocks
 " ==============================================================================
 function! s:terminal_engine(action, options) abort
+    " ============================================================================
+    " CLEANUP ACTION: Remove terminal state variables
+    " ============================================================================
     if a:action ==# 'cleanup'
+        " Remove tab-local variables that track terminal state
+        " This is called when terminal becomes invalid or on plugin shutdown
+        "
+        " ALGORITHM:
+        " 1. Iterate through list of terminal state variables
+        " 2. Check if each variable exists before trying to delete it
+        " 3. Use execute + unlet for dynamic variable deletion
+        " 4. Log the cleanup operation for debugging
         for l:var in ['t:zzvim_r_terminal_id', 't:zzvim_r_job_id']
             if exists(l:var) 
-                execute 'unlet ' . l:var 
+                execute 'unlet ' . l:var  " Dynamic variable deletion
             endif
         endfor
         call s:engine('log', 'Terminal variables cleaned', 4)
-        return 0  " Use integers (0/1) consistently for return values
+        return 0  " Return 0 to indicate terminal is no longer available
         
+    " ============================================================================
+    " CHECK ACTION: Validate terminal state and R process health
+    " ============================================================================
     elseif a:action ==# 'check'
         if !exists('t:zzvim_r_terminal_id') || !exists('t:zzvim_r_job_id')
             call s:engine('log', 'No terminal variables', 4)
@@ -408,79 +665,29 @@ function! s:text_engine(type, options) abort
         endfor
         return l:lines
         
-    elseif a:type ==# 'function_block'
-        " Check if current line starts an R function definition
+    elseif a:type ==# 'function_block' || a:type ==# 'smart_block'
+        " Handle both function and control blocks with shared brace matching logic
         let l:current_line = getline('.')
-        let l:function_pattern = '^\s*\w\+\s*<-\s*function\s*('
-        
-        if l:current_line !~# l:function_pattern
-            " Not a function definition, return just the current line
-            return [l:current_line]
-        endif
-        
-    elseif a:type ==# 'smart_block'
-        " Check if current line starts a control structure (if/for/while/repeat)
-        let l:current_line = getline('.')
-        let l:control_patterns = [
-            \ '^\s*if\s*(',
-            \ '^\s*for\s*(',
-            \ '^\s*while\s*(',
-            \ '^\s*repeat\s*{',
-        \ ]
-        
-        let l:is_control_block = 0
-        for l:pattern in l:control_patterns
-            if l:current_line =~# l:pattern
-                let l:is_control_block = 1
-                break
-            endif
-        endfor
-        
-        if !l:is_control_block
-            " Not a control structure, return just the current line
-            return [l:current_line]
-        endif
-        
-        " Find the control block by matching braces (similar to function logic)
         let l:start_line = line('.')
-        let l:brace_count = 0
-        let l:found_opening_brace = 0
-        let l:lines = []
         
-        " Start from current line and search for the complete function
-        for l:line_num in range(l:start_line, line('$'))
-            let l:line_content = getline(l:line_num)
-            call add(l:lines, l:line_content)
-            
-            " Count braces to find the end of the function
-            for l:char_idx in range(strlen(l:line_content))
-                let l:char = l:line_content[l:char_idx]
-                if l:char ==# '{'
-                    let l:brace_count += 1
-                    let l:found_opening_brace = 1
-                elseif l:char ==# '}'
-                    let l:brace_count -= 1
-                    
-                    " If we've found the opening brace and count is back to 0,
-                    " we've found the end of the function
-                    if l:found_opening_brace && l:brace_count == 0
-                        return l:lines
-                    endif
-                endif
-            endfor
-        endfor
+        " Use shared brace matching function
+        let [l:end_line, l:lines] = s:find_brace_block_end(l:start_line)
         
-        " If we couldn't find matching braces, return just the current line
-        return [getline('.')]
+        if l:end_line > 0
+            return l:lines
+        else
+            " If we couldn't find matching braces, return just the current line
+            return [l:current_line]
+        endif
         
     elseif a:type ==# 'pipe_chain'
         " Detect and extract complete pipe chains
         let l:current_line = getline('.')
         let l:current_line_num = line('.')
         
-        " Check if current line contains a pipe or if we're in a pipe chain
-        let l:pipe_pattern = '%>%\|%<>%\|%T>%\|%$>%'
-        let l:assignment_pattern = '^\s*\w\+\s*<-'
+        " Use centralized patterns
+        let l:pipe_pattern = s:config.smart_patterns.pipe
+        let l:assignment_pattern = s:config.smart_patterns.assignment
         
         " Find the start of the pipe chain
         let l:start_line = l:current_line_num
@@ -577,58 +784,18 @@ function! s:execute_engine(type, options) abort
                 endif
                 normal! zz
             endif
-        elseif a:type ==# 'function_block'
-            " For function blocks, move cursor to the line after the closing brace
+        elseif a:type ==# 'function_block' || a:type ==# 'smart_block'
+            " For function and control blocks, move cursor to the line after closing brace
             let l:start_line = line('.')
-            let l:brace_count = 0
-            let l:found_opening_brace = 0
+            let [l:end_line, l:block_lines] = s:find_brace_block_end(l:start_line)
             
-            " Find the end of the function by matching braces
-            for l:line_num in range(l:start_line, line('$'))
-                let l:line_content = getline(l:line_num)
-                
-                for l:char_idx in range(strlen(l:line_content))
-                    let l:char = l:line_content[l:char_idx]
-                    if l:char ==# '{'
-                        let l:brace_count += 1
-                        let l:found_opening_brace = 1
-                    elseif l:char ==# '}'
-                        let l:brace_count -= 1
-                        
-                        if l:found_opening_brace && l:brace_count == 0
-                            " Move to the line after the function ends
-                            call cursor(l:line_num + 1, 1)
-                            return l:success
-                        endif
-                    endif
-                endfor
-            endfor
-        elseif a:type ==# 'smart_block'
-            " For control blocks, move cursor to the line after the closing brace
-            let l:start_line = line('.')
-            let l:brace_count = 0
-            let l:found_opening_brace = 0
-            
-            " Find the end of the control block by matching braces
-            for l:line_num in range(l:start_line, line('$'))
-                let l:line_content = getline(l:line_num)
-                
-                for l:char_idx in range(strlen(l:line_content))
-                    let l:char = l:line_content[l:char_idx]
-                    if l:char ==# '{'
-                        let l:brace_count += 1
-                        let l:found_opening_brace = 1
-                    elseif l:char ==# '}'
-                        let l:brace_count -= 1
-                        
-                        if l:found_opening_brace && l:brace_count == 0
-                            " Move to the line after the control block ends
-                            call cursor(l:line_num + 1, 1)
-                            return l:success
-                        endif
-                    endif
-                endfor
-            endfor
+            if l:end_line > 0
+                " Move to the line after the block ends
+                call cursor(l:end_line + 1, 1)
+            else
+                " Fallback: just move to next line
+                normal! j
+            endif
         elseif a:type ==# 'pipe_chain'
             " For pipe chains, move to the line after the chain ends
             " The text_engine already found the end, so move past it
@@ -768,43 +935,15 @@ endfunction
 function! zzvim_r#submit_line() abort
     " Intelligent line submission with RStudio-like features
     let l:current_line = getline('.')
+    let l:block_type = s:detect_smart_block_type(l:current_line)
     
-    " Patterns for different code structures
-    let l:function_pattern = '^\s*\w\+\s*<-\s*function\s*('
-    let l:control_patterns = [
-        \ '^\s*if\s*(',
-        \ '^\s*for\s*(',
-        \ '^\s*while\s*(',
-        \ '^\s*repeat\s*{',
-    \ ]
-    let l:pipe_pattern = '%>%\|%<>%\|%T>%\|%$>%'
-    let l:assignment_pattern = '^\s*\w\+\s*<-'
-    
-    " Check for function definition
-    if l:current_line =~# l:function_pattern
-        return s:public_wrapper(function('s:execute_engine'), 'function_block', {})
-    endif
-    
-    " Check for control structures (if/for/while/repeat)
-    for l:pattern in l:control_patterns
-        if l:current_line =~# l:pattern
-            return s:public_wrapper(function('s:execute_engine'), 'smart_block', {})
-        endif
-    endfor
-    
-    " Check for pipe chains
-    if l:current_line =~# l:pipe_pattern || 
-     \ (l:current_line =~# l:assignment_pattern && s:check_next_line_has_pipe())
-        return s:public_wrapper(function('s:execute_engine'), 'pipe_chain', {})
-    endif
-    
-    " Check for assignment with output feature
-    if l:current_line =~# l:assignment_pattern
+    " Handle assignment with output feature specially
+    if l:block_type ==# 'assignment'
         return s:submit_assignment_with_output()
     endif
     
-    " Default: normal line submission
-    return s:public_wrapper(function('s:execute_engine'), 'line', {})
+    " Use the detected block type for execution
+    return s:public_wrapper(function('s:execute_engine'), l:block_type, {})
 endfunction
 
 function! zzvim_r#submit_selection() abort
@@ -936,7 +1075,7 @@ endfunction
 " ------------------------------------------------------------------------------
 function! s:check_next_line_has_pipe() abort
     let l:next_line = getline(line('.') + 1)
-    return l:next_line =~# '%>%\|%<>%\|%T>%\|%$>%'
+    return l:next_line =~# s:config.smart_patterns.pipe
 endfunction
 
 " ------------------------------------------------------------------------------
@@ -950,7 +1089,7 @@ endfunction
 function! s:submit_assignment_with_output() abort
     let l:current_line = getline('.')
     
-    " Extract variable name from assignment
+    " Extract variable name from assignment using centralized pattern
     let l:var_match = matchlist(l:current_line, '^\s*\(\w\+\)\s*<-')
     if empty(l:var_match)
         " Fallback to normal line submission if we can't parse
