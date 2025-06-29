@@ -12,6 +12,11 @@
 " - Persistent R terminal session management per Vim tab
 " - Send lines, visual selections, and R Markdown chunks to R
 " - Navigate between R Markdown code chunks
+" - SMART CODE EXECUTION (RStudio-like features):
+"   * Function block execution - detect and execute complete functions
+"   * Control block execution - if/for/while/repeat blocks
+"   * Pipe chain execution - complete %>% chains across multiple lines
+"   * Assignment with output - show result after variable assignment
 " - Enhanced object inspection and workspace browser
 " - Package management (install, load, update)
 " - Data import/export utilities (CSV, RDS)
@@ -114,6 +119,18 @@ let s:config.content_types.selection = {'bounds': ["getpos(\"'<\")",
 let s:config.content_types.chunk = {'pattern': ['chunk_start', 'chunk_end'], 
                                  \ 'nav': 'search(%s, "W") | normal! j | normal! zz'}
 let s:config.content_types.previous = {'collect': 1}
+
+" Smart execution patterns (centralized)
+let s:config.smart_patterns = {}
+let s:config.smart_patterns.function = '^\s*\w\+\s*<-\s*function\s*('
+let s:config.smart_patterns.assignment = '^\s*\w\+\s*<-'
+let s:config.smart_patterns.pipe = '%>%\|%<>%\|%T>%\|%$>%'
+let s:config.smart_patterns.control = [
+    \ '^\s*if\s*(',
+    \ '^\s*for\s*(',
+    \ '^\s*while\s*(',
+    \ '^\s*repeat\s*{'
+\ ]
 
 " NOTE: We don't expose s:config.width globally anymore to avoid unnecessary
 " global namespace pollution. For backward compatibility, we still read
@@ -401,7 +418,30 @@ function! s:text_engine(type, options) abort
             return [l:current_line]
         endif
         
-        " Find the function block by matching braces
+    elseif a:type ==# 'smart_block'
+        " Check if current line starts a control structure (if/for/while/repeat)
+        let l:current_line = getline('.')
+        let l:control_patterns = [
+            \ '^\s*if\s*(',
+            \ '^\s*for\s*(',
+            \ '^\s*while\s*(',
+            \ '^\s*repeat\s*{',
+        \ ]
+        
+        let l:is_control_block = 0
+        for l:pattern in l:control_patterns
+            if l:current_line =~# l:pattern
+                let l:is_control_block = 1
+                break
+            endif
+        endfor
+        
+        if !l:is_control_block
+            " Not a control structure, return just the current line
+            return [l:current_line]
+        endif
+        
+        " Find the control block by matching braces (similar to function logic)
         let l:start_line = line('.')
         let l:brace_count = 0
         let l:found_opening_brace = 0
@@ -432,6 +472,60 @@ function! s:text_engine(type, options) abort
         
         " If we couldn't find matching braces, return just the current line
         return [getline('.')]
+        
+    elseif a:type ==# 'pipe_chain'
+        " Detect and extract complete pipe chains
+        let l:current_line = getline('.')
+        let l:current_line_num = line('.')
+        
+        " Check if current line contains a pipe or if we're in a pipe chain
+        let l:pipe_pattern = '%>%\|%<>%\|%T>%\|%$>%'
+        let l:assignment_pattern = '^\s*\w\+\s*<-'
+        
+        " Find the start of the pipe chain
+        let l:start_line = l:current_line_num
+        
+        " Look backwards to find assignment that starts the chain
+        for l:line_num in range(l:current_line_num, 1, -1)
+            let l:line_content = getline(l:line_num)
+            if l:line_content =~# l:assignment_pattern && l:line_num < l:current_line_num
+                let l:start_line = l:line_num
+                break
+            elseif l:line_content !~# l:pipe_pattern && l:line_num < l:current_line_num
+                " Found a line without pipe and it's not an assignment - stop here
+                let l:start_line = l:line_num + 1
+                break
+            endif
+        endfor
+        
+        " If current line has assignment, it might be the start
+        if l:current_line =~# l:assignment_pattern
+            let l:start_line = l:current_line_num
+        endif
+        
+        " Find the end of the pipe chain
+        let l:end_line = l:current_line_num
+        for l:line_num in range(l:current_line_num, line('$'))
+            let l:line_content = getline(l:line_num)
+            if l:line_content =~# l:pipe_pattern || l:line_num == l:current_line_num
+                let l:end_line = l:line_num
+            else
+                " Check if this line continues the expression (e.g., function args)
+                let l:prev_line = getline(l:line_num - 1)
+                if l:prev_line =~# '([^)]*$\|,\s*$'
+                    let l:end_line = l:line_num
+                else
+                    break
+                endif
+            endif
+        endfor
+        
+        " Extract the pipe chain lines
+        if l:start_line <= l:end_line
+            return getline(l:start_line, l:end_line)
+        else
+            return [l:current_line]
+        endif
     endif
     
     return []
@@ -451,7 +545,8 @@ function! s:execute_engine(type, options) abort
     let l:content = s:text_engine(a:type, a:options)
     let l:names = {'line': 'current line', 'selection': 'selection', 
                 \ 'chunk': 'current chunk', 'previous': 'previous chunks',
-                \ 'function_block': 'function block'}
+                \ 'function_block': 'function block', 'smart_block': 'control block',
+                \ 'pipe_chain': 'pipe chain'}
     
     if empty(l:content)
         let l:msg = a:type ==# 'chunk' ? 'Not inside R chunk' :
@@ -508,6 +603,42 @@ function! s:execute_engine(type, options) abort
                     endif
                 endfor
             endfor
+        elseif a:type ==# 'smart_block'
+            " For control blocks, move cursor to the line after the closing brace
+            let l:start_line = line('.')
+            let l:brace_count = 0
+            let l:found_opening_brace = 0
+            
+            " Find the end of the control block by matching braces
+            for l:line_num in range(l:start_line, line('$'))
+                let l:line_content = getline(l:line_num)
+                
+                for l:char_idx in range(strlen(l:line_content))
+                    let l:char = l:line_content[l:char_idx]
+                    if l:char ==# '{'
+                        let l:brace_count += 1
+                        let l:found_opening_brace = 1
+                    elseif l:char ==# '}'
+                        let l:brace_count -= 1
+                        
+                        if l:found_opening_brace && l:brace_count == 0
+                            " Move to the line after the control block ends
+                            call cursor(l:line_num + 1, 1)
+                            return l:success
+                        endif
+                    endif
+                endfor
+            endfor
+        elseif a:type ==# 'pipe_chain'
+            " For pipe chains, move to the line after the chain ends
+            " The text_engine already found the end, so move past it
+            let l:chain_lines = len(l:content)
+            if l:chain_lines > 1
+                call cursor(line('.') + l:chain_lines - 1, 1)
+                normal! j
+            else
+                normal! j
+            endif
         endif
     endif
     
@@ -635,17 +766,45 @@ function! zzvim_r#open_terminal() abort
 endfunction
 
 function! zzvim_r#submit_line() abort
-    " Check if current line starts a function definition
+    " Intelligent line submission with RStudio-like features
     let l:current_line = getline('.')
-    let l:function_pattern = '^\s*\w\+\s*<-\s*function\s*('
     
+    " Patterns for different code structures
+    let l:function_pattern = '^\s*\w\+\s*<-\s*function\s*('
+    let l:control_patterns = [
+        \ '^\s*if\s*(',
+        \ '^\s*for\s*(',
+        \ '^\s*while\s*(',
+        \ '^\s*repeat\s*{',
+    \ ]
+    let l:pipe_pattern = '%>%\|%<>%\|%T>%\|%$>%'
+    let l:assignment_pattern = '^\s*\w\+\s*<-'
+    
+    " Check for function definition
     if l:current_line =~# l:function_pattern
-        " Use function_block type for intelligent function detection
         return s:public_wrapper(function('s:execute_engine'), 'function_block', {})
-    else
-        " Use normal line submission for non-function lines
-        return s:public_wrapper(function('s:execute_engine'), 'line', {})
     endif
+    
+    " Check for control structures (if/for/while/repeat)
+    for l:pattern in l:control_patterns
+        if l:current_line =~# l:pattern
+            return s:public_wrapper(function('s:execute_engine'), 'smart_block', {})
+        endif
+    endfor
+    
+    " Check for pipe chains
+    if l:current_line =~# l:pipe_pattern || 
+     \ (l:current_line =~# l:assignment_pattern && s:check_next_line_has_pipe())
+        return s:public_wrapper(function('s:execute_engine'), 'pipe_chain', {})
+    endif
+    
+    " Check for assignment with output feature
+    if l:current_line =~# l:assignment_pattern
+        return s:submit_assignment_with_output()
+    endif
+    
+    " Default: normal line submission
+    return s:public_wrapper(function('s:execute_engine'), 'line', {})
 endfunction
 
 function! zzvim_r#submit_selection() abort
@@ -679,6 +838,143 @@ endfunction
 
 function! zzvim_r#directory_operation(action, ...) abort
     return call('s:public_wrapper', [function('s:directory_engine'), a:action] + a:000)
+endfunction
+
+"==============================================================================
+" HELPER FUNCTIONS FOR SMART SUBMISSION
+"==============================================================================
+
+" ------------------------------------------------------------------------------
+" Function: s:find_brace_block_end(start_line)
+"
+" Finds the end of a brace-delimited block starting from the given line
+"
+" Parameters:
+"   start_line - Number: Line number to start searching from
+"
+" Returns:
+"   List: [end_line, lines_content] or [0, []] if no matching brace found
+" ------------------------------------------------------------------------------
+function! s:find_brace_block_end(start_line) abort
+    let l:brace_count = 0
+    let l:found_opening_brace = 0
+    let l:lines = []
+    
+    " Search for the complete block by matching braces
+    for l:line_num in range(a:start_line, line('$'))
+        let l:line_content = getline(l:line_num)
+        call add(l:lines, l:line_content)
+        
+        " Count braces to find the end of the block
+        for l:char_idx in range(strlen(l:line_content))
+            let l:char = l:line_content[l:char_idx]
+            if l:char ==# '{'
+                let l:brace_count += 1
+                let l:found_opening_brace = 1
+            elseif l:char ==# '}'
+                let l:brace_count -= 1
+                
+                " If we've found the opening brace and count is back to 0,
+                " we've found the end of the block
+                if l:found_opening_brace && l:brace_count == 0
+                    return [l:line_num, l:lines]
+                endif
+            endif
+        endfor
+    endfor
+    
+    " If we couldn't find matching braces, return failure
+    return [0, []]
+endfunction
+
+" ------------------------------------------------------------------------------
+" Function: s:detect_smart_block_type(line_content)
+"
+" Detects what type of smart block the line represents
+"
+" Parameters:
+"   line_content - String: The line to analyze
+"
+" Returns:
+"   String: 'function_block', 'smart_block', 'pipe_chain', 'assignment', or 'line'
+" ------------------------------------------------------------------------------
+function! s:detect_smart_block_type(line_content) abort
+    " Check for function definition
+    if a:line_content =~# s:config.smart_patterns.function
+        return 'function_block'
+    endif
+    
+    " Check for control structures
+    for l:pattern in s:config.smart_patterns.control
+        if a:line_content =~# l:pattern
+            return 'smart_block'
+        endif
+    endfor
+    
+    " Check for pipe chains
+    if a:line_content =~# s:config.smart_patterns.pipe ||
+     \ (a:line_content =~# s:config.smart_patterns.assignment && s:check_next_line_has_pipe())
+        return 'pipe_chain'
+    endif
+    
+    " Check for assignment
+    if a:line_content =~# s:config.smart_patterns.assignment
+        return 'assignment'
+    endif
+    
+    " Default to single line
+    return 'line'
+endfunction
+
+" ------------------------------------------------------------------------------
+" Function: s:check_next_line_has_pipe()
+"
+" Checks if the next line contains a pipe operator
+"
+" Returns:
+"   1 if next line has pipe, 0 otherwise
+" ------------------------------------------------------------------------------
+function! s:check_next_line_has_pipe() abort
+    let l:next_line = getline(line('.') + 1)
+    return l:next_line =~# '%>%\|%<>%\|%T>%\|%$>%'
+endfunction
+
+" ------------------------------------------------------------------------------
+" Function: s:submit_assignment_with_output()
+"
+" Submits assignment and then prints the assigned variable (RStudio-like)
+"
+" Returns:
+"   1 if successful, 0 if failed
+" ------------------------------------------------------------------------------
+function! s:submit_assignment_with_output() abort
+    let l:current_line = getline('.')
+    
+    " Extract variable name from assignment
+    let l:var_match = matchlist(l:current_line, '^\s*\(\w\+\)\s*<-')
+    if empty(l:var_match)
+        " Fallback to normal line submission if we can't parse
+        return s:public_wrapper(function('s:execute_engine'), 'line', {})
+    endif
+    
+    let l:var_name = l:var_match[1]
+    
+    " Send assignment first
+    let l:success = s:terminal_engine('send', 
+                  \ {'content': l:current_line, 'desc': 'assignment'})
+    
+    if l:success
+        " Then send the variable name to show output
+        call s:terminal_engine('send', 
+              \ {'content': l:var_name, 'desc': 'show assignment result'})
+        
+        " Move to next line
+        normal! j
+        
+        call s:engine('msg', 'Assignment with output: ' . l:var_name, 'info')
+    endif
+    
+    return l:success
 endfunction
 
 "==============================================================================
@@ -780,7 +1076,11 @@ unlet s:save_cpo
 " ==============================================================================
 " Core Commands:
 "   <LocalLeader>r  - Open R terminal
-"   <CR>            - Send line/selection to R
+"   <CR>            - SMART line/selection execution (RStudio-like)
+"                    * Functions: Execute complete function blocks
+"                    * Control: Execute complete if/for/while blocks  
+"                    * Pipes: Execute complete %>% chains
+"                    * Assignments: Show output after assignment
 "
 " Chunk Navigation (R Markdown):
 "   <LocalLeader>j  - Next chunk
