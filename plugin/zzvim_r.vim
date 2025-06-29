@@ -120,7 +120,7 @@ let s:config.log_file = get(g:, 'zzvim_r_log_file', '~/zzvim_r.log')
 " Used in autocommands and validation functions to ensure plugin only
 " activates for appropriate file types
 " r: R script files, rmd: R Markdown, rnw: R noweb (Sweave), qmd: Quarto
-let s:config.supported_types = ['r', 'rmd', 'rnw', 'qmd']
+let s:config.supported_types = ['r', 'rmd', 'rnw', 'qmd', 'R', 'Rmd']
 
 " Message type configuration for the messaging system
 " Each type maps to: [debug_level, highlight_group, return_value]
@@ -256,12 +256,7 @@ let s:config.smart_patterns.pipe = '%>%\|%<>%\|%T>%\|%$>%'
 " Control structure patterns (if/for/while/repeat)
 " Array of patterns for different control flow statements
 " Each pattern matches the keyword followed by opening parenthesis (except repeat)
-let s:config.smart_patterns.control = [
-    \ '^\s*if\s*(',      " if (condition)
-    \ '^\s*for\s*(',     " for (variable in sequence)  
-    \ '^\s*while\s*(',   " while (condition)
-    \ '^\s*repeat\s*{'   " repeat { ... } (no condition)
-\ ]
+let s:config.smart_patterns.control = ['^\s*if\s*(', '^\s*for\s*(', '^\s*while\s*(', '^\s*repeat\s*{']
 
 " NOTE: We don't expose s:config.width globally anymore to avoid unnecessary
 " global namespace pollution. For backward compatibility, we still read
@@ -487,7 +482,7 @@ function! s:terminal_engine(action, options) abort
         " 4. Log the cleanup operation for debugging
         for l:var in ['t:zzvim_r_terminal_id', 't:zzvim_r_job_id']
             if exists(l:var) 
-                execute 'unlet ' . l:var  " Dynamic variable deletion
+                execute 'unlet ' . l:var
             endif
         endfor
         call s:engine('log', 'Terminal variables cleaned', 4)
