@@ -35,3 +35,6 @@ simple_var <- 42
 
 # Another regular line
 print("This is not a function")
+102
+2
+43
