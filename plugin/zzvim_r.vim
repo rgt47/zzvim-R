@@ -390,6 +390,48 @@ function! s:text_engine(type, options) abort
             endif
         endfor
         return l:lines
+        
+    elseif a:type ==# 'function_block'
+        " Check if current line starts an R function definition
+        let l:current_line = getline('.')
+        let l:function_pattern = '^\s*\w\+\s*<-\s*function\s*('
+        
+        if l:current_line !~# l:function_pattern
+            " Not a function definition, return just the current line
+            return [l:current_line]
+        endif
+        
+        " Find the function block by matching braces
+        let l:start_line = line('.')
+        let l:brace_count = 0
+        let l:found_opening_brace = 0
+        let l:lines = []
+        
+        " Start from current line and search for the complete function
+        for l:line_num in range(l:start_line, line('$'))
+            let l:line_content = getline(l:line_num)
+            call add(l:lines, l:line_content)
+            
+            " Count braces to find the end of the function
+            for l:char_idx in range(strlen(l:line_content))
+                let l:char = l:line_content[l:char_idx]
+                if l:char ==# '{'
+                    let l:brace_count += 1
+                    let l:found_opening_brace = 1
+                elseif l:char ==# '}'
+                    let l:brace_count -= 1
+                    
+                    " If we've found the opening brace and count is back to 0,
+                    " we've found the end of the function
+                    if l:found_opening_brace && l:brace_count == 0
+                        return l:lines
+                    endif
+                endif
+            endfor
+        endfor
+        
+        " If we couldn't find matching braces, return just the current line
+        return [getline('.')]
     endif
     
     return []
@@ -408,7 +450,8 @@ endfunction
 function! s:execute_engine(type, options) abort
     let l:content = s:text_engine(a:type, a:options)
     let l:names = {'line': 'current line', 'selection': 'selection', 
-                \ 'chunk': 'current chunk', 'previous': 'previous chunks'}
+                \ 'chunk': 'current chunk', 'previous': 'previous chunks',
+                \ 'function_block': 'function block'}
     
     if empty(l:content)
         let l:msg = a:type ==# 'chunk' ? 'Not inside R chunk' :
@@ -439,6 +482,32 @@ function! s:execute_engine(type, options) abort
                 endif
                 normal! zz
             endif
+        elseif a:type ==# 'function_block'
+            " For function blocks, move cursor to the line after the closing brace
+            let l:start_line = line('.')
+            let l:brace_count = 0
+            let l:found_opening_brace = 0
+            
+            " Find the end of the function by matching braces
+            for l:line_num in range(l:start_line, line('$'))
+                let l:line_content = getline(l:line_num)
+                
+                for l:char_idx in range(strlen(l:line_content))
+                    let l:char = l:line_content[l:char_idx]
+                    if l:char ==# '{'
+                        let l:brace_count += 1
+                        let l:found_opening_brace = 1
+                    elseif l:char ==# '}'
+                        let l:brace_count -= 1
+                        
+                        if l:found_opening_brace && l:brace_count == 0
+                            " Move to the line after the function ends
+                            call cursor(l:line_num + 1, 1)
+                            return l:success
+                        endif
+                    endif
+                endfor
+            endfor
         endif
     endif
     
@@ -566,7 +635,17 @@ function! zzvim_r#open_terminal() abort
 endfunction
 
 function! zzvim_r#submit_line() abort
-    return s:public_wrapper(function('s:execute_engine'), 'line', {})
+    " Check if current line starts a function definition
+    let l:current_line = getline('.')
+    let l:function_pattern = '^\s*\w\+\s*<-\s*function\s*('
+    
+    if l:current_line =~# l:function_pattern
+        " Use function_block type for intelligent function detection
+        return s:public_wrapper(function('s:execute_engine'), 'function_block', {})
+    else
+        " Use normal line submission for non-function lines
+        return s:public_wrapper(function('s:execute_engine'), 'line', {})
+    endif
 endfunction
 
 function! zzvim_r#submit_selection() abort
