@@ -534,6 +534,8 @@ function! s:terminal_engine(action, options) abort
             silent! file [R-Terminal]
             let t:zzvim_r_terminal_id = bufnr('%')
             let t:zzvim_r_job_id = term_getjob(bufnr('%'))
+            " Return to original window/buffer: printf formats wincmd + conditional buffer switch
+            " %dwincmd w = go to window, if bufnr != saved_buf then switch to saved buffer
             execute printf('%dwincmd w | if bufnr("%%") != %d | buffer %d | endif', 
                         \ l:context[0], l:context[1], l:context[1])
             call s:engine('msg', 'R terminal opened successfully', 'info')
@@ -621,21 +623,27 @@ function! s:text_engine(type, options) abort
         return [getline('.')]
         
     elseif a:type ==# 'selection'
+        " getpos() returns [bufnum, lnum, col, off] for visual selection markers
         let [l:start, l:end] = [getpos("'<"), getpos("'>")]
         let l:lines = getline(l:start[1], l:end[1])
         if empty(l:lines) 
             return [] 
         endif
         
+        " Handle partial line selections by trimming to exact visual selection
         if len(l:lines) == 1
+            " Single line: extract substring from start column to end column
+            " [2] is column index, -1 converts to 0-based indexing
             let l:lines[0] = l:lines[0][l:start[2]-1 : l:end[2]-1]
         else
-            let l:lines[0] = l:lines[0][l:start[2]-1:]
-            let l:lines[-1] = l:lines[-1][:l:end[2]-1]
+            " Multi-line: trim first line from start column, last line to end column
+            let l:lines[0] = l:lines[0][l:start[2]-1:]    " From start column to end
+            let l:lines[-1] = l:lines[-1][:l:end[2]-1]   " From beginning to end column
         endif
         return empty(trim(join(l:lines, "\n"))) ? [] : l:lines
         
     elseif a:type ==# 'chunk'
+        " search() flags: b=backward, c=accept cursor position, n=no move, W=no wrap
         let l:start = search(s:config.chunk_start, 'bcnW')
         if l:start == 0 
             return [] 
@@ -1015,9 +1023,9 @@ function! s:find_brace_block_end(start_line) abort
         call add(l:lines, l:line_content)
         
         " Use regex substitution to count braces efficiently
-        " Count opening braces
-        let l:open_count = len(substitute(l:line_content, '[^{]', '', 'g'))
-        let l:close_count = len(substitute(l:line_content, '[^}]', '', 'g'))
+        " substitute() removes all non-brace chars, len() counts remaining braces
+        let l:open_count = len(substitute(l:line_content, '[^{]', '', 'g'))   " Keep only {
+        let l:close_count = len(substitute(l:line_content, '[^}]', '', 'g'))  " Keep only }
         
         if l:open_count > 0
             let l:found_opening_brace = 1

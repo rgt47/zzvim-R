@@ -1,0 +1,64 @@
+# Delegation Pattern Explanation
+
+The architectural improvements in zzvim-R 2.3.1 focused on implementing a consistent delegation pattern between the autoload and plugin files. Here's how it works:
+
+## Problem: Circular Dependencies
+
+In Vim plugins, we often want to:
+1. Define core functionality in the plugin file (loaded at startup)
+2. Define user-facing API in autoload files (loaded on demand)
+3. Allow them to call each other without circular dependencies
+
+## Solution: Proper Delegation with Existence Checks
+
+The improved architecture uses a consistent pattern:
+
+```vim
+function! zzvim_r#some_function() abort
+    if exists('*s:plugin_function1') && exists('*s:plugin_function2')
+        " Use plugin functions directly with function references
+        return s:plugin_function1('arg1', s:plugin_function2('arg2'))
+    else
+        " Provide fallback for when plugin isn't loaded
+        echom 'zzvim-R: Plugin core functions not available'
+        return 0
+    endif
+endfunction
+```
+
+## Key Components of the Pattern
+
+1. **Function Existence Checks**:
+   ```vim
+   if exists('*s:plugin_function')
+   ```
+   This verifies that the script-local function exists before attempting to call it.
+
+2. **Function References**:
+   ```vim
+   function('s:plugin_function')
+   ```
+   Creates a reference to a script-local function, allowing it to be called from another script.
+
+3. **Public Wrapper**:
+   ```vim
+   s:public_wrapper(function('s:some_engine'), 'action', {})
+   ```
+   Uses a wrapper function to handle common validation (like filetype checking).
+
+4. **Error Handling**:
+   ```vim
+   echom 'zzvim-R: Plugin core functions not available'
+   return 0
+   ```
+   Provides clear error messages when dependencies aren't available.
+
+## Benefits of the Improved Pattern
+
+1. **Prevents Runtime Errors**: Functions gracefully handle missing dependencies
+2. **Avoids Circular Dependencies**: Functions can safely call each other
+3. **Clearer Error Messages**: Users get specific messages about what's wrong
+4. **Consistent Behavior**: All functions follow the same pattern
+5. **Robust Loading**: Plugin works correctly regardless of load order
+
+This approach allows for a clean separation of concerns while maintaining robust functionality and error handling.
