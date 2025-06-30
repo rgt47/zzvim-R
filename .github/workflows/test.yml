@@ -1,0 +1,121 @@
+name: Test
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        vim: [vim, neovim]
+        include:
+          - vim: vim
+            install: sudo apt-get update && sudo apt-get install -y vim
+          - vim: neovim
+            install: sudo apt-get update && sudo apt-get install -y neovim
+          - os: macos-latest
+            vim: vim
+            install: brew install vim
+          - os: macos-latest
+            vim: neovim
+            install: brew install neovim
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Vim/Neovim
+      run: ${{ matrix.install }}
+
+    - name: Install R
+      uses: r-lib/actions/setup-r@v2
+      with:
+        r-version: 'release'
+
+    - name: Verify R installation
+      run: R --version
+
+    - name: Run quick tests
+      run: |
+        if command -v vim >/dev/null 2>&1; then
+          vim --version
+          make test-quick
+        elif command -v nvim >/dev/null 2>&1; then
+          nvim --version
+          # Adapt test for neovim if needed
+          echo "Neovim testing not yet implemented"
+        fi
+
+    - name: Test plugin loading
+      run: |
+        if command -v vim >/dev/null 2>&1; then
+          vim -u NONE -N -es -c 'let &rtp=getcwd().",".&rtp' \
+            -c 'let g:zzvim_r_disable_mappings=1' \
+            -c 'runtime plugin/zzvim_r.vim' \
+            -c 'if exists("g:loaded_zzvim_r") | echo "SUCCESS" | else | echo "FAILED" | cquit | endif' \
+            -c 'qa!'
+        fi
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Check file formatting
+      run: |
+        # Check for trailing whitespace
+        if grep -r --include="*.vim" --include="*.md" '[[:space:]]$' .; then
+          echo "Found trailing whitespace"
+          exit 1
+        fi
+        
+        # Check for mixed line endings
+        if find . -name "*.vim" -o -name "*.md" | xargs file | grep CRLF; then
+          echo "Found CRLF line endings"
+          exit 1
+        fi
+
+    - name: Validate markdown links
+      uses: gaurav-nelson/github-action-markdown-link-check@v1
+      with:
+        config-file: .github/workflows/markdown-link-config.json
+        use-quiet-mode: yes
+        use-verbose-mode: no
+
+  documentation:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Vim
+      run: sudo apt-get update && sudo apt-get install -y vim
+
+    - name: Validate help tags
+      run: |
+        vim -u NONE -N -es -c 'helptags doc' -c 'qa!'
+        if [ -f doc/tags ]; then
+          echo "Help tags generated successfully"
+        else
+          echo "Failed to generate help tags"
+          exit 1
+        fi
+
+    - name: Check documentation completeness
+      run: |
+        # Check that all public functions are documented
+        echo "Checking function documentation..."
+        
+        # Extract function names from autoload
+        grep -o 'function! zzvim_r#[a-zA-Z_]*' autoload/zzvim_r.vim | \
+          sed 's/function! //' | sort > /tmp/functions.txt
+        
+        # Check if functions are documented in help
+        while read -r func; do
+          if ! grep -q "$func" doc/zzvim-R.txt; then
+            echo "Warning: Function $func not documented in help"
+          fi
+        done < /tmp/functions.txt

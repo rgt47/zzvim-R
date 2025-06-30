@@ -1,0 +1,29 @@
+{
+  "ignorePatterns": [
+    {
+      "pattern": "^http://localhost"
+    },
+    {
+      "pattern": "^https://localhost"
+    }
+  ],
+  "replacementPatterns": [],
+  "httpHeaders": [],
+  "ignoreHttpStatusCodes": [
+    429,
+    503
+  ],
+  "timeout": "20s",
+  "retryOn429": true,
+  "retryCount": 3,
+  "fallbackHttpStatusCodes": [
+    400,
+    401,
+    403,
+    404,
+    500,
+    502,
+    503,
+    504
+  ]
+}

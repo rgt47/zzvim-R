@@ -10,9 +10,19 @@ This directory contains automated tests for the zzvim-R plugin.
 
 ## Running Tests
 
-### Run All Tests
+### Quick Test (Recommended)
 ```bash
-vim -u NONE -S tests/test_runner.vim
+make test-quick
+```
+
+### Simple Comprehensive Test
+```bash
+vim -u NONE -S tests/simple_test.vim
+```
+
+### Full Test Suite (Manual)
+```bash
+./tests/run_tests.sh
 ```
 
 ### Run Specific Test Categories
