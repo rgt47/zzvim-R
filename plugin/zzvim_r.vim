@@ -764,15 +764,11 @@ function! s:execute_engine(type, options) abort
     let l:success = s:terminal_engine('send', 
                   \ {'content': l:send_content, 'desc': l:names[a:type]})
     
-    " Handle navigation and auto-refresh environment pane
+    " Handle navigation and emit auto-refresh event
     if l:success
-        " Auto-refresh environment pane if it's open
-        " (only if we're not already in the environment pane)
-        if bufname('%') !~# '^\[R-Environment\]'
-            if exists('*zzvim_r#refresh_environment')
-                call zzvim_r#refresh_environment()
-            endif
-        endif
+        " Emit User autocommand event for R command execution
+        " This allows the environment pane to refresh automatically
+        silent doautocmd User ZzvimRCommandExecuted
         
         if a:type ==# 'line' && !get(a:options, 'stay_on_line', 0)
             normal! j
@@ -1210,6 +1206,43 @@ if !s:config.disable_mappings
         endfor
     augroup END
 endif
+
+" ==============================================================================
+" AUTO-REFRESH ENVIRONMENT PANE
+" ==============================================================================
+" Set up autocommand to refresh environment pane when R commands are executed
+
+augroup zzvim_r_auto_refresh
+    autocmd!
+    " Refresh environment pane automatically when R commands are executed
+    " Only refresh if environment pane is open and we're not already in it
+    autocmd User ZzvimRCommandExecuted call s:auto_refresh_environment_on_command()
+augroup END
+
+" Function to handle automatic environment refresh on R command execution
+function! s:auto_refresh_environment_on_command() abort
+    " Only refresh if we're not currently in the environment pane
+    if bufname('%') !~# '^\[R-Environment\]'
+        " Check if environment pane is open
+        if exists('*zzvim_r#refresh_environment')
+            " Find if environment buffer exists and is visible
+            let l:env_bufnr = -1
+            for l:bufnr in range(1, bufnr('$'))
+                if bufexists(l:bufnr) && bufname(l:bufnr) =~# '^\[R-Environment\]'
+                    if bufwinnr(l:bufnr) != -1
+                        let l:env_bufnr = l:bufnr
+                        break
+                    endif
+                endif
+            endfor
+            
+            " If environment pane is visible, refresh it
+            if l:env_bufnr > 0
+                call zzvim_r#refresh_environment()
+            endif
+        endif
+    endif
+endfunction
 
 " Restore user's cpoptions
 let &cpoptions = s:save_cpo

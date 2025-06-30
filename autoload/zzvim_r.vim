@@ -1351,8 +1351,8 @@ function! s:setup_environment_buffer() abort
     let b:environment_last_update = localtime()
     let b:environment_search_pattern = ''
     
-    " Set up auto-refresh timer (configurable, default 10 seconds)
-    let l:refresh_interval = get(g:, 'zzvim_r_env_refresh_interval', 10) * 1000
+    " Set up auto-refresh timer (configurable, default: disabled in favor of command-based refresh)
+    let l:refresh_interval = get(g:, 'zzvim_r_env_refresh_interval', 0) * 1000
     if l:refresh_interval > 0
         let b:environment_timer = timer_start(l:refresh_interval, 
                                             \ function('s:auto_refresh_environment', [bufnr('%')]), 
@@ -1525,8 +1525,8 @@ function! s:populate_environment_buffer_simple(bufnr) abort
     
     " Add header
     call append(0, [
-        \ '# R Environment',
-        \ '# <CR> inspect in terminal, r refresh, q close',
+        \ '# R Environment (auto-refreshes on R command execution)',
+        \ '# <CR> inspect in terminal, r manual refresh, q close',
         \ '#' . repeat('-', 50),
         \ ''
     \ ])
