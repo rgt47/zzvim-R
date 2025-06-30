@@ -646,6 +646,9 @@ function! s:text_engine(type, options) abort
         let l:end = search(s:config.chunk_end, 'nW')
         call setpos('.', l:pos)
         
+        " Cache chunk boundaries for navigation optimization
+        let b:zzvim_r_last_chunk = {'start': l:start, 'end': l:end}
+        
         return (l:end > 0 && l:pos[1] > l:start && l:pos[1] < l:end) ? 
              \ getline(l:start + 1, l:end - 1) : []
         
@@ -777,7 +780,13 @@ function! s:execute_engine(type, options) abort
             execute "normal! \<Esc>"
             call cursor(l:end[1] + 1, 1)
         elseif a:type ==# 'chunk'
-            let l:end = search(s:config.chunk_end, 'nW')
+            " Use cached chunk boundaries if available, otherwise search
+            if exists('b:zzvim_r_last_chunk') && b:zzvim_r_last_chunk.end > 0
+                let l:end = b:zzvim_r_last_chunk.end
+            else
+                let l:end = search(s:config.chunk_end, 'nW')
+            endif
+            
             if l:end > 0
                 call setpos('.', [0, l:end + 1, 1, 0])
                 if search(s:config.chunk_start, 'W') > 0 
@@ -1005,22 +1014,22 @@ function! s:find_brace_block_end(start_line) abort
         let l:line_content = getline(l:line_num)
         call add(l:lines, l:line_content)
         
-        " Count braces to find the end of the block
-        for l:char_idx in range(strlen(l:line_content))
-            let l:char = l:line_content[l:char_idx]
-            if l:char ==# '{'
-                let l:brace_count += 1
-                let l:found_opening_brace = 1
-            elseif l:char ==# '}'
-                let l:brace_count -= 1
-                
-                " If we've found the opening brace and count is back to 0,
-                " we've found the end of the block
-                if l:found_opening_brace && l:brace_count == 0
-                    return [l:line_num, l:lines]
-                endif
-            endif
-        endfor
+        " Use regex substitution to count braces efficiently
+        " Count opening braces
+        let l:open_count = len(substitute(l:line_content, '[^{]', '', 'g'))
+        let l:close_count = len(substitute(l:line_content, '[^}]', '', 'g'))
+        
+        if l:open_count > 0
+            let l:found_opening_brace = 1
+        endif
+        
+        let l:brace_count += l:open_count - l:close_count
+        
+        " If we've found the opening brace and count is back to 0,
+        " we've found the end of the block
+        if l:found_opening_brace && l:brace_count == 0
+            return [l:line_num, l:lines]
+        endif
     endfor
     
     " If we couldn't find matching braces, return failure
@@ -1322,10 +1331,3 @@ function! ZzvimR_Engine(operation, ...) abort
     return call('s:engine', [a:operation] + a:000)
 endfunction
 
-function! ZzvimR_Config(section, key, default) abort
-    if has_key(s:config, a:section) && has_key(s:config[a:section], a:key)
-        return s:config[a:section][a:key]
-    else
-        return a:default
-    endif
-endfunction

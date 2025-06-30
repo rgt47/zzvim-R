@@ -82,6 +82,26 @@ function! s:get_config(section, key, default) abort
     endif
 endfunction
 
+" ------------------------------------------------------------------------------
+" Function: s:get_package_input(prompt)
+"
+" Helper function to get package name input with validation
+"
+" Parameters:
+"   prompt - String: The input prompt to display
+"
+" Returns:
+"   String: Package name if valid, empty string if cancelled or invalid
+" ------------------------------------------------------------------------------
+function! s:get_package_input(prompt) abort
+    let l:package = input(a:prompt)
+    if empty(l:package)
+        call s:engine('msg', 'No package name provided', 'error')
+        return ''
+    endif
+    return l:package
+endfunction
+
 " ==============================================================================
 " TERMINAL CONTROL FUNCTIONS
 " ==============================================================================
@@ -378,9 +398,8 @@ endfunction
 " ------------------------------------------------------------------------------
 function! zzvim_r#install_package() abort
     if exists('*s:engine')
-        let l:package = input('Install package: ')
+        let l:package = s:get_package_input('Install package: ')
         if empty(l:package)
-            call s:engine('msg', 'No package name provided', 'error')
             return 0
         endif
         
@@ -407,9 +426,8 @@ endfunction
 " ------------------------------------------------------------------------------
 function! zzvim_r#load_package() abort
     if exists('*s:engine')
-        let l:package = input('Load package: ')
+        let l:package = s:get_package_input('Load package: ')
         if empty(l:package)
-            call s:engine('msg', 'No package name provided', 'error')
             return 0
         endif
         
@@ -436,9 +454,8 @@ endfunction
 " ------------------------------------------------------------------------------
 function! zzvim_r#update_package() abort
     if exists('*s:engine')
-        let l:package = input('Update package: ')
+        let l:package = s:get_package_input('Update package: ')
         if empty(l:package)
-            call s:engine('msg', 'No package name provided', 'error')
             return 0
         endif
         
@@ -1343,13 +1360,9 @@ function! s:setup_environment_buffer() abort
     nnoremap <buffer> <silent> r :call zzvim_r#refresh_environment()<CR>
     nnoremap <buffer> <silent> <CR> :call <SID>inspect_object_under_cursor()<CR>
     nnoremap <buffer> <silent> h :call <SID>show_help()<CR>
-    nnoremap <buffer> <silent> / :call <SID>search_environment()<CR>
-    nnoremap <buffer> <silent> n :call <SID>next_search()<CR>
-    nnoremap <buffer> <silent> N :call <SID>prev_search()<CR>
     
     " Store buffer-local variables
     let b:environment_last_update = localtime()
-    let b:environment_search_pattern = ''
     
     " Set up auto-refresh timer (configurable, default: disabled in favor of command-based refresh)
     let l:refresh_interval = get(g:, 'zzvim_r_env_refresh_interval', 0) * 1000
@@ -1832,143 +1845,6 @@ function! s:inspect_object_under_cursor() abort
 endfunction
 
 " ------------------------------------------------------------------------------
-" Function: s:show_object_in_preview(object_name, object_type)
-"
-" Shows R object inspection in Vim's preview window
-" ------------------------------------------------------------------------------
-function! s:show_object_in_preview(object_name, object_type) abort
-    if !exists('*ZzvimR_TerminalEngine') || !exists('t:zzvim_r_terminal_id')
-        echom 'zzvim-R: R terminal not available'
-        return
-    endif
-    
-    " Create temporary file for R output
-    let l:output_file = tempname() . '.txt'
-    
-    " Create R script to capture inspection output
-    let l:r_script = []
-    
-    " Check if it's a data frame or tibble for enhanced inspection
-    if a:object_type =~# '\v(data\.frame|tbl_df|tibble)'
-        let l:r_script = [
-            \ 'tryCatch({',
-            \ '  # Check if object exists',
-            \ '  if (!exists("' . a:object_name . '")) {',
-            \ '    cat("Error: Object ''' . a:object_name . ''' not found\\n", file="' . l:output_file . '")',
-            \ '  } else {',
-            \ '    # Capture both str() and glimpse() output',
-            \ '    output <- capture.output({',
-            \ '      cat("=== Structure of ' . a:object_name . ' ===\\n")',
-            \ '      str(' . a:object_name . ')',
-            \ '      cat("\\n")',
-            \ '      if (requireNamespace("dplyr", quietly=TRUE)) {',
-            \ '        cat("=== Glimpse of ' . a:object_name . ' ===\\n")',
-            \ '        dplyr::glimpse(' . a:object_name . ')',
-            \ '      } else {',
-            \ '        cat("(Install dplyr package for glimpse() output)\\n")',
-            \ '      }',
-            \ '    })',
-            \ '    writeLines(output, "' . l:output_file . '")',
-            \ '  }',
-            \ '}, error = function(e) {',
-            \ '  cat("Error inspecting ' . a:object_name . ':", e$message, "\\n", file="' . l:output_file . '")',
-            \ '})'
-        \ ]
-    else
-        " For other objects, just use str()
-        let l:r_script = [
-            \ 'tryCatch({',
-            \ '  if (!exists("' . a:object_name . '")) {',
-            \ '    cat("Error: Object ''' . a:object_name . ''' not found\\n", file="' . l:output_file . '")',
-            \ '  } else {',
-            \ '    output <- capture.output({',
-            \ '      cat("=== Structure of ' . a:object_name . ' ===\\n")',
-            \ '      str(' . a:object_name . ')',
-            \ '    })',
-            \ '    writeLines(output, "' . l:output_file . '")',
-            \ '  }',
-            \ '}, error = function(e) {',
-            \ '  cat("Error inspecting ' . a:object_name . ':", e$message, "\\n", file="' . l:output_file . '")',
-            \ '})'
-        \ ]
-    endif
-    
-    " Execute the R script
-    try
-        let l:script_file = tempname() . '.R'
-        call writefile(l:r_script, l:script_file)
-        call ZzvimR_TerminalEngine('send', {
-            \ 'content': printf("source('%s')", l:script_file),
-            \ 'desc': 'capture inspection output'
-        \ })
-        
-        " Set timer to read output and show in preview window
-        call timer_start(1000, function('s:show_inspection_in_preview', 
-                       \ [a:object_name, l:output_file]))
-    catch
-        echom 'zzvim-R: Failed to inspect object ' . a:object_name
-    endtry
-endfunction
-
-" ------------------------------------------------------------------------------
-" Function: s:show_inspection_in_preview(object_name, output_file, timer)
-"
-" Timer callback to read R inspection output and display in preview window
-" ------------------------------------------------------------------------------
-function! s:show_inspection_in_preview(object_name, output_file, timer) abort
-    try
-        " Read the R output
-        if filereadable(a:output_file)
-            let l:content = readfile(a:output_file)
-            call delete(a:output_file)  " Clean up temp file
-        else
-            let l:content = ['No inspection data available for ' . a:object_name]
-        endif
-        
-        " Open preview window with the content
-        " First close any existing preview window
-        silent! pclose
-        
-        " Create a temporary buffer for preview
-        let l:preview_bufname = '[R-Inspect: ' . a:object_name . ']'
-        
-        " Open preview window
-        execute 'pedit ' . l:preview_bufname
-        
-        " Switch to preview window and set up content
-        wincmd P
-        if &previewwindow
-            " Clear any existing content
-            setlocal modifiable
-            silent %delete _
-            
-            " Add the inspection content
-            call append(0, l:content)
-            1delete _  " Remove first empty line
-            
-            " Set buffer options for preview
-            setlocal buftype=nofile
-            setlocal bufhidden=wipe
-            setlocal noswapfile
-            setlocal nobuflisted
-            setlocal readonly
-            setlocal nomodifiable
-            setlocal filetype=r
-            setlocal nonumber
-            setlocal norelativenumber
-            
-            " Position cursor at top
-            normal! gg
-            
-            " Return to previous window (environment pane)
-            wincmd p
-        endif
-    catch
-        echom 'zzvim-R: Error displaying inspection results for ' . a:object_name
-    endtry
-endfunction
-
-" ------------------------------------------------------------------------------
 " Function: s:show_help()
 "
 " Shows help for environment pane usage
@@ -1978,36 +1854,5 @@ function! s:show_help() abort
     echo '<CR>  - Inspect object under cursor'
     echo 'r     - Refresh environment data'  
     echo 'q/Esc - Close environment pane'
-    echo '/     - Search objects'
     echo 'h     - Show this help'
-endfunction
-
-" ------------------------------------------------------------------------------
-" Function: s:search_environment()
-"
-" Search for objects in environment pane
-" ------------------------------------------------------------------------------
-function! s:search_environment() abort
-    let l:pattern = input('Search objects: ')
-    if !empty(l:pattern)
-        let b:environment_search_pattern = l:pattern
-        call search(l:pattern, 'w')
-    endif
-endfunction
-
-" ------------------------------------------------------------------------------
-" Function: s:next_search() / s:prev_search()
-"
-" Navigate search results in environment pane
-" ------------------------------------------------------------------------------
-function! s:next_search() abort
-    if exists('b:environment_search_pattern') && !empty(b:environment_search_pattern)
-        call search(b:environment_search_pattern, 'w')
-    endif
-endfunction
-
-function! s:prev_search() abort
-    if exists('b:environment_search_pattern') && !empty(b:environment_search_pattern)
-        call search(b:environment_search_pattern, 'bw')
-    endif
 endfunction
