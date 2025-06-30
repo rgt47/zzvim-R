@@ -13,9 +13,10 @@ CONTENTS                                                      *zzvim-r-contents*
     4. Usage ....................................... |zzvim-r-usage|
     5. Commands .................................... |zzvim-r-commands|
     6. Mappings .................................... |zzvim-r-mappings|
-    7. Breaking Changes in 3.0.0 ................... |zzvim-r-breaking-changes|
-    8. Technical Details ........................... |zzvim-r-technical|
-    9. Troubleshooting ............................. |zzvim-r-troubleshooting|
+    7. Environment Pane ............................ |zzvim-r-environment-pane|
+    8. Breaking Changes in 3.0.0 ................... |zzvim-r-breaking-changes|
+    9. Technical Details ........................... |zzvim-r-technical|
+    10. Troubleshooting ............................ |zzvim-r-troubleshooting|
 
 ==============================================================================
 1. INTRODUCTION                                           *zzvim-r-introduction*
@@ -101,6 +102,19 @@ g:zzvim_r_chunk_end~
     Default: '^```\s*$'
     Regular expression for R chunk end pattern.
 
+                                                      *g:zzvim_r_use_floating*
+g:zzvim_r_use_floating~
+    Default: 0
+    Use floating windows for environment pane instead of split windows.
+    Requires Vim 8.2.0191+ or Neovim 0.4+. Set to 1 to enable.
+
+                                               *g:zzvim_r_env_refresh_interval*
+g:zzvim_r_env_refresh_interval~
+    Default: 0
+    Auto-refresh interval for environment pane in seconds. 
+    Set to 0 to disable auto-refresh (recommended, uses command-based refresh).
+    Example: Set to 10 for refresh every 10 seconds.
+
 ==============================================================================
 4. USAGE                                                         *zzvim-r-usage*
 
@@ -115,6 +129,59 @@ Basic workflow:~
     8. Manage packages with <LocalLeader>xi, <LocalLeader>xl, etc.
     9. Import/export data with <LocalLeader>zr, <LocalLeader>zw, etc.
     10. Manage directories with <LocalLeader>vd, <LocalLeader>vc, etc.
+
+Smart Execution Features (RStudio-like):~
+zzvim-R includes intelligent code execution that automatically detects and
+executes complete code blocks, similar to RStudio's smart execution:
+
+Function Blocks:~
+When the cursor is positioned anywhere within a function definition, pressing
+<CR> will execute the entire function block automatically.
+
+Example:
+>
+    my_function <- function(x, y) {  # <- cursor here
+        result <- x + y
+        return(result)
+    }                                # <- entire block executed
+<
+
+Control Structures:~
+When positioned on control structure keywords (if, for, while, repeat), 
+the plugin executes the complete control block with proper brace matching.
+
+Example:
+>
+    if (condition) {                 # <- cursor here
+        do_something()
+        nested_if <- if (x > 0) {
+            "positive"
+        } else {
+            "negative"
+        }
+    }                                # <- entire if block executed
+<
+
+Pipe Chains:~
+When positioned anywhere in a pipe chain (%>%), the plugin detects and
+executes the complete chain, including assignment statements.
+
+Example:
+>
+    result <- data %>%               # <- cursor anywhere in chain
+        filter(x > 0) %>%
+        mutate(y = x * 2) %>%
+        summarise(mean_y = mean(y))  # <- entire chain executed
+<
+
+Assignment with Output:~
+When executing assignment statements, the plugin automatically displays
+the assigned object after execution for immediate feedback.
+
+Environment Pane:~
+The plugin provides an environment browser similar to RStudio's Environment
+pane. Access it with <LocalLeader>wb to see all workspace objects with their
+types, dimensions, and preview values.
 
 ==============================================================================
 5. COMMANDS                                                   *zzvim-r-commands*
@@ -206,7 +273,45 @@ Utilities:~
     <LocalLeader>o      Add pipe operator (%>%)
 
 ==============================================================================
-7. BREAKING CHANGES IN 3.0.0                           *zzvim-r-breaking-changes*
+7. ENVIRONMENT PANE                                       *zzvim-r-environment-pane*
+
+The Environment Pane provides a comprehensive workspace browser similar to
+RStudio's Environment panel, displaying all objects in your R workspace.
+
+Opening the Environment Pane:~
+    <LocalLeader>wb     Open environment browser in split window
+
+Environment Pane Interface:~
+The environment pane displays workspace objects in a formatted table with:
+    • Object Name: Variable/function names in your workspace
+    • Type: Data type (numeric, character, data.frame, function, etc.)
+    • Size: Dimensions for data structures (rows x columns)
+    • Preview: Sample of object contents where applicable
+
+Navigation in Environment Pane:~
+    <CR>        Inspect object under cursor (shows str() output in R terminal)
+    r           Refresh environment data
+    q / <Esc>   Close environment pane
+    h           Show help for environment pane usage
+
+Auto-refresh:~
+The environment pane automatically refreshes when you execute R commands,
+keeping the display synchronized with your R workspace.
+
+Object Inspection from Environment Pane:~
+When you press <CR> on an object in the environment pane, the plugin
+automatically runs the appropriate inspection command:
+    • Data frames: Both str() and glimpse() (if dplyr available)
+    • Other objects: str() for structure analysis
+
+Integration with Workspace Commands:~
+The environment pane works seamlessly with other workspace commands:
+    • <LocalLeader>wl - Simple workspace listing in terminal
+    • <LocalLeader>wc - Class and type info for object under cursor
+    • <LocalLeader>wd - Detailed structure for object under cursor
+
+==============================================================================
+8. BREAKING CHANGES IN 3.0.0                           *zzvim-r-breaking-changes*
 
 Version 3.0.0 of zzvim-R introduces significant architectural improvements and
 code cleanup. These changes prioritize code quality and maintainability over
@@ -300,36 +405,93 @@ The plugin supports extensive customization through global variables (see
 those who wish to extend functionality.
 
 ==============================================================================
-9. TROUBLESHOOTING                                     *zzvim-r-troubleshooting*
+10. TROUBLESHOOTING                                     *zzvim-r-troubleshooting*
 
-Check terminal status:~
+Quick Diagnostics:~
 >
-    :RTerminalStatus
+    :RTerminalStatus              " Check terminal status
+    :let g:zzvim_r_debug = 4      " Enable verbose logging
+    :RToggleDebug                 " Toggle debug level
+    :edit ~/zzvim_r.log           " View log file
+<
 
+Common Issues and Solutions:~
 
-Enable debug logging:~
+Plugin Not Loading:~
+    • Check installation: Ensure plugin files are in correct directories
+    • Verify Vim version: Requires Vim 8.0+ with terminal support
+    • Check filetype: Plugin only loads for R-related files (.r, .rmd, .qmd, .rnw)
+    Solution: `:set filetype=r` or open an R file
+
+R Terminal Issues:~
+    • "R not found": R executable not in PATH
+      Solution: Add R to PATH or set g:zzvim_r_command with full path
+    • Terminal not responding: Job may have died
+      Solution: `:RTerminalStatus` then restart with `<LocalLeader>r`
+    • Multiple terminals: Only one per tab supported
+      Solution: Use different Vim tabs for multiple R sessions
+
+Key Mappings Not Working:~
+    • LocalLeader not set: Default is backslash (\)
+      Solution: `:let maplocalleader = ","` (or preferred key)
+    • Mappings disabled: Check g:zzvim_r_disable_mappings
+      Solution: `:let g:zzvim_r_disable_mappings = 0`
+    • Wrong filetype: Mappings only active in R files
+      Solution: `:set filetype=r`
+
+Chunk Navigation Issues:~
+    • "Not inside an R chunk": Cursor not between ``` markers
+      Solution: Position cursor inside code chunk, not on ``` lines
+    • Chunk patterns not matching: Custom chunk delimiters
+      Solution: Adjust g:zzvim_r_chunk_start and g:zzvim_r_chunk_end
+
+Smart Execution Problems:~
+    • Function block not detected: Cursor not inside function definition
+      Solution: Position cursor between opening and closing braces
+    • Pipe chain not complete: Missing %>% or assignment
+      Solution: Ensure pipe operators are on same or consecutive lines
+    • Brace matching errors: Unmatched braces in code
+      Solution: Check code syntax, ensure braces are balanced
+
+Environment Pane Issues:~
+    • Empty environment display: No objects in R workspace
+      Solution: Create some objects in R, then refresh with 'r'
+    • Pane not updating: Auto-refresh may be disabled
+      Solution: Manually refresh with 'r' key in environment pane
+    • Objects not displaying correctly: R workspace access issues
+      Solution: Check R terminal connection with :RTerminalStatus
+
+Object Inspection Problems:~
+    • No output from inspection: Object doesn't exist or is empty
+      Solution: Verify object name and existence in R workspace
+    • "glimpse not available": dplyr package not installed
+      Solution: Install dplyr with `<LocalLeader>xi dplyr`
+
+Performance Issues:~
+    • Slow chunk navigation: Large files with many chunks
+      Solution: Enable chunk caching (automatic in v3.0+)
+    • Sluggish terminal response: Large output or system load
+      Solution: Reduce output size or increase terminal width
+
+Plugin Configuration Issues:~
+    • Settings not taking effect: Configuration loaded after plugin
+      Solution: Put g:zzvim_r_* variables before plugin loading in vimrc
+    • Log file permissions: Cannot write to log location
+      Solution: Set g:zzvim_r_log_file to writable directory
+
+Advanced Debugging:~
+For persistent issues, enable maximum debugging:
 >
-    :let g:zzvim_r_debug = 4
-    :RToggleDebug
+    let g:zzvim_r_debug = 4
+    let g:zzvim_r_log_file = '/tmp/zzvim_r_debug.log'
+<
+Then reproduce the issue and examine the detailed log file.
 
-
-View log file:~
->
-    :edit ~/zzvim_r.log
-
-
-Common issues:~
-    • R not found: Ensure R is in PATH
-    • Terminal not responding: Check :RTerminalStatus
-    • Mappings not working: Verify file type and mapping settings
-    • Plugin functions not loading: Check installation paths and autoload
-    • "Not inside an R chunk" error: Verify cursor position within ``` markers
-
-Implementation Issues:~
-    • If you encounter errors with `s:config not defined`, try reloading the
-      plugin with `:runtime plugin/zzvim_r.vim`
-    • For conflicts with other plugins, try using different LocalLeader
-    • For multiple terminal instances, use separate Vim tabs
+Getting Help:~
+    • Check :help zzvim-r for this documentation
+    • Review plugin source for understanding behavior
+    • Enable debug logging to trace execution flow
+    • Test with minimal vimrc to isolate conflicts
 
 ==============================================================================
 vim:tw=78:ts=8:ft=help:norl:

@@ -6,8 +6,10 @@ elegant architecture.
 ## Features
 
 - **Terminal Integration**: Persistent R terminal session management per Vim tab
+- **Smart Code Execution**: RStudio-like intelligent execution of function blocks, control structures, and pipe chains
 - **Code Execution**: Send lines, visual selections, and R Markdown chunks to R
 - **Navigation**: Quick navigation between R Markdown code chunks
+- **Environment Pane**: RStudio-like workspace browser showing objects, types, and dimensions
 - **Enhanced Object Inspection**: Inspect objects, browse workspace, view structure
 - **Package Management**: Install, load, and update R packages
 - **Data Import/Export**: Quick CSV and RDS file operations
@@ -69,6 +71,44 @@ git clone https://github.com/rgt47/zzvim-r.git ~/.config/nvim/pack/plugins/start
 3. Use `<CR>` to send current line or visual selection to R
 4. Navigate chunks with `<LocalLeader>j/k`, execute with `<LocalLeader>l`
 5. Use inspection shortcuts like `<LocalLeader>h` for head()
+
+## Smart Execution Features
+
+zzvim-R includes RStudio-like intelligent code execution that automatically detects and executes complete code blocks:
+
+### Function Block Execution
+When the cursor is anywhere within a function definition, pressing `<CR>` executes the entire function:
+```r
+my_function <- function(x, y) {  # <- cursor anywhere here
+    result <- x + y
+    return(result)
+}                                # <- entire block executed
+```
+
+### Control Structure Execution  
+Automatically detects and executes complete if/for/while/repeat blocks:
+```r
+if (condition) {                 # <- cursor on this line
+    do_something()
+    nested_block <- if (x > 0) {
+        "positive" 
+    } else {
+        "negative"
+    }
+}                                # <- entire structure executed
+```
+
+### Pipe Chain Execution
+Detects and executes complete pipe chains, including assignments:
+```r
+result <- data %>%               # <- cursor anywhere in chain
+    filter(x > 0) %>%
+    mutate(y = x * 2) %>%        
+    summarise(mean_y = mean(y))  # <- entire chain executed
+```
+
+### Assignment with Output
+When executing assignments, automatically shows the result for immediate feedback.
 
 ## Key Mappings
 
@@ -160,6 +200,10 @@ let g:zzvim_r_log_file = '~/zzvim_r.log'
 " R Markdown chunk patterns
 let g:zzvim_r_chunk_start = '^```{[rR]'
 let g:zzvim_r_chunk_end = '^```\s*$'
+
+" Environment pane options
+let g:zzvim_r_use_floating = 0              " Use floating windows (requires Vim 8.2.0191+ or Neovim 0.4+)
+let g:zzvim_r_env_refresh_interval = 0      " Auto-refresh interval in seconds (0 = disabled, recommended)
 ```
 
 
