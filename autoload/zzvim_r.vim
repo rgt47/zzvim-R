@@ -1155,15 +1155,16 @@ function! s:open_environment_pane() abort
         " Create environment window (try floating first, fall back to split)
         if s:create_environment_window()
             " Populate with initial data BEFORE setting readonly
-            call s:populate_environment_buffer_simple(bufnr('%'))
+            silent call s:populate_environment_buffer_simple(bufnr('%'))
             
             " Set up the environment buffer (makes it readonly)
-            call s:setup_environment_buffer()
+            silent call s:setup_environment_buffer()
             
             " Return to original window
-            execute l:current_win . 'wincmd w'
+            silent execute l:current_win . 'wincmd w'
             
-            call ZzvimR_Engine('msg', 'Environment pane opened', 'info')
+            " Don't show the message to avoid "Press ENTER" prompt
+            " call ZzvimR_Engine('msg', 'Environment pane opened', 'info')
             return 1
         else
             call ZzvimR_Engine('msg', 'Failed to create environment window', 'error')
@@ -1283,13 +1284,13 @@ endfunction
 function! s:create_split_environment() abort
     try
         " Create vertical split on the right (like RStudio)
-        execute 'rightbelow vnew'
+        silent execute 'rightbelow vnew'
         
         " Resize to reasonable width
-        execute 'vertical resize 40'
+        silent execute 'vertical resize 40'
         
         " Set buffer name
-        execute 'file [R-Environment]'
+        silent execute 'file [R-Environment]'
         
         return 1
     catch
@@ -1459,9 +1460,9 @@ endfunction
 "   bufnr - Buffer number of environment pane
 " ------------------------------------------------------------------------------
 function! s:populate_environment_buffer_simple(bufnr) abort
-    " Switch to environment buffer
+    " Switch to environment buffer silently
     let l:current_buf = bufnr('%')
-    execute 'buffer' a:bufnr
+    silent execute 'buffer' a:bufnr
     
     " Make buffer modifiable temporarily
     setlocal modifiable
@@ -1502,7 +1503,7 @@ function! s:populate_environment_buffer_simple(bufnr) abort
     
     " Return to original buffer if different
     if l:current_buf != a:bufnr
-        execute 'buffer' l:current_buf
+        silent execute 'buffer' l:current_buf
     endif
 endfunction
 
@@ -1515,48 +1516,141 @@ endfunction
 "   bufnr - Buffer number of environment pane
 " ------------------------------------------------------------------------------
 function! s:fetch_workspace_data_async(bufnr) abort
-    " Send R command to get workspace data
-    if exists('*ZzvimR_TerminalEngine')
-        " Create a simple R command to list objects with basic info
-        let l:r_code = [
-            \ 'cat("=== WORKSPACE DATA START ===\\n")',
-            \ 'objects <- ls(envir = .GlobalEnv)',
-            \ 'if (length(objects) == 0) {',
-            \ '  cat("No objects in workspace\\n")',
-            \ '} else {',
-            \ '  for (obj_name in objects) {',
-            \ '    obj <- get(obj_name, envir = .GlobalEnv)',
-            \ '    obj_class <- class(obj)[1]',
-            \ '    obj_size <- format(object.size(obj), units = "auto")',
-            \ '    preview <- if (is.data.frame(obj)) paste0(nrow(obj), " obs. of ", ncol(obj), " vars")',
-            \ '               else if (is.vector(obj) && length(obj) <= 5) paste(obj, collapse = ", ")',
-            \ '               else if (is.vector(obj)) paste0("length ", length(obj))',
-            \ '               else if (is.function(obj)) "function"',
-            \ '               else if (is.matrix(obj)) paste0(nrow(obj), "x", ncol(obj), " matrix")',
-            \ '               else "object"',
-            \ '    cat(sprintf("%-15s %-10s %-8s %s\\n", obj_name, obj_class, obj_size, preview))',
-            \ '  }',
-            \ '}',
-            \ 'cat("=== WORKSPACE DATA END ===\\n")'
-        \ ]
+    " Get workspace data using direct R commands and show in the pane
+    call s:populate_workspace_data_directly(a:bufnr)
+endfunction
+
+" ------------------------------------------------------------------------------
+" Function: s:populate_workspace_data_directly(bufnr)
+"
+" Directly populate the environment pane with R workspace data
+" ------------------------------------------------------------------------------
+function! s:populate_workspace_data_directly(bufnr) abort
+    if !exists('*ZzvimR_TerminalEngine') || !exists('t:zzvim_r_terminal_id')
+        return 0
+    endif
+    
+    " Create a simple R script to get workspace info and save to file
+    let l:output_file = tempname() . '.txt'
+    let l:r_script = [
+        \ 'tryCatch({',
+        \ '  objects <- ls(envir = .GlobalEnv)',
+        \ '  if (length(objects) == 0) {',
+        \ '    cat("No objects in workspace", file="' . l:output_file . '")',
+        \ '  } else {',
+        \ '    output <- c()',
+        \ '    for (obj_name in objects) {',
+        \ '      obj <- get(obj_name, envir = .GlobalEnv)',
+        \ '      obj_class <- class(obj)[1]',
+        \ '      obj_size <- format(object.size(obj), units = "auto")',
+        \ '      if (is.data.frame(obj)) {',
+        \ '        preview <- paste0(nrow(obj), " obs. of ", ncol(obj), " vars")',
+        \ '      } else if (is.vector(obj) && length(obj) <= 3) {',
+        \ '        preview <- paste(obj, collapse = ", ")',
+        \ '      } else if (is.vector(obj)) {',
+        \ '        preview <- paste0("length ", length(obj))',
+        \ '      } else if (is.function(obj)) {',
+        \ '        preview <- "function"',
+        \ '      } else if (is.matrix(obj)) {',
+        \ '        preview <- paste0(nrow(obj), "x", ncol(obj), " matrix")',
+        \ '      } else {',
+        \ '        preview <- "object"',
+        \ '      }',
+        \ '      line <- sprintf("%-15s %-10s %-10s %s", obj_name, obj_class, obj_size, preview)',
+        \ '      output <- c(output, line)',
+        \ '    }',
+        \ '    writeLines(output, "' . l:output_file . '")',
+        \ '  }',
+        \ '}, error = function(e) {',
+        \ '  cat("Error getting workspace data:", e$message, file="' . l:output_file . '")',
+        \ '})'
+    \ ]
+    
+    " Execute the R script
+    try
+        let l:script_file = tempname() . '.R'
+        call writefile(l:r_script, l:script_file)
+        call ZzvimR_TerminalEngine('send', {
+            \ 'content': printf("source('%s')", l:script_file),
+            \ 'desc': 'workspace data collection'
+        \ })
         
-        " Send the R code as a temporary script
-        try
-            let l:temp = tempname() . '.R'
-            call writefile(l:r_code, l:temp)
-            call ZzvimR_TerminalEngine('send', {
-                \ 'content': printf("source('%s')", l:temp), 
-                \ 'desc': 'workspace data'
-            \ })
+        " Set timer to read the output file and update buffer
+        call timer_start(1500, function('s:read_workspace_file_and_update', [a:bufnr, l:output_file]))
+    catch
+        " Fallback: show error message
+        call s:show_workspace_error(a:bufnr, 'Failed to execute R workspace command')
+    endtry
+endfunction
+
+" ------------------------------------------------------------------------------
+" Function: s:read_workspace_file_and_update(bufnr, output_file, timer)
+"
+" Timer callback to read workspace data file and update environment buffer
+" ------------------------------------------------------------------------------
+function! s:read_workspace_file_and_update(bufnr, output_file, timer) abort
+    if !bufexists(a:bufnr)
+        return
+    endif
+    
+    try
+        " Read the output file
+        if filereadable(a:output_file)
+            let l:workspace_data = readfile(a:output_file)
+            call delete(a:output_file)  " Clean up temp file
+        else
+            let l:workspace_data = ['Workspace data not available']
+        endif
+        
+        " Update the environment buffer
+        let l:current_buf = bufnr('%')
+        silent execute 'buffer' a:bufnr
+        setlocal modifiable noreadonly
+        
+        " Find where to insert the data (after the header lines)
+        let l:insert_line = search('^Object Name', 'n') + 2
+        if l:insert_line > 2
+            " Remove any existing data
+            execute (l:insert_line) . ',$delete _'
             
-            " Note: R workspace data will show in the terminal
-            " Timer-based updates disabled to avoid readonly issues
-        catch
-            " Fallback: just show basic message
-            call s:update_environment_buffer_fallback(a:bufnr)
-        endtry
-    else
-        call s:update_environment_buffer_fallback(a:bufnr)
+            " Insert the new workspace data
+            call append(l:insert_line - 1, l:workspace_data)
+        endif
+        
+        setlocal nomodifiable readonly
+        
+        " Return to original buffer
+        if l:current_buf != a:bufnr
+            silent execute 'buffer' l:current_buf
+        endif
+    catch
+        call s:show_workspace_error(a:bufnr, 'Error reading workspace data: ' . v:exception)
+    endtry
+endfunction
+
+" ------------------------------------------------------------------------------
+" Function: s:show_workspace_error(bufnr, message)
+"
+" Show error message in environment buffer
+" ------------------------------------------------------------------------------
+function! s:show_workspace_error(bufnr, message) abort
+    if !bufexists(a:bufnr)
+        return
+    endif
+    
+    let l:current_buf = bufnr('%')
+    execute 'buffer' a:bufnr
+    setlocal modifiable noreadonly
+    
+    let l:insert_line = search('^Object Name', 'n') + 2
+    if l:insert_line > 2
+        execute (l:insert_line) . ',$delete _'
+        call append(l:insert_line - 1, ['Error: ' . a:message])
+    endif
+    
+    setlocal nomodifiable readonly
+    if l:current_buf != a:bufnr
+        execute 'buffer' l:current_buf
     endif
 endfunction
 
@@ -1629,16 +1723,42 @@ endfunction
 " Inspects the R object under cursor in environment pane
 " ------------------------------------------------------------------------------
 function! s:inspect_object_under_cursor() abort
-    " Get the line under cursor and extract object name
+    " Get the line under cursor and extract object name and type
     let l:line = getline('.')
     let l:object_match = matchstr(l:line, '^\s*\zs\w\+')
     
     if !empty(l:object_match)
-        " Use existing inspection functionality
-        let l:old_word = expand('<cword>')
-        execute 'normal! "_ciw' . l:object_match . "\<Esc>"
-        call zzvim_r#inspect('str')
-        execute 'normal! u'  " Undo the word change
+        " Extract object type from the line
+        let l:type_match = matchstr(l:line, '^\s*\w\+\s\+\zs\w\+')
+        
+        " Check if it's a data frame or tibble
+        if l:type_match =~# '\v(data\.frame|tbl_df|tibble)'
+            " For data frames/tibbles, show both str() and glimpse()
+            if exists('*ZzvimR_TerminalEngine')
+                call ZzvimR_TerminalEngine('send', {
+                    \ 'content': printf("cat('=== str(%s) ===\\n'); str(%s)", l:object_match, l:object_match),
+                    \ 'desc': 'inspect ' . l:object_match
+                \ })
+                
+                " Add glimpse() if dplyr is available
+                call ZzvimR_TerminalEngine('send', {
+                    \ 'content': printf("if (requireNamespace('dplyr', quietly=TRUE)) { cat('\\n=== glimpse(%s) ===\\n'); dplyr::glimpse(%s) } else { cat('\\n(Install dplyr package for glimpse() output)\\n') }", l:object_match, l:object_match),
+                    \ 'desc': 'glimpse ' . l:object_match
+                \ })
+            else
+                echom 'zzvim-R: R terminal not available'
+            endif
+        else
+            " For other objects, use standard str() inspection
+            if exists('*ZzvimR_TerminalEngine')
+                call ZzvimR_TerminalEngine('send', {
+                    \ 'content': printf("str(%s)", l:object_match),
+                    \ 'desc': 'inspect ' . l:object_match
+                \ })
+            else
+                echom 'zzvim-R: R terminal not available'
+            endif
+        endif
     endif
 endfunction
 
