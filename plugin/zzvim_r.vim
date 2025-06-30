@@ -1275,3 +1275,24 @@ unlet s:save_cpo
 " Utilities:
 "   <LocalLeader>o  - Add pipe operator (%>%)
 " ==============================================================================
+
+" ==============================================================================
+" GLOBAL WRAPPER FUNCTIONS FOR AUTOLOAD ACCESS
+" ==============================================================================
+" These functions provide access to script-local functions for the autoload file
+
+function! ZzvimR_TerminalEngine(action, options) abort
+    return s:terminal_engine(a:action, a:options)
+endfunction
+
+function! ZzvimR_Engine(operation, ...) abort
+    return call('s:engine', [a:operation] + a:000)
+endfunction
+
+function! ZzvimR_Config(section, key, default) abort
+    if has_key(s:config, a:section) && has_key(s:config[a:section], a:key)
+        return s:config[a:section][a:key]
+    else
+        return a:default
+    endif
+endfunction

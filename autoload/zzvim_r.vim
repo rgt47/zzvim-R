@@ -719,9 +719,9 @@ endfunction
 "   1 if successful, 0 if failed
 " ------------------------------------------------------------------------------
 function! zzvim_r#browse_workspace() abort
-    if exists('*s:terminal_engine')
-        return s:terminal_engine('send', {'content': 'ls.str()', 
-                                        \ 'desc': 'workspace browser'})
+    if exists('*ZzvimR_TerminalEngine')
+        return ZzvimR_TerminalEngine('send', {'content': 'ls.str()', 
+                                            \ 'desc': 'workspace browser'})
     else
         echom 'zzvim-R: Plugin core functions not available'
         return 0
@@ -1134,15 +1134,15 @@ endfunction
 "   1 if successful, 0 if failed
 " ------------------------------------------------------------------------------
 function! s:open_environment_pane() abort
-    if !exists('*s:terminal_engine')
+    if !exists('*ZzvimR_TerminalEngine')
         echom 'zzvim-R: Plugin core functions not available'
         return 0
     endif
     
     " Make sure we have an active R terminal
-    if !s:terminal_engine('check', {})
-        if !s:terminal_engine('create', {})
-            call s:engine('msg', 'Cannot open environment: R terminal unavailable', 'error')
+    if !ZzvimR_TerminalEngine('check', {})
+        if !ZzvimR_TerminalEngine('create', {})
+            call ZzvimR_Engine('msg', 'Cannot open environment: R terminal unavailable', 'error')
             return 0
         endif
     endif
@@ -1163,14 +1163,14 @@ function! s:open_environment_pane() abort
             " Return to original window
             execute l:current_win . 'wincmd w'
             
-            call s:engine('msg', 'Environment pane opened', 'info')
+            call ZzvimR_Engine('msg', 'Environment pane opened', 'info')
             return 1
         else
-            call s:engine('msg', 'Failed to create environment window', 'error')
+            call ZzvimR_Engine('msg', 'Failed to create environment window', 'error')
             return 0
         endif
     catch
-        call s:engine('msg', 'Error opening environment: ' . v:exception, 'error')
+        call ZzvimR_Engine('msg', 'Error opening environment: ' . v:exception, 'error')
         return 0
     endtry
 endfunction
