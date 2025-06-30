@@ -1346,6 +1346,35 @@ function! s:setup_environment_buffer() abort
     " Store buffer-local variables
     let b:environment_last_update = localtime()
     let b:environment_search_pattern = ''
+    
+    " Set up auto-refresh timer (configurable, default 10 seconds)
+    let l:refresh_interval = get(g:, 'zzvim_r_env_refresh_interval', 10) * 1000
+    if l:refresh_interval > 0
+        let b:environment_timer = timer_start(l:refresh_interval, 
+                                            \ function('s:auto_refresh_environment', [bufnr('%')]), 
+                                            \ {'repeat': -1})
+    endif
+endfunction
+
+" ------------------------------------------------------------------------------
+" Function: s:auto_refresh_environment(bufnr, timer)
+"
+" Timer callback to automatically refresh environment pane
+" ------------------------------------------------------------------------------
+function! s:auto_refresh_environment(bufnr, timer) abort
+    " Only refresh if the buffer still exists and is visible
+    if bufexists(a:bufnr) && bufwinnr(a:bufnr) != -1
+        " Check if R terminal is still active
+        if exists('t:zzvim_r_terminal_id') && exists('*ZzvimR_TerminalEngine')
+            if ZzvimR_TerminalEngine('check', {})
+                " Refresh the environment data silently
+                call zzvim_r#refresh_environment()
+            endif
+        endif
+    else
+        " Buffer is gone or not visible, stop the timer
+        call timer_stop(a:timer)
+    endif
 endfunction
 
 " ------------------------------------------------------------------------------
@@ -1726,6 +1755,19 @@ endfunction
 "   bufnr - Buffer number of environment pane
 " ------------------------------------------------------------------------------
 function! s:close_environment_pane(bufnr) abort
+    " Stop auto-refresh timer if it exists
+    if bufexists(a:bufnr)
+        let l:current_buf = bufnr('%')
+        silent execute 'buffer' a:bufnr
+        if exists('b:environment_timer')
+            call timer_stop(b:environment_timer)
+            unlet b:environment_timer
+        endif
+        if l:current_buf != a:bufnr
+            silent execute 'buffer' l:current_buf
+        endif
+    endif
+    
     " Close the window/buffer
     if bufexists(a:bufnr)
         execute 'bwipeout' a:bufnr
