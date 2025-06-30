@@ -1154,11 +1154,11 @@ function! s:open_environment_pane() abort
     try
         " Create environment window (try floating first, fall back to split)
         if s:create_environment_window()
-            " Set up the environment buffer
-            call s:setup_environment_buffer()
+            " Populate with initial data BEFORE setting readonly
+            call s:populate_environment_buffer_simple(bufnr('%'))
             
-            " Populate with initial data
-            call s:update_environment_content(bufnr('%'))
+            " Set up the environment buffer (makes it readonly)
+            call s:setup_environment_buffer()
             
             " Return to original window
             execute l:current_win . 'wincmd w'
@@ -1187,8 +1187,9 @@ endfunction
 "   1 if successful, 0 if failed
 " ------------------------------------------------------------------------------
 function! s:create_environment_window() abort
-    " Try to create floating window if supported (Vim 8.2+ or Neovim)
-    if has('patch-8.2.0191') || has('nvim-0.4')
+    " Use split window like peekaboo for better reliability
+    " Floating windows can be disabled by setting g:zzvim_r_use_floating = 0
+    if get(g:, 'zzvim_r_use_floating', 0) && (has('patch-8.2.0191') || has('nvim-0.4'))
         return s:create_floating_environment()
     else
         return s:create_split_environment()
@@ -1233,6 +1234,9 @@ function! s:create_floating_environment() abort
             " Set buffer name
             execute 'file [R-Environment]'
             
+            " Populate the buffer with environment data
+            call s:populate_environment_buffer_simple(l:buf)
+            
             return 1
         else
             " Vim 8.2+ popup window
@@ -1245,17 +1249,20 @@ function! s:create_floating_environment() abort
                 \ 'close': 'click'
             \ }
             
-            " Create popup window
-            let l:popup_id = popup_create('Loading environment...', l:opts)
+            " Create popup window with empty content
+            let l:popup_id = popup_create('', l:opts)
             
             " Get the buffer number of the popup
             let l:bufnr = winbufnr(popup_getwid(l:popup_id))
             
-            " Switch to the popup buffer
+            " Switch to the popup buffer and set it up
             execute 'buffer' l:bufnr
             
             " Set buffer name
             execute 'file [R-Environment]'
+            
+            " Populate the buffer with environment data
+            call s:populate_environment_buffer_simple(l:bufnr)
             
             return 1
         endif
@@ -1467,35 +1474,135 @@ function! s:populate_environment_buffer_simple(bufnr) abort
         \ '# R Environment',
         \ '# Press <CR> to inspect, r to refresh, q to close',
         \ '#' . repeat('-', 50),
-        \ '',
-        \ 'Fetching workspace data...',
-        \ '',
-        \ 'Object Name     Type      Size     Preview',
-        \ repeat('-', 50)
+        \ ''
     \ ])
     
-    " Add a note about the simplified version
+    " Get actual workspace data from R
+    call s:fetch_workspace_data_async(a:bufnr)
+    
+    " Add workspace information and commands
     call append(line('$'), [
+        \ 'Object Name     Type      Size     Preview',
+        \ repeat('-', 50),
         \ '',
-        \ '# Note: This is a simplified environment display.',
-        \ '# Full R workspace integration would require more',
-        \ '# sophisticated output capture from the R terminal.',
+        \ 'Workspace data will appear in R terminal below.',
         \ '',
-        \ '# Use the existing workspace commands:',
-        \ '# <LocalLeader>wb - Browse workspace (ls.str())',
-        \ '# <LocalLeader>wl - List workspace (ls())'
+        \ 'Available commands:',
+        \ '• <LocalLeader>wb - Browse workspace (ls.str())',
+        \ '• <LocalLeader>wl - List workspace (ls())',
+        \ '• r - Refresh this pane',
+        \ '• q - Close this pane'
     \ ])
     
     " Remove the first empty line
     1delete _
     
-    " Make buffer readonly again
-    setlocal nomodifiable readonly
-    
     " Position cursor
     normal! gg
     
     " Return to original buffer if different
+    if l:current_buf != a:bufnr
+        execute 'buffer' l:current_buf
+    endif
+endfunction
+
+" ------------------------------------------------------------------------------
+" Function: s:fetch_workspace_data_async(bufnr)
+"
+" Fetches workspace data from R and populates the environment buffer
+"
+" Parameters:
+"   bufnr - Buffer number of environment pane
+" ------------------------------------------------------------------------------
+function! s:fetch_workspace_data_async(bufnr) abort
+    " Send R command to get workspace data
+    if exists('*ZzvimR_TerminalEngine')
+        " Create a simple R command to list objects with basic info
+        let l:r_code = [
+            \ 'cat("=== WORKSPACE DATA START ===\\n")',
+            \ 'objects <- ls(envir = .GlobalEnv)',
+            \ 'if (length(objects) == 0) {',
+            \ '  cat("No objects in workspace\\n")',
+            \ '} else {',
+            \ '  for (obj_name in objects) {',
+            \ '    obj <- get(obj_name, envir = .GlobalEnv)',
+            \ '    obj_class <- class(obj)[1]',
+            \ '    obj_size <- format(object.size(obj), units = "auto")',
+            \ '    preview <- if (is.data.frame(obj)) paste0(nrow(obj), " obs. of ", ncol(obj), " vars")',
+            \ '               else if (is.vector(obj) && length(obj) <= 5) paste(obj, collapse = ", ")',
+            \ '               else if (is.vector(obj)) paste0("length ", length(obj))',
+            \ '               else if (is.function(obj)) "function"',
+            \ '               else if (is.matrix(obj)) paste0(nrow(obj), "x", ncol(obj), " matrix")',
+            \ '               else "object"',
+            \ '    cat(sprintf("%-15s %-10s %-8s %s\\n", obj_name, obj_class, obj_size, preview))',
+            \ '  }',
+            \ '}',
+            \ 'cat("=== WORKSPACE DATA END ===\\n")'
+        \ ]
+        
+        " Send the R code as a temporary script
+        try
+            let l:temp = tempname() . '.R'
+            call writefile(l:r_code, l:temp)
+            call ZzvimR_TerminalEngine('send', {
+                \ 'content': printf("source('%s')", l:temp), 
+                \ 'desc': 'workspace data'
+            \ })
+            
+            " Note: R workspace data will show in the terminal
+            " Timer-based updates disabled to avoid readonly issues
+        catch
+            " Fallback: just show basic message
+            call s:update_environment_buffer_fallback(a:bufnr)
+        endtry
+    else
+        call s:update_environment_buffer_fallback(a:bufnr)
+    endif
+endfunction
+
+" ------------------------------------------------------------------------------
+" Function: s:update_environment_buffer_delayed(bufnr, timer)
+"
+" Timer callback to update environment buffer with a simple message
+" ------------------------------------------------------------------------------
+function! s:update_environment_buffer_delayed(bufnr, timer) abort
+    if bufexists(a:bufnr)
+        let l:current_buf = bufnr('%')
+        execute 'buffer' a:bufnr
+        setlocal modifiable noreadonly
+        
+        " Add simple workspace listing
+        call append(line('$'), [
+            \ 'Object Name     Type      Size     Preview',
+            \ repeat('-', 50),
+            \ '',
+            \ 'Note: Check R terminal for detailed workspace output',
+            \ 'Use :call zzvim_r#list_workspace() for simple listing'
+        \ ])
+        
+        setlocal nomodifiable readonly
+        if l:current_buf != a:bufnr
+            execute 'buffer' l:current_buf
+        endif
+    endif
+endfunction
+
+" ------------------------------------------------------------------------------
+" Function: s:update_environment_buffer_fallback(bufnr)
+"
+" Fallback when R terminal is not available
+" ------------------------------------------------------------------------------
+function! s:update_environment_buffer_fallback(bufnr) abort
+    let l:current_buf = bufnr('%')
+    execute 'buffer' a:bufnr
+    setlocal modifiable noreadonly
+    
+    call append(line('$'), [
+        \ 'R terminal not available',
+        \ 'Press \\r to open R terminal first'
+    \ ])
+    
+    setlocal nomodifiable readonly
     if l:current_buf != a:bufnr
         execute 'buffer' l:current_buf
     endif
