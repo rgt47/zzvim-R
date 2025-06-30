@@ -1098,7 +1098,22 @@ endfunction
 function! zzvim_r#refresh_environment() abort
     let l:env_bufnr = s:find_environment_buffer()
     if l:env_bufnr > 0
-        call s:update_environment_content(l:env_bufnr)
+        " Clear the current content and repopulate with fresh data
+        let l:current_buf = bufnr('%')
+        silent execute 'buffer' l:env_bufnr
+        setlocal modifiable noreadonly
+        
+        " Clear existing content but keep the buffer structure
+        silent %delete _
+        
+        " Repopulate with fresh environment data  
+        call s:populate_environment_buffer_simple(l:env_bufnr)
+        
+        " Return to original buffer if different
+        if l:current_buf != l:env_bufnr
+            silent execute 'buffer' l:current_buf
+        endif
+        
         return 1
     endif
     return 0
@@ -1728,8 +1743,8 @@ function! s:inspect_object_under_cursor() abort
     let l:object_match = matchstr(l:line, '^\s*\zs\w\+')
     
     if !empty(l:object_match)
-        " Extract object type from the line
-        let l:type_match = matchstr(l:line, '^\s*\w\+\s\+\zs\w\+')
+        " Extract object type from the line (handle data.frame with dot)
+        let l:type_match = matchstr(l:line, '^\s*\w\+\s\+\zs[a-zA-Z0-9_.]\+')
         
         " Check if it's a data frame or tibble
         if l:type_match =~# '\v(data\.frame|tbl_df|tibble)'
