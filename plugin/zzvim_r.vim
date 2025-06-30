@@ -1187,14 +1187,14 @@ if !s:config.disable_mappings
             \ ['<LocalLeader>vc', 'zzvim_r#change_directory()', 'all', 'n'],
             \ ['<LocalLeader>vl', 'zzvim_r#list_directory()', 'all', 'n'],
             \ ['<LocalLeader>vh', 'zzvim_r#home_directory()', 'all', 'n'],
-            \ ['<LocalLeader>e', 'zzvim_r#browse_workspace()', 'all', 'n'],
+            \ ['<LocalLeader>e', 'zzvim_r#toggle_environment()', 'all', 'n'],
             \ ['<LocalLeader>wl', 'zzvim_r#list_workspace()', 'all', 'n'],
             \ ['<LocalLeader>wc', 'zzvim_r#show_class()', 'all', 'n'],
             \ ['<LocalLeader>wd', 'zzvim_r#show_detailed()', 'all', 'n'],
             \ ['<LocalLeader>ue', 'zzvim_r#help_examples()', 'all', 'n'],
             \ ['<LocalLeader>ua', 'zzvim_r#apropos_help()', 'all', 'n'],
             \ ['<LocalLeader>uf', 'zzvim_r#find_definition()', 'all', 'n'],
-            \ ['<LocalLeader>we', 'zzvim_r#toggle_environment()', 'all', 'n']
+            \ ['<LocalLeader>wb', 'zzvim_r#browse_workspace()', 'all', 'n']
         \ ]
 
         " Add additional inspect mappings with proper public API calls
@@ -1295,6 +1295,7 @@ unlet s:save_cpo
 "
 " Object Browser & Workspace:
 "   <LocalLeader>e   - Environment pane (RStudio-like browser)
+"   <LocalLeader>wb  - Browse workspace (ls.str())
 "   <LocalLeader>wl  - Workspace listing (ls())
 "   <LocalLeader>wc  - Class & type info of object
 "   <LocalLeader>wd  - Detailed object structure
