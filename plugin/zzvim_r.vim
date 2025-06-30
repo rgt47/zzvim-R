@@ -3,7 +3,7 @@
 " ==============================================================================
 " File:        plugin/zzvim_r.vim
 " Maintainer:  RG Thomas <rgthomas@ucsd.edu>
-" Version:     3.0.0
+" Version:     3.0.1
 " License:     GPL-3.0
 " Description: Comprehensive R integration for Vim with terminal management,
 "              chunk navigation, and object inspection capabilities.
@@ -1187,7 +1187,7 @@ if !s:config.disable_mappings
             \ ['<LocalLeader>vc', 'zzvim_r#change_directory()', 'all', 'n'],
             \ ['<LocalLeader>vl', 'zzvim_r#list_directory()', 'all', 'n'],
             \ ['<LocalLeader>vh', 'zzvim_r#home_directory()', 'all', 'n'],
-            \ ['<LocalLeader>wb', 'zzvim_r#browse_workspace()', 'all', 'n'],
+            \ ['<LocalLeader>e', 'zzvim_r#browse_workspace()', 'all', 'n'],
             \ ['<LocalLeader>wl', 'zzvim_r#list_workspace()', 'all', 'n'],
             \ ['<LocalLeader>wc', 'zzvim_r#show_class()', 'all', 'n'],
             \ ['<LocalLeader>wd', 'zzvim_r#show_detailed()', 'all', 'n'],
@@ -1294,11 +1294,10 @@ unlet s:save_cpo
 "   <LocalLeader>y  - help()
 "
 " Object Browser & Workspace:
-"   <LocalLeader>wb  - Object browser (ls.str())
+"   <LocalLeader>e   - Environment pane (RStudio-like browser)
 "   <LocalLeader>wl  - Workspace listing (ls())
 "   <LocalLeader>wc  - Class & type info of object
 "   <LocalLeader>wd  - Detailed object structure
-"   <LocalLeader>we  - Toggle environment pane (RStudio-like)
 "
 " Package Management:
 "   <LocalLeader>xi  - Install package

@@ -1,5 +1,10 @@
 # Changelog
 
+## [3.0.1] - 2025-06-30
+### Changed
+- Changed environment pane key mapping from `<LocalLeader>wb` to `<LocalLeader>e` for better usability
+- Updated all documentation to reflect the new key mapping
+
 ## [3.0.0] - 2025-06-03
 ### Breaking Changes
 - Removed deprecated zzvim_r#wrapper function

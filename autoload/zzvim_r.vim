@@ -3,7 +3,7 @@
 " ==============================================================================
 " File:        autoload/zzvim_r.vim
 " Maintainer:  RG Thomas <rgthomas@ucsd.edu>
-" Version:     3.0.0
+" Version:     3.0.1
 " License:     GPL-3.0
 " Description: Autoload functions for zzvim_r plugin for lazy loading.
 "

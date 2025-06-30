@@ -2,7 +2,7 @@
 
 Author:  RG Thomas <rgthomas@ucsd.edu>
 License: GPL-3.0
-Version: 3.0.0
+Version: 3.0.1
 
 ==============================================================================
 CONTENTS                                                      *zzvim-r-contents*
@@ -125,7 +125,7 @@ Basic workflow:~
     4. Navigate chunks with <LocalLeader>j/k
     5. Execute chunks with <LocalLeader>l
     6. Use object inspection with <LocalLeader>h, <LocalLeader>s, etc.
-    7. Browse workspace with <LocalLeader>wb
+    7. Browse workspace with <LocalLeader>e
     8. Manage packages with <LocalLeader>xi, <LocalLeader>xl, etc.
     9. Import/export data with <LocalLeader>zr, <LocalLeader>zw, etc.
     10. Manage directories with <LocalLeader>vd, <LocalLeader>vc, etc.
@@ -180,7 +180,7 @@ the assigned object after execution for immediate feedback.
 
 Environment Pane:~
 The plugin provides an environment browser similar to RStudio's Environment
-pane. Access it with <LocalLeader>wb to see all workspace objects with their
+pane. Access it with <LocalLeader>e to see all workspace objects with their
 types, dimensions, and preview values.
 
 ==============================================================================
@@ -242,7 +242,7 @@ Object inspection:~
     <LocalLeader>y      help()
 
 Object browser & workspace:~
-    <LocalLeader>wb     Object browser (ls.str())
+    <LocalLeader>e      Environment pane (RStudio-like browser)
     <LocalLeader>wl     Workspace listing (ls())
     <LocalLeader>wc     Class & type info of object
     <LocalLeader>wd     Detailed object structure
@@ -279,7 +279,7 @@ The Environment Pane provides a comprehensive workspace browser similar to
 RStudio's Environment panel, displaying all objects in your R workspace.
 
 Opening the Environment Pane:~
-    <LocalLeader>wb     Open environment browser in split window
+    <LocalLeader>e      Open environment browser in split window
 
 Environment Pane Interface:~
 The environment pane displays workspace objects in a formatted table with:

@@ -64,6 +64,18 @@ Manual installation for Neovim:
 git clone https://github.com/rgt47/zzvim-r.git ~/.config/nvim/pack/plugins/start/zzvim-r
 ```
 
+## Installation Verification
+
+After installation, verify everything is working:
+
+```bash
+# Quick check
+./scripts/install_check.sh
+
+# Comprehensive verification
+vim -S scripts/verify_installation.vim
+```
+
 ## Quick Start
 
 1. Open an R file (`.r`, `.rmd`, `.qmd`)
@@ -138,7 +150,7 @@ When executing assignments, automatically shows the result for immediate feedbac
 - `<LocalLeader>y` - help()
 
 ### Object Browser & Workspace
-- `<LocalLeader>wb` - Object browser (ls.str())
+- `<LocalLeader>e` - Environment pane (RStudio-like browser)
 - `<LocalLeader>wl` - Workspace listing (ls())
 - `<LocalLeader>wc` - Class & type info of object
 - `<LocalLeader>wd` - Detailed object structure
@@ -246,6 +258,27 @@ architecture:
 - **Fast loading**: Autoload pattern for on-demand loading
 - **Clean architecture**: Well-documented, easy to extend and customize
 - **Focused design**: All essential features, no bloat
+
+## Testing
+
+The plugin includes a comprehensive test suite:
+
+```bash
+# Quick test (recommended)
+make test-quick
+
+# Full test suite
+./tests/run_tests.sh
+
+# Individual test files
+vim -S tests/simple_test.vim
+```
+
+Tests cover:
+- Plugin loading and configuration
+- Function existence and error handling
+- R Markdown chunk navigation
+- Integration with R (when available)
 
 ## Version History
 
