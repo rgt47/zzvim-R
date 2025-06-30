@@ -1097,21 +1097,25 @@ endfunction
 " ------------------------------------------------------------------------------
 function! zzvim_r#refresh_environment() abort
     let l:env_bufnr = s:find_environment_buffer()
-    if l:env_bufnr > 0
+    if l:env_bufnr > 0 && bufexists(l:env_bufnr)
         " Clear the current content and repopulate with fresh data
         let l:current_buf = bufnr('%')
-        silent execute 'buffer' l:env_bufnr
-        setlocal modifiable noreadonly
         
-        " Clear existing content but keep the buffer structure
-        silent %delete _
-        
-        " Repopulate with fresh environment data  
-        call s:populate_environment_buffer_simple(l:env_bufnr)
-        
-        " Return to original buffer if different
-        if l:current_buf != l:env_bufnr
-            silent execute 'buffer' l:current_buf
+        " Only switch if buffer still exists
+        if bufexists(l:env_bufnr)
+            silent execute 'buffer' l:env_bufnr
+            setlocal modifiable noreadonly
+            
+            " Clear existing content but keep the buffer structure
+            silent %delete _
+            
+            " Repopulate with fresh environment data  
+            call s:populate_environment_buffer_simple(l:env_bufnr)
+            
+            " Return to original buffer if it still exists and is different
+            if bufexists(l:current_buf) && l:current_buf != l:env_bufnr
+                silent execute 'buffer' l:current_buf
+            endif
         endif
         
         return 1
@@ -1368,7 +1372,12 @@ function! s:auto_refresh_environment(bufnr, timer) abort
         if exists('t:zzvim_r_terminal_id') && exists('*ZzvimR_TerminalEngine')
             if ZzvimR_TerminalEngine('check', {})
                 " Refresh the environment data silently
-                call zzvim_r#refresh_environment()
+                try
+                    call zzvim_r#refresh_environment()
+                catch
+                    " If refresh fails, stop the timer to prevent repeated errors
+                    call timer_stop(a:timer)
+                endtry
             endif
         endif
     else
@@ -1517,7 +1526,7 @@ function! s:populate_environment_buffer_simple(bufnr) abort
     " Add header
     call append(0, [
         \ '# R Environment',
-        \ '# Press <CR> to inspect, r to refresh, q to close',
+        \ '# <CR> inspect in terminal, r refresh, q close',
         \ '#' . repeat('-', 50),
         \ ''
     \ ])
@@ -1578,33 +1587,36 @@ function! s:populate_workspace_data_directly(bufnr) abort
     let l:output_file = tempname() . '.txt'
     let l:r_script = [
         \ 'tryCatch({',
-        \ '  objects <- ls(envir = .GlobalEnv)',
-        \ '  if (length(objects) == 0) {',
-        \ '    cat("No objects in workspace", file="' . l:output_file . '")',
-        \ '  } else {',
-        \ '    output <- c()',
-        \ '    for (obj_name in objects) {',
-        \ '      obj <- get(obj_name, envir = .GlobalEnv)',
-        \ '      obj_class <- class(obj)[1]',
-        \ '      obj_size <- format(object.size(obj), units = "auto")',
-        \ '      if (is.data.frame(obj)) {',
-        \ '        preview <- paste0(nrow(obj), " obs. of ", ncol(obj), " vars")',
-        \ '      } else if (is.vector(obj) && length(obj) <= 3) {',
-        \ '        preview <- paste(obj, collapse = ", ")',
-        \ '      } else if (is.vector(obj)) {',
-        \ '        preview <- paste0("length ", length(obj))',
-        \ '      } else if (is.function(obj)) {',
-        \ '        preview <- "function"',
-        \ '      } else if (is.matrix(obj)) {',
-        \ '        preview <- paste0(nrow(obj), "x", ncol(obj), " matrix")',
-        \ '      } else {',
-        \ '        preview <- "object"',
+        \ '  # Use local() to avoid polluting global environment',
+        \ '  local({',
+        \ '    objects <- ls(envir = .GlobalEnv)',
+        \ '    if (length(objects) == 0) {',
+        \ '      cat("No objects in workspace", file="' . l:output_file . '")',
+        \ '    } else {',
+        \ '      output <- c()',
+        \ '      for (obj_name in objects) {',
+        \ '        obj <- get(obj_name, envir = .GlobalEnv)',
+        \ '        obj_class <- class(obj)[1]',
+        \ '        obj_size <- format(object.size(obj), units = "auto")',
+        \ '        if (is.data.frame(obj)) {',
+        \ '          preview <- paste0(nrow(obj), " obs. of ", ncol(obj), " vars")',
+        \ '        } else if (is.vector(obj) && length(obj) <= 3) {',
+        \ '          preview <- paste(obj, collapse = ", ")',
+        \ '        } else if (is.vector(obj)) {',
+        \ '          preview <- paste0("length ", length(obj))',
+        \ '        } else if (is.function(obj)) {',
+        \ '          preview <- "function"',
+        \ '        } else if (is.matrix(obj)) {',
+        \ '          preview <- paste0(nrow(obj), "x", ncol(obj), " matrix")',
+        \ '        } else {',
+        \ '          preview <- "object"',
+        \ '        }',
+        \ '        line <- sprintf("%-15s %-10s %-10s %s", obj_name, obj_class, obj_size, preview)',
+        \ '        output <- c(output, line)',
         \ '      }',
-        \ '      line <- sprintf("%-15s %-10s %-10s %s", obj_name, obj_class, obj_size, preview)',
-        \ '      output <- c(output, line)',
+        \ '      writeLines(output, "' . l:output_file . '")',
         \ '    }',
-        \ '    writeLines(output, "' . l:output_file . '")',
-        \ '  }',
+        \ '  })',
         \ '}, error = function(e) {',
         \ '  cat("Error getting workspace data:", e$message, file="' . l:output_file . '")',
         \ '})'
@@ -1788,9 +1800,9 @@ function! s:inspect_object_under_cursor() abort
         " Extract object type from the line (handle data.frame with dot)
         let l:type_match = matchstr(l:line, '^\s*\w\+\s\+\zs[a-zA-Z0-9_.]\+')
         
-        " Check if it's a data frame or tibble
+        " Check if it's a data frame or tibble for enhanced inspection
         if l:type_match =~# '\v(data\.frame|tbl_df|tibble)'
-            " For data frames/tibbles, show both str() and glimpse()
+            " For data frames/tibbles, show both str() and glimpse() in R terminal
             if exists('*ZzvimR_TerminalEngine')
                 call ZzvimR_TerminalEngine('send', {
                     \ 'content': printf("cat('=== str(%s) ===\\n'); str(%s)", l:object_match, l:object_match),
@@ -1806,7 +1818,7 @@ function! s:inspect_object_under_cursor() abort
                 echom 'zzvim-R: R terminal not available'
             endif
         else
-            " For other objects, use standard str() inspection
+            " For other objects, use standard str() inspection in R terminal
             if exists('*ZzvimR_TerminalEngine')
                 call ZzvimR_TerminalEngine('send', {
                     \ 'content': printf("str(%s)", l:object_match),
@@ -1817,6 +1829,143 @@ function! s:inspect_object_under_cursor() abort
             endif
         endif
     endif
+endfunction
+
+" ------------------------------------------------------------------------------
+" Function: s:show_object_in_preview(object_name, object_type)
+"
+" Shows R object inspection in Vim's preview window
+" ------------------------------------------------------------------------------
+function! s:show_object_in_preview(object_name, object_type) abort
+    if !exists('*ZzvimR_TerminalEngine') || !exists('t:zzvim_r_terminal_id')
+        echom 'zzvim-R: R terminal not available'
+        return
+    endif
+    
+    " Create temporary file for R output
+    let l:output_file = tempname() . '.txt'
+    
+    " Create R script to capture inspection output
+    let l:r_script = []
+    
+    " Check if it's a data frame or tibble for enhanced inspection
+    if a:object_type =~# '\v(data\.frame|tbl_df|tibble)'
+        let l:r_script = [
+            \ 'tryCatch({',
+            \ '  # Check if object exists',
+            \ '  if (!exists("' . a:object_name . '")) {',
+            \ '    cat("Error: Object ''' . a:object_name . ''' not found\\n", file="' . l:output_file . '")',
+            \ '  } else {',
+            \ '    # Capture both str() and glimpse() output',
+            \ '    output <- capture.output({',
+            \ '      cat("=== Structure of ' . a:object_name . ' ===\\n")',
+            \ '      str(' . a:object_name . ')',
+            \ '      cat("\\n")',
+            \ '      if (requireNamespace("dplyr", quietly=TRUE)) {',
+            \ '        cat("=== Glimpse of ' . a:object_name . ' ===\\n")',
+            \ '        dplyr::glimpse(' . a:object_name . ')',
+            \ '      } else {',
+            \ '        cat("(Install dplyr package for glimpse() output)\\n")',
+            \ '      }',
+            \ '    })',
+            \ '    writeLines(output, "' . l:output_file . '")',
+            \ '  }',
+            \ '}, error = function(e) {',
+            \ '  cat("Error inspecting ' . a:object_name . ':", e$message, "\\n", file="' . l:output_file . '")',
+            \ '})'
+        \ ]
+    else
+        " For other objects, just use str()
+        let l:r_script = [
+            \ 'tryCatch({',
+            \ '  if (!exists("' . a:object_name . '")) {',
+            \ '    cat("Error: Object ''' . a:object_name . ''' not found\\n", file="' . l:output_file . '")',
+            \ '  } else {',
+            \ '    output <- capture.output({',
+            \ '      cat("=== Structure of ' . a:object_name . ' ===\\n")',
+            \ '      str(' . a:object_name . ')',
+            \ '    })',
+            \ '    writeLines(output, "' . l:output_file . '")',
+            \ '  }',
+            \ '}, error = function(e) {',
+            \ '  cat("Error inspecting ' . a:object_name . ':", e$message, "\\n", file="' . l:output_file . '")',
+            \ '})'
+        \ ]
+    endif
+    
+    " Execute the R script
+    try
+        let l:script_file = tempname() . '.R'
+        call writefile(l:r_script, l:script_file)
+        call ZzvimR_TerminalEngine('send', {
+            \ 'content': printf("source('%s')", l:script_file),
+            \ 'desc': 'capture inspection output'
+        \ })
+        
+        " Set timer to read output and show in preview window
+        call timer_start(1000, function('s:show_inspection_in_preview', 
+                       \ [a:object_name, l:output_file]))
+    catch
+        echom 'zzvim-R: Failed to inspect object ' . a:object_name
+    endtry
+endfunction
+
+" ------------------------------------------------------------------------------
+" Function: s:show_inspection_in_preview(object_name, output_file, timer)
+"
+" Timer callback to read R inspection output and display in preview window
+" ------------------------------------------------------------------------------
+function! s:show_inspection_in_preview(object_name, output_file, timer) abort
+    try
+        " Read the R output
+        if filereadable(a:output_file)
+            let l:content = readfile(a:output_file)
+            call delete(a:output_file)  " Clean up temp file
+        else
+            let l:content = ['No inspection data available for ' . a:object_name]
+        endif
+        
+        " Open preview window with the content
+        " First close any existing preview window
+        silent! pclose
+        
+        " Create a temporary buffer for preview
+        let l:preview_bufname = '[R-Inspect: ' . a:object_name . ']'
+        
+        " Open preview window
+        execute 'pedit ' . l:preview_bufname
+        
+        " Switch to preview window and set up content
+        wincmd P
+        if &previewwindow
+            " Clear any existing content
+            setlocal modifiable
+            silent %delete _
+            
+            " Add the inspection content
+            call append(0, l:content)
+            1delete _  " Remove first empty line
+            
+            " Set buffer options for preview
+            setlocal buftype=nofile
+            setlocal bufhidden=wipe
+            setlocal noswapfile
+            setlocal nobuflisted
+            setlocal readonly
+            setlocal nomodifiable
+            setlocal filetype=r
+            setlocal nonumber
+            setlocal norelativenumber
+            
+            " Position cursor at top
+            normal! gg
+            
+            " Return to previous window (environment pane)
+            wincmd p
+        endif
+    catch
+        echom 'zzvim-R: Error displaying inspection results for ' . a:object_name
+    endtry
 endfunction
 
 " ------------------------------------------------------------------------------
