@@ -250,8 +250,9 @@ let s:config.smart_patterns.assignment = '^\s*\w\+\s*<-'
 " Pipe operator pattern (multiple R pipe variants)
 " %>% = magrittr pipe, %<>% = compound assignment pipe
 " %T>% = tee pipe, %$>% = exposition pipe
+" |> = native R pipe (R 4.1+)
 " | = alternation (OR) in regex
-let s:config.smart_patterns.pipe = '%>%\|%<>%\|%T>%\|%$>%'
+let s:config.smart_patterns.pipe = '%>%\|%<>%\|%T>%\|%$>%\||>'
 
 " Control structure patterns (if/for/while/repeat)
 " Array of patterns for different control flow statements
@@ -358,13 +359,13 @@ function! s:engine(operation, ...) abort
         if l:hl !=# 'None' 
             execute 'echohl ' . l:hl 
         endif
-        echom 'zzvim-R: ' . a:1  " echom saves to message history (:messages)
+        echom 'zzvim-R: ' . a:1
         if l:hl !=# 'None' 
-            echohl None  " Reset highlighting to normal
+            echohl None
         endif
         " Also log the message at the appropriate debug level
         call s:engine('log', a:1, l:level)
-        return l:ret  " Return value depends on message type (error=0, others=1)
+        return l:ret
         
     " ============================================================================
     " OPERATION DELEGATION TO SPECIALIZED ENGINES
@@ -712,9 +713,10 @@ function! s:text_engine(type, options) abort
             if l:line_content =~# l:pipe_pattern || l:line_num == l:current_line_num
                 let l:end_line = l:line_num
             else
-                " Check if this line continues the expression (e.g., function args)
+                " Check if this line continues the expression
                 let l:prev_line = getline(l:line_num - 1)
-                if l:prev_line =~# '([^)]*$\|,\s*$'
+                " Include line if previous line ends with pipe or has incomplete parentheses/commas
+                if l:prev_line =~# l:pipe_pattern . '\s*$' || l:prev_line =~# '([^)]*$\|,\s*$'
                     let l:end_line = l:line_num
                 else
                     break
