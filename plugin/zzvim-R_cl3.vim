@@ -839,7 +839,7 @@ endfunction
 " USAGE: Can be called from user commands, other plugins, or vimrc
 " DESIGN: Acts as a thin wrapper around internal s:open_r_terminal()
 " ==============================================================================
-function! zzvim_r#open_terminal() abort
+function! s:open_terminal() abort
     return s:open_r_terminal()
 endfunction
 " ------------------------------------------------------------------------------
@@ -852,7 +852,7 @@ endfunction
 " BEHAVIOR: Sends current line to R and moves cursor to next line
 " USAGE: Useful for custom mappings or command-line usage
 " ==============================================================================
-function! zzvim_r#submit_line() abort
+function! s:submit_line() abort
     return s:send_to_r(getline('.'), v:false)
 endfunction
 " ------------------------------------------------------------------------------
@@ -865,7 +865,7 @@ endfunction
 " USAGE: Useful for debugging connection issues or checking plugin state
 " OUTPUT: Either "R terminal is active" or "No R terminal found"
 " ==============================================================================
-function! zzvim_r#terminal_status() abort
+function! s:terminal_status() abort
     if s:is_r_terminal_active()
         echo 'R terminal is active'
     else
@@ -881,9 +881,9 @@ endfunction
 " command-line interface. All commands use the public API functions to
 " maintain proper encapsulation.
 
-command! -nargs=0 ROpenTerminal call zzvim_r#open_terminal()
-command! -nargs=0 RSubmitLine call zzvim_r#submit_line()
-command! -nargs=0 RTerminalStatus call zzvim_r#terminal_status()
+command! -nargs=0 ROpenTerminal call s:open_terminal()
+command! -nargs=0 RSubmitLine call s:submit_line()
+command! -nargs=0 RTerminalStatus call s:terminal_status()
 
 "==============================================================================
 " MAPPINGS
