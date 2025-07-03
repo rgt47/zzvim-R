@@ -1,0 +1,56 @@
+# Chunk Navigation Logic Explanation
+
+The most critical improvements in zzvim-R 2.3.0 were to the chunk navigation functions. Here's a detailed explanation of the fixed chunk navigation logic:
+
+## Previous Issues
+
+The original code in zzvim_r#navigate_prev_chunk() had several issues:
+
+1. It was using pattern strings as line numbers with setpos()
+2. It wasn't actually searching for the patterns
+3. It didn't correctly handle being inside a chunk
+
+## Fixed Navigation Logic
+
+The improved navigation functions follow this logical sequence:
+
+### For navigate_next_chunk:
+
+1. Save current cursor position for potential restoration
+2. Find if we're currently inside a chunk by searching backward for a chunk start pattern
+3. If we're inside or at the start of a chunk, move to the start of the chunk and then advance one line
+4. Search forward for the next chunk start pattern
+5. If found, move to the first line of content in the chunk (one line after the header)
+6. If not found, restore the original cursor position and show a warning
+
+### For navigate_prev_chunk:
+
+1. Save current cursor position for potential restoration
+2. Find if we're currently inside a chunk by searching backward for a chunk start pattern
+3. If we're inside a chunk:
+   a. Move to the start of the current chunk
+   b. If not already at the chunk start, go to it
+   c. Move above the current chunk to search for the previous one
+4. Search backward for the previous chunk start pattern
+5. If found, move to the first line of content in the chunk (one line after the header)
+6. If not found, restore the original cursor position and show a warning
+
+## Key Implementation Details
+
+1. Use of search flags:
+   - 'b' for backward search
+   - 'W' to not wrap around the end of the file
+   - 'c' to accept current position
+   - 'n' to not move the cursor during initial checks
+
+2. Cursor positioning:
+   - Use cursor() for line/column positioning
+   - Use setpos() for restoring saved positions
+   - Add 'zz' to center the display on the new position
+
+3. Error handling:
+   - Save position before any navigation
+   - Restore position if navigation fails
+   - Show informative messages about what happened
+
+This improved implementation ensures reliable navigation between chunks in R Markdown files, addressing the primary issues users were experiencing with the plugin.
