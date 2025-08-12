@@ -1,165 +1,312 @@
-" zzvim-R - R development plugin for Vim
+" =============================================================================
+" zzvim-R - Advanced R Development Plugin for Vim
+" =============================================================================
 " Maintainer:  RG Thomas rgthomas@ucsd.edu
 " Version:     1.0
 " License:     GPL3 License
+" Last Change: 2025
 "
-" Description:
-" This plugin provides integration between Vim and R, allowing users to
-" send commands to an R terminal, navigate R Markdown chunks, and perform
-" common R operations directly from Vim.
+" PLUGIN OVERVIEW:
+" ================
+" This plugin creates a seamless integration between Vim and R, transforming
+" Vim into a powerful R development environment. It provides:
+" 
+" 1. Smart Code Submission: Intelligently detects and sends R code blocks
+" 2. Terminal Management: Creates and manages persistent R terminal sessions
+" 3. Chunk Navigation: Navigate between R Markdown/Quarto code chunks
+" 4. Object Inspection: Quick access to R's data examination functions
+" 5. Pattern Recognition: Automatically detects R language constructs
 "
-" Configuration:
-" The following variables can be set in your vimrc to customize the plugin's
-" behavior:
+" ARCHITECTURE:
+" =============
+" The plugin uses a single-file architecture with clear functional separation:
+" - Configuration management and validation
+" - Core terminal communication functions
+" - Intelligent pattern detection for R code structures
+" - Text extraction and processing functions
+" - User interface (commands and key mappings)
+" - Testing infrastructure
 "
-" g:zzvim_r_default_terminal    (string)
-"   Sets the default terminal name for R sessions.
+" CONFIGURATION VARIABLES:
+" ========================
+" These global variables can be set in your vimrc to customize behavior.
+" VimScript Convention: 'g:' prefix indicates global scope variables.
+" These are checked using get(g:, 'variable_name', default_value) pattern.
+"
+" Core Terminal Configuration:
+" ---------------------------
+" g:zzvim_r_default_terminal    (string) 
+"   Identifier for R terminal sessions. Useful for multiple R versions.
 "   Default: 'R'
-"   Example: let g:zzvim_r_default_terminal = 'R-4.1'
+"   Example: let g:zzvim_r_default_terminal = 'R-4.1'  " Use specific R version
 "
+" g:zzvim_r_command             (string)
+"   Shell command executed to start R. Arguments customize R behavior.
+"   Default: 'R --no-save --quiet'
+"   --no-save: Don't prompt to save workspace on exit
+"   --quiet: Suppress R startup messages
+"   Example: let g:zzvim_r_command = 'R --vanilla'  " Clean R session
+"
+" g:zzvim_r_terminal_width      (number)
+"   Terminal window width in columns when opened as vertical split.
+"   Default: 100
+"   Example: let g:zzvim_r_terminal_width = 120  " Wider terminal
+"
+" User Interface Configuration:
+" ----------------------------
 " g:zzvim_r_disable_mappings    (boolean)
-"   If set to 1, disables all default key mappings.
-"   Default: 0
+"   Master switch to disable all default key mappings.
+"   Set to 1 if you want to define your own custom mappings.
+"   Default: 0 (mappings enabled)
 "   Example: let g:zzvim_r_disable_mappings = 1
 "
 " g:zzvim_r_map_submit         (string)
-"   Sets the key mapping for submitting lines to R.
+"   Key sequence for smart code submission in normal mode.
 "   Default: '<CR>' (Enter key)
-"   Example: let g:zzvim_r_map_submit = '<Leader>s'
+"   Example: let g:zzvim_r_map_submit = '<Leader>r'  " Use leader+r instead
 "
-" g:zzvim_r_terminal_width      (number)
-"   Sets the width of the R terminal in the vertical split.
-"   Default: 100
-"
-" g:zzvim_r_command             (string)
-"   The command to start the R terminal.
-"   Default: 'R --no-save --quiet'
-"
+" R Markdown/Quarto Document Configuration:
+" ----------------------------------------
 " g:zzvim_r_chunk_start         (string)
-"   Sets the regular expression for the start of an R Markdown chunk.
-"   Default: '^```{'
+"   Regular expression pattern matching code chunk start lines.
+"   Default: '^```{' (matches ```{r}, ```{python}, etc.)
+"   Pattern explanation: ^ = start of line, ``` = literal backticks, { = opening brace
+"   Example: let g:zzvim_r_chunk_start = '^```{r'  " Only R chunks
 "
 " g:zzvim_r_chunk_end           (string)
-"   Sets the regular expression for the end of an R Markdown chunk.
-"   Default: '^```$'
+"   Regular expression pattern matching code chunk end lines.
+"   Default: '^```$' (matches ``` at start of line, nothing after)
+"   Pattern explanation: ^ = start of line, ``` = literal backticks, $ = end of line
+"   Example: let g:zzvim_r_chunk_end = '^```\s*$'  " Allow trailing whitespace
 "
+" Development and Debugging:
+" -------------------------
 " g:zzvim_r_debug               (boolean)
-"   Enables debug mode with logging to ~/zzvim_r.log.
-"   Default: 0
+"   Enables verbose logging for troubleshooting plugin issues.
+"   Creates detailed logs in ~/zzvim_r.log file.
+"   Default: 0 (disabled)
+"   Example: let g:zzvim_r_debug = 1  " Enable for debugging
 "
-" Default Mappings (when g:zzvim_r_disable_mappings = 0):
-"   <CR>              - Submit current line to R
-"   <localleader>r    - Open R terminal
-"   <localleader>o    - Add pipe operator and new line
-"   <localleader>j    - Move to next chunk
-"   <localleader>k    - Move to previous chunk
-"   <localleader>l    - Select and submit current chunk
-"   <localleader>t    - Submit all previous chunks
-"   <localleader>q    - Send 'Q' to R terminal
-"   <localleader>c    - Send Ctrl-C to R terminal
-"   <localleader>d    - Run dim() on word under cursor
-"   <localleader>h    - Run head() on word under cursor
-"   <localleader>s    - Run str() on word under cursor
-"   <localleader>p    - Run print() on word under cursor
-"   <localleader>n    - Run names() on word under cursor
-"   <localleader>f    - Run length() on word under cursor
-"   <localleader>g    - Run glimpse() on word under cursor
-"   <localleader>b    - Run dt() on word under cursor
+" KEY MAPPINGS REFERENCE:
+" ======================
+" VimScript Mapping Convention: <LocalLeader> is typically backslash (\) by default
+" Users can customize by setting: let maplocalleader = ","  (use comma instead)
+" Mappings are buffer-local and only active in R/Rmd files (controlled by autocmd)
 "
-" Ex Commands:
-"   Core Operations:
-"     :ROpenTerminal           - Open a new R terminal
-"     :RSendLine               - Submit current line to R
-"     :RSendSelection          - Send visual selection to R
-"     :RSendFunction           - Send function block to R
-"     :RSendSmart              - Smart auto-detection send
-"     :RAddPipe                - Add pipe operator and new line
+" Smart Code Submission (Context-Aware):
+" -------------------------------------
+"   <CR> (Enter)      - Intelligent code submission based on cursor position
+"                      * On function definition: sends entire function
+"                      * On control structure (if/for/while): sends entire block  
+"                      * On regular line: sends current line only
+"                      * Inside function: sends individual line for debugging
+"
+" Terminal Management:
+" -------------------
+"   <LocalLeader>r    - Create new R terminal session (vertical split)
+"   <LocalLeader>q    - Send 'Q' command to R (quit R session)
+"   <LocalLeader>c    - Send Ctrl-C interrupt signal (stop running commands)
+"
+" Code Enhancement:
+" ----------------
+"   <LocalLeader>o    - Insert R pipe operator (%>%) and create new line
+"                      Positions cursor for chaining operations
+"
+" R Markdown/Quarto Navigation:
+" ----------------------------
+"   <LocalLeader>j    - Jump to next code chunk (forward navigation)
+"   <LocalLeader>k    - Jump to previous code chunk (backward navigation)
+"   <LocalLeader>l    - Execute current chunk (submit all code in current chunk)
+"   <LocalLeader>t    - Execute all previous chunks (reproducing analysis up to cursor)
+"
+" Object Inspection (Data Analysis):
+" ---------------------------------
+" These mappings execute R functions on the word under cursor
+" (place cursor on variable name, press mapping)
+"   <LocalLeader>h    - head() - Preview first few rows/elements
+"   <LocalLeader>u    - tail() - Preview last few rows/elements  
+"   <LocalLeader>s    - str() - Display object structure and data types
+"   <LocalLeader>d    - dim() - Show dimensions (rows, columns) of data
+"   <LocalLeader>p    - print() - Display complete object contents
+"   <LocalLeader>n    - names() - Show column/element names
+"   <LocalLeader>f    - length() - Count elements/observations
+"   <LocalLeader>g    - glimpse() - Modern tibble structure view (dplyr)
+"   <LocalLeader>b    - dt() - data.table print method
+"   <LocalLeader>y    - help() - Open R help documentation
+"
+" EX COMMANDS REFERENCE:
+" =====================
+" These commands can be executed from Vim's command line (type : to enter command mode)
+" Commands with [optional] arguments use word under cursor if no argument provided
+" All commands support tab completion for discoverability
+"
+" Session Management:
+" ------------------
+"     :ROpenTerminal           - Create new R terminal in vertical split
+"                               Uses g:zzvim_r_terminal_width for window size
+"                               Executes g:zzvim_r_command to start R
+"
+" Code Submission (Multiple Methods):
+" -----------------------------------
+"     :RSendLine               - Send current line to R terminal
+"                               Simple line-by-line execution
+"     :RSendSmart              - Intelligent context-aware submission
+"                               Auto-detects functions, control structures, or lines
+"     :RSendFunction           - Force submission of complete function block
+"                               Uses brace-matching algorithm to find function boundaries
+"     :RSendSelection          - Send visual selection to R (use in visual mode)
+"                               Allows precise control over code boundaries
+"
+" Document Navigation (R Markdown/Quarto):
+" ----------------------------------------
+"     :RNextChunk              - Navigate to next code chunk
+"                               Uses g:zzvim_r_chunk_start pattern for detection
+"     :RPrevChunk              - Navigate to previous code chunk  
+"                               Handles cursor context to find correct chunk
+"     :RSendChunk              - Execute all code in current chunk
+"                               Automatically extracts chunk content
+"     :RSendPreviousChunks     - Execute all chunks from start to current position
+"                               Ensures reproducible analysis workflow
+"
+" Data Inspection (R Object Analysis):
+" ------------------------------------
+" Pattern: Commands accept optional argument, use word under cursor if none provided
+" Usage: :RHead mydata  OR  position cursor on variable and type :RHead
+"     :RHead [object]          - head(object) - Preview first rows/elements
+"     :RTail [object]          - tail(object) - Preview last rows/elements
+"     :RStr [object]           - str(object) - Examine object structure
+"     :RDim [object]           - dim(object) - Get dimensions (rows × columns)
+"     :RPrint [object]         - print(object) - Display complete object
+"     :RNames [object]         - names(object) - Show variable/column names
+"     :RLength [object]        - length(object) - Count elements
+"     :RGlimpse [object]       - glimpse(object) - dplyr-style structure view
+"     :RSummary [object]       - summary(object) - Statistical summary
+"     :RHelp [topic]           - help(topic) - Open R documentation
+"
+" Session Control:
+" ---------------
+"     :RQuit                   - Send 'Q' to R (graceful session termination)
+"     :RInterrupt              - Send Ctrl-C (interrupt running computation)
+"                               Useful for stopping infinite loops or long calculations
 "   
-"   Chunk Navigation & Execution:
-"     :RNextChunk              - Move to next R Markdown chunk
-"     :RPrevChunk              - Move to previous R Markdown chunk
-"     :RSendChunk              - Send current chunk to R
-"     :RSendPreviousChunks     - Send all previous chunks to R
-"   
-"   Object Inspection (optional arguments):
-"     :RHead [object]          - Run head() on object or word under cursor
-"     :RStr [object]           - Run str() on object or word under cursor
-"     :RDim [object]           - Run dim() on object or word under cursor
-"     :RPrint [object]         - Run print() on object or word under cursor
-"     :RNames [object]         - Run names() on object or word under cursor
-"     :RLength [object]        - Run length() on object or word under cursor
-"     :RGlimpse [object]       - Run glimpse() on object or word under cursor
-"     :RTail [object]          - Run tail() on object or word under cursor
-"     :RHelp [topic]           - Get help on topic or word under cursor
-"     :RSummary [object]       - Run summary() on object or word under cursor
-"   
-"   Control Commands:
-"     :RQuit                   - Send Q to R terminal (quit)
-"     :RInterrupt              - Send Ctrl-C to R terminal (interrupt)
-"   
-"   Advanced Commands:
-"     :RSend {code}            - Send arbitrary R code
-"     :RSource {file}          - Source R file
-"     :RLibrary {package}      - Load library/package
-"     :RInstall {package}      - Install package
+" Advanced Workflow Commands:
+" --------------------------
+"     :RSend {code}            - Execute arbitrary R code string
+"                               Example: :RSend library(ggplot2)
+"     :RSource {file}          - Source (execute) external R script file
+"                               Example: :RSource ~/analysis/helper_functions.R
+"     :RLibrary {package}      - Load R package into session
+"                               Example: :RLibrary dplyr
+"     :RInstall {package}      - Install package from CRAN
+"                               Example: :RInstall tidyverse
+"
+" Data Management Commands:
+" ------------------------
 "     :RLoad {file}            - Load RDS file (prompts for variable name)
-"     :RSave {object} {file}   - Save object to RDS file
-"   
-"   Utility Commands:
-"     :RSetwd [directory]      - Set working directory (defaults to Vim's cwd)
-"     :RGetwd                  - Get current working directory
-"     :RLs                     - List objects in workspace
-"     :RRm                     - Remove all objects from workspace
+"                               Reads saved R objects from disk
+"     :RSave {object} {file}   - Save R object to RDS file
+"                               Preserves object for later sessions
+"
+" Workspace Utilities:
+" -------------------
+"     :RSetwd [directory]      - Set R working directory
+"                               Defaults to Vim's current working directory if no arg
+"     :RGetwd                  - Display current R working directory
+"     :RLs                     - List all objects in R workspace (ls())
+"     :RRm                     - Remove all objects from workspace (rm(list=ls()))
+"
+" =============================================================================
+" PLUGIN IMPLEMENTATION BEGINS
+" =============================================================================
 
-"------------------------------------------------------------------------------
-" Guard against multiple loading
-"------------------------------------------------------------------------------
+" =============================================================================
+" PLUGIN INITIALIZATION AND GUARDS
+" =============================================================================
+
+" VimScript Best Practice: Prevent multiple loading of same plugin
+" This guard checks if plugin was already loaded in current Vim session
 if exists('g:loaded_zzvim_r')
+    " finish command stops script execution immediately
+    " Prevents duplicate function definitions and key mappings
     finish
 endif
 
-" Check for minimum Vim version and terminal support
+" Compatibility Check: Ensure Vim version and feature requirements
+" v:version is built-in variable containing Vim version as integer (e.g., 801 = 8.01)
+" has('terminal') checks if Vim was compiled with terminal emulation support
 if v:version < 800 || !has('terminal')
+    " echohl sets highlight group for subsequent echo commands
+    " ErrorMsg is built-in highlight group (typically red text)
     echohl ErrorMsg
+    " echom (echo message) displays message and saves to message history (:messages)
     echom "zzvim-R requires Vim 8.0+ with terminal support"
+    " echohl None resets highlighting to normal
     echohl None
+    " Stop plugin loading if requirements not met
     finish
 endif
 
+" Set plugin loaded flag to prevent re-loading
+" Convention: g:loaded_{plugin_name} = 1 indicates successful loading
 let g:loaded_zzvim_r = 1
+" Plugin version for compatibility checking and debugging
 let g:zzvim_r_version = '1.0'
 
-"------------------------------------------------------------------------------
-" Configuration variables with defaults
-"------------------------------------------------------------------------------
+" =============================================================================
+" CONFIGURATION INITIALIZATION WITH SAFE DEFAULTS
+" =============================================================================
+" VimScript Pattern: Use exists() to check if user set custom values
+" If user didn't set variable, provide sensible default
+" This allows customization while ensuring plugin always has valid values
+
+" Terminal identification string for R session management
 if !exists('g:zzvim_r_default_terminal')
+    " Default terminal name - simple identifier for session tracking
     let g:zzvim_r_default_terminal = 'R'
 endif
 
+" Master switch for all key mappings - allows complete customization
 if !exists('g:zzvim_r_disable_mappings')
+    " 0 = enable default mappings, 1 = disable (user defines own)
     let g:zzvim_r_disable_mappings = 0
 endif
 
+" Key sequence for smart code submission in normal mode
 if !exists('g:zzvim_r_map_submit')
+    " <CR> = Enter key, most intuitive for "send this code"
     let g:zzvim_r_map_submit = '<CR>'
 endif
 
+" Terminal window dimensions (columns)
 if !exists('g:zzvim_r_terminal_width')
+    " 100 columns provides good balance between terminal and editor space
     let g:zzvim_r_terminal_width = 100
 endif
+
+" R startup command with command-line arguments
 if !exists('g:zzvim_r_command')
+    " --no-save: Don't prompt to save workspace on exit (faster workflow)
+    " --quiet: Suppress R startup messages (cleaner terminal)
     let g:zzvim_r_command = 'R --no-save --quiet'
 endif
 
+" Regular expression patterns for R Markdown chunk detection
+" These patterns are used by search() function to find chunk boundaries
 if !exists('g:zzvim_r_chunk_start')
+    " Pattern breakdown: ^ = line start, ``` = literal backticks, { = opening brace
+    " Matches: ```{r}, ```{python}, ```{sql}, etc.
     let g:zzvim_r_chunk_start = '^```{'
 endif
 
 if !exists('g:zzvim_r_chunk_end')
+    " Pattern breakdown: ^ = line start, ``` = literal backticks, $ = line end
+    " Matches: ``` at start of line with nothing after (chunk closing)
     let g:zzvim_r_chunk_end = '^```$'
 endif
 
+" Debug logging level (0=off, 1=basic, 2=verbose)
 if !exists('g:zzvim_r_debug')
+    " Disabled by default for performance - enable for troubleshooting
     let g:zzvim_r_debug = 0
 endif
 
@@ -169,90 +316,153 @@ endif
 function! s:Log(msg, level) abort
     if get(g:, 'zzvim_r_debug', 0) >= a:level
         call writefile([strftime('%c') . ' - ' . a:msg], expand('~/zzvim_r.log'), 'a')
+        " Also display debug message in Vim (when debug enabled)
         echom "Debug: " . a:msg
     endif
 endfunction
 
+" Standardized Error Display Function
+" Shows error message with consistent formatting and plugin identification
+" Parameters:
+"   a:msg (string) - Error message to display
 function! s:Error(msg) abort
+    " echohl ErrorMsg = set text highlighting to error style (usually red)
     echohl ErrorMsg
+    " echom = echo message and add to message history (:messages to view)
+    " Prefix with plugin name for clear error source identification
     echom "zzvim-R: " . a:msg
+    " echohl None = reset highlighting to normal
     echohl None
+    " Also log error to debug file for troubleshooting
     call s:Log(a:msg, 1)
 endfunction
 
-"------------------------------------------------------------------------------
-" Function: Open a new R terminal
-"------------------------------------------------------------------------------
+" =============================================================================
+" CORE TERMINAL MANAGEMENT FUNCTIONS
+" =============================================================================
+
+" Create and Configure R Terminal Session
+" This function creates a persistent R terminal in a vertical split
+" Returns: Nothing (void function)
 function! s:OpenRTerminal() abort
+    " executable('R') checks if R command is available in system PATH
+    " Returns 1 if found, 0 if not found
     if !executable('R')
         call s:Error('R is not installed or not in PATH')
+        " Early return pattern - exit function if prerequisite not met
         return
     endif
 
-    " Open a vertical split and start the R terminal
+    " Create vertical terminal split and execute R startup command
+    " execute = run Ex command from string variable
+    " 'vertical term' = create vertical split with terminal
+    " g:zzvim_r_command contains full R startup command with arguments
     execute 'vertical term ' . g:zzvim_r_command
+    
+    " Resize terminal window to configured width
+    " 'vertical resize' = adjust vertical split width
     execute 'vertical resize ' . g:zzvim_r_terminal_width
 
-    " Set terminal-specific options
+    " Configure terminal buffer display options for better R interaction
+    " setlocal = buffer-local settings (only affect current buffer)
+    " norelativenumber/nonumber = hide line numbers (distracting in terminal)
+    " signcolumn=no = hide sign column (used for diagnostics, not needed in terminal)
     setlocal norelativenumber nonumber signcolumn=no
 
-    " Indicate that an R terminal is active
+    " Set tab-local variable to track R terminal existence
+    " t: prefix = tab-scoped variable (persists for this tab)
+    " Used by other functions to detect if R session is available
     let t:is_r_term = 1
 
-    " Return focus to the previous window
+    " Return cursor focus to previous window (usually the editor)
+    " wincmd p = window command 'previous' (Ctrl-W p equivalent)
+    " Allows immediate code editing without manual window switching
     wincmd p
 endfunction
 
-"------------------------------------------------------------------------------
-" Function: Send command to R terminal
-"------------------------------------------------------------------------------
+" Send Commands to R Terminal with Auto-Recovery
+" Core communication function between Vim and R session
+" Parameters:
+"   a:cmd (string) - R command/code to execute
+"   a:stay_on_line (boolean) - whether to keep cursor on current line (unused in current implementation)
 function! s:Send_to_r(cmd, stay_on_line) abort
-    " Check if R terminal exists
+    " Terminal Session Validation and Auto-Recovery
+    " exists('t:is_r_term') checks if tab-local R terminal flag exists
+    " This defensive programming pattern handles edge cases gracefully
     if !exists('t:is_r_term') || t:is_r_term != 1
+        " User-friendly warning with automatic recovery
         echohl WarningMsg
         echo "No R terminal open - creating new terminal and submitting line..."
         echohl None
         
-        " Try to open R terminal
+        " Attempt automatic terminal creation for seamless workflow
         call s:OpenRTerminal()
         
-        " Verify terminal was created successfully
+        " Verify recovery was successful before proceeding
+        " Double-check prevents errors if R installation has issues
         if !exists('t:is_r_term') || t:is_r_term != 1
             call s:Error("Could not create R terminal. Please check R installation.")
+            " Fail gracefully rather than causing Vim errors
             return
         endif
         
-        " Small delay to ensure terminal is ready
+        " Brief pause to allow terminal initialization
+        " sleep 100m = sleep 100 milliseconds
+        " Prevents race condition where terminal isn't fully ready for input
         sleep 100m
     endif
 
-    " Get available terminals
+    " Terminal Discovery and Validation
+    " term_list() returns list of all terminal buffer numbers in current session
     let l:terms = term_list()
     if empty(l:terms)
+        " No terminals found - this shouldn't happen after auto-creation above
         call s:Error("No active terminals found")
         return
     endif
 
+    " Command Transmission with Error Handling
     try
+        " Use first terminal in list (most recently created)
+        " In practice, this will be our R terminal since we just created it
         let l:target_terminal = l:terms[0]
-        " Skip empty commands
+        
+        " Input Validation - avoid sending empty commands to R
+        " trim() removes leading/trailing whitespace
+        " !empty() ensures we have actual content to send
         if !empty(trim(a:cmd))
-            " Validate terminal is still active
+            " Terminal Status Verification
+            " term_getstatus() returns terminal state ("running", "finished", etc.)
+            " =~# is case-sensitive regex match operator
             if term_getstatus(l:target_terminal) =~# 'running'
+                " Send command with newline to execute in R
+                " term_sendkeys() simulates typing in terminal
+                " "\n" = newline character to execute command
                 call term_sendkeys(l:target_terminal, a:cmd . "\n")
-                " Add small delay for terminal handling
+                
+                " Brief delay for terminal command processing
+                " Allows R to begin processing before next command
                 sleep 10m
             else
+                " Terminal exists but isn't running - likely crashed or closed
                 call s:Error("Terminal is not active")
                 return
             endif
         endif
     catch
+        " Exception Handling for Terminal Communication Errors
+        " v:exception contains error message from failed operation
+        " This catches Vim errors like terminal not responding, etc.
         call s:Error("Failed to send to R terminal: " . v:exception)
         return
     endtry
 
+    " Optional Cursor Movement (Legacy Feature)
+    " a:stay_on_line parameter allows controlling cursor behavior
+    " Currently unused but maintained for backward compatibility
     if !a:stay_on_line
+        " normal! j = move cursor down one line (! = don't use mappings)
+        " Useful for rapid line-by-line execution workflow
         normal! j
     endif
 endfunction
@@ -798,4 +1008,18 @@ function! s:RSetwdCommand(dir) abort
     let target_dir = empty(a:dir) ? getcwd() : expand(a:dir)
     call s:Send_to_r("setwd('" . target_dir . "')", 0)
     echom "Set R working directory to: " . target_dir
+endfunction
+
+"------------------------------------------------------------------------------
+" Testing Functions (Public wrappers for script-local functions)
+"------------------------------------------------------------------------------
+
+" Public wrapper for testing s:IsBlockStart()
+function! ZzvimRTestIsBlockStart(line) abort
+    return s:IsBlockStart(a:line)
+endfunction
+
+" Public wrapper for testing s:GetTextByType()
+function! ZzvimRTestGetTextByType(selection_type) abort
+    return s:GetTextByType(a:selection_type)
 endfunction
