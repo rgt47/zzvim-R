@@ -1,112 +1,141 @@
 # zzvim-R Plugin Architecture & Development Guide
 
-This document provides comprehensive information about the zzvim-R plugin, its architecture, functionality, development history, and key code patterns to help Claude understand and work with this codebase effectively.
+This document provides comprehensive information about the zzvim-R plugin, its current architecture, functionality, development history, and key code patterns to help Claude understand and work with this codebase effectively.
 
 ## Plugin Overview
 
-zzvim-R is a Vim plugin that provides comprehensive R integration for Vim/Neovim, enabling seamless development workflows for R programming. The plugin is designed with a clean, modular architecture and follows best practices for Vim plugin development.
+zzvim-R is a Vim plugin that provides R integration for Vim/Neovim, enabling seamless development workflows for R programming. The plugin focuses on smart code execution with pattern-based detection and follows a simple, single-file architecture.
 
 ### Key Features
 
-- **Terminal Integration**: Persistent R terminal session management per Vim tab
-- **Code Execution**: Send lines, visual selections, and R Markdown chunks to R
+- **Smart Code Execution**: Intelligent detection of R functions, control structures, and code blocks
+- **Terminal Integration**: R terminal session management with persistent sessions
 - **Chunk Navigation**: Navigate between R Markdown code chunks
+- **Pattern-Based Detection**: Automatic recognition of function definitions, if/else blocks, loops
+- **Unified Temp File Approach**: Consistent handling of code submission regardless of size
 - **Object Inspection**: Examine R objects with various inspection functions
-- **Package Management**: Install, load, and update R packages
-- **Data Import/Export**: Work with CSV and RDS files
-- **Directory Management**: Navigate working directories
-- **Help System**: Access R documentation and examples
+- **Flexible Key Mappings**: Smart `<CR>` behavior adapts to context
 
 ## Project Structure
 
 ```
 zzvim-R/
-├── autoload/               # Lazy-loaded functions (loaded on demand)
-│   └── zzvim_r.vim         # Public API functions
-├── plugin/                 # Core plugin code (loaded at startup)
-│   └── zzvim_r.vim         # Core engine functions
+├── plugin/                 # Core plugin code (single file architecture)
+│   └── zzvim-R.vim         # All plugin functionality
 ├── doc/                    # Documentation
 │   └── zzvim-R.txt         # Vim help documentation
-├── test_files/             # Test files
+├── test_files/             # Test files and examples
 │   ├── code_examples/      # Example code patterns
 │   ├── test.R              # R test file
 │   ├── test.Rmd            # R Markdown test file
-│   └── test_error_handling.vim  # Error handling test
+│   ├── test_generalized_send.R     # Tests for generalized SendToR
+│   ├── new_functionality_demo.R    # Demo of smart detection
+│   └── test_error_handling.vim     # Error handling test
 ├── CHANGELOG.md            # Version history
 ├── LICENSE                 # License information
 ├── README.md               # User documentation
 ├── improvements.md         # Development improvements
-└── code_quality_report.md  # Code quality assessment
+├── code_quality_report.md  # Code quality assessment
+└── CLAUDE.md               # This file - development guide
 ```
 
 ## Architecture & Design Patterns
 
-The plugin uses a layered architecture with a clear separation of concerns:
+The plugin uses a simple, single-file architecture with clear functional separation:
 
-1. **Core Engine Layer** (plugin/zzvim_r.vim):
-   - Configuration management through `s:config` dictionary
-   - Core engine functions with action-based dispatch through `s:engine()`
-   - Command and mapping registration
+### **Current Architecture (Single File)**
 
-2. **Public API Layer** (autoload/zzvim_r.vim):
-   - User-facing functions with comprehensive documentation
-   - Lazy-loaded through Vim's autoload mechanism
-   - Delegates to core engines for implementation
+**plugin/zzvim-R.vim** contains all functionality organized into logical sections:
 
-3. **Communication Pattern**:
-   - Functions validate context before execution using `s:public_wrapper()`
-   - Robust error handling and dependency checking
-   - Consistent return values (integers 0/1)
+1. **Configuration Management**: Global variables and settings
+2. **Core Functions**: Terminal management, R communication
+3. **Generalized SendToR System**: Smart pattern detection and text extraction
+4. **Chunk Navigation**: R Markdown chunk handling
+5. **Object Inspection**: R object examination functions
+6. **Key Mappings**: Context-aware key bindings
 
-## Key Engine Functions
+### **Key Design Principles**
 
-The `s:engine()` function is the central dispatch mechanism that routes operations to specialized handlers:
+1. **Pattern-Based Intelligence**: Automatic detection of R code structures
+2. **Consistent Temp File Approach**: All code submission uses temporary files
+3. **Context-Aware Behavior**: `<CR>` key adapts to cursor position
+4. **Error Handling**: Robust position restoration and error messaging
+5. **Backward Compatibility**: Preserves existing function behavior
 
-1. `s:terminal_engine()`: Manages R terminal sessions
-2. `s:text_engine()`: Handles text extraction for different content types
-3. `s:execute_engine()`: Executes code in the R terminal
-4. `s:package_engine()`: Manages R package operations
-5. `s:data_engine()`: Handles data file operations
-6. `s:directory_engine()`: Manages working directory operations
+## Core Function Groups
 
-## Public API Functions
+### **1. Generalized SendToR System**
+- **`s:SendToR(selection_type)`**: Main dispatcher for all code submission
+- **`s:GetTextByType(selection_type)`**: Smart text extraction with auto-detection
+- **`s:IsBlockStart(line)`**: Pattern matching for code block detection
+- **`s:GetCodeBlock()`**: Brace matching algorithm for complete blocks
 
-The public API is defined in autoload/zzvim_r.vim and includes:
+### **2. Text Extraction Functions**
+- **`s:GetVisualSelectionLines()`**: Extract visual selection as lines
+- **`s:GetCurrentChunk()`**: Extract R Markdown chunk content
+- **`s:GetPreviousChunks()`**: Collect all previous chunks (placeholder)
 
-1. **Terminal Control**: `open_terminal()`, `send_quit()`, `send_interrupt()`
-2. **Code Execution**: `submit_line()`, `submit_selection()`
-3. **Chunk Navigation**: `navigate_next_chunk()`, `navigate_prev_chunk()`, `execute_chunk()`, `execute_previous_chunks()`
-4. **Package Management**: `install_package()`, `load_package()`, `update_package()`
-5. **Data Operations**: `read_csv()`, `write_csv()`, `read_rds()`, `save_rds()`
-6. **Object Inspection**: `inspect()`, `browse_workspace()`, `list_workspace()`, etc.
-7. **Help Functions**: `help_examples()`, `apropos_help()`, `find_definition()`
+### **3. Terminal and Communication**
+- **`s:OpenRTerminal()`**: Create and manage R terminal sessions
+- **`s:Send_to_r(cmd, stay_on_line)`**: Send commands to R terminal
+- **`s:SendControlKeys(key)`**: Send control sequences to terminal
+
+### **4. Chunk Navigation**
+- **`s:MoveNextChunk()`**: Navigate to next R Markdown chunk
+- **`s:MovePrevChunk()`**: Navigate to previous R Markdown chunk
+- **`s:SubmitChunk()`**: Execute current chunk (uses generalized system)
+
+### **5. Object Inspection**
+- **`s:RAction(action, stay_on_line)`**: Execute R functions on word under cursor
+- **Built-in actions**: head, str, dim, print, names, length, glimpse, etc.
 
 ## Key Mappings System
 
-The plugin provides a comprehensive set of key mappings that follow a consistent naming scheme:
+The plugin provides an intelligent key mapping system with smart context detection:
 
-1. **Core Operations**:
-   - `<LocalLeader>r`: Open R terminal
-   - `<CR>`: Send line/selection to R
+### **Smart `<CR>` Behavior (Context-Aware)**
 
-2. **Chunk Navigation**:
-   - `<LocalLeader>j/k`: Next/previous chunk
-   - `<LocalLeader>l`: Execute current chunk
-   - `<LocalLeader>t`: Execute all previous chunks
+**Normal Mode**: `<CR>` calls `s:SmartSubmit()` which automatically detects:
+- **Function definitions**: `my_func <- function(x) {` → sends entire function block
+- **Control structures**: `if (condition) {`, `for (i in 1:10) {` → sends entire block
+- **Regular lines**: `x <- 5` → sends current line only
+- **Lines inside functions**: Individual line execution for debugging
 
-3. **Object Inspection** (single-letter):
-   - `<LocalLeader>h`: head()
-   - `<LocalLeader>s`: str()
-   - `<LocalLeader>d`: dim()
-   - `<LocalLeader>p`: print()
-   - etc.
+**Visual Mode**: `<CR>` → sends visual selection to R
 
-4. **Feature-Specific Prefixes**:
-   - `<LocalLeader>x*`: Package operations
-   - `<LocalLeader>z*`: Data operations
-   - `<LocalLeader>v*`: Directory operations
-   - `<LocalLeader>u*`: Help functions
-   - `<LocalLeader>w*`: Workspace operations
+### **Core Operations**
+- **`<LocalLeader>r`**: Open R terminal
+- **`<CR>`**: Smart submission (context-aware)
+
+### **Chunk Navigation**
+- **`<LocalLeader>j`**: Next chunk
+- **`<LocalLeader>k`**: Previous chunk
+- **`<LocalLeader>l`**: Execute current chunk
+- **`<LocalLeader>t`**: Execute all previous chunks
+
+### **Object Inspection (Single-Letter)**
+- **`<LocalLeader>h`**: head()
+- **`<LocalLeader>s`**: str()
+- **`<LocalLeader>d`**: dim()
+- **`<LocalLeader>p`**: print()
+- **`<LocalLeader>n`**: names()
+- **`<LocalLeader>f`**: length()
+- **`<LocalLeader>g`**: glimpse()
+- **`<LocalLeader>b`**: dt (data.table print)
+- **`<LocalLeader>u`**: tail()
+- **`<LocalLeader>y`**: help()
+
+### **Control Keys**
+- **`<LocalLeader>q`**: Send Q to R (quit)
+- **`<LocalLeader>c`**: Send Ctrl-C to R (interrupt)
+
+### **Generalized Send Functions (Advanced)**
+- **`<LocalLeader>sf`**: Force send function block
+- **`<LocalLeader>sl`**: Force send current line only
+- **`<LocalLeader>sa`**: Smart auto-detection (same as `<CR>`)
+
+### **Other Operations**
+- **`<LocalLeader>o`**: Add pipe operator (`%>%`) and new line
 
 ## Development History
 
@@ -146,139 +175,263 @@ Major code cleanup and API streamlining:
 4. **Improved Architecture**: Better separation of concerns between files
 5. **Standardized Behavior**: Consistent return values and error handling
 
+### Current Version (Generalized SendToR System)
+
+Major architectural improvement implementing intelligent code detection:
+
+1. **Generalized SendToR Function**: Created `s:SendToR(selection_type)` as unified dispatcher
+2. **Smart Pattern Detection**: Implemented `s:IsBlockStart()` for automatic R code structure recognition
+3. **Brace Matching Algorithm**: Added `s:GetCodeBlock()` for accurate code block extraction
+4. **Context-Aware `<CR>` Key**: Enhanced `<CR>` to intelligently detect and send appropriate code units
+5. **Unified Temp File Approach**: All code submission uses consistent temporary file method
+6. **Backward Compatibility**: Existing functions updated to use new system while preserving behavior
+7. **Additional Key Mappings**: Added `<LocalLeader>sf/sl/sa` for explicit control
+
+**Key Benefits**:
+- **Intelligent Workflow**: `<CR>` automatically detects functions, control structures, or individual lines
+- **Character Limit Handling**: Temp file approach handles any code size consistently
+- **Pattern-Based Detection**: Recognizes `function()`, `if()`, `for()`, `while()`, standalone `{}` blocks
+- **Debugging Friendly**: Lines inside functions still execute individually
+- **Extensible Architecture**: Easy to add new pattern detection
+
 ## Code Examples & Patterns
 
-### Engine Function Pattern
+### Generalized SendToR Pattern
 
 ```vim
-function! s:engine(operation, ...) abort
-    if a:operation ==# 'terminal'
-        return s:terminal_engine(a:1, get(a:000, 1, {}))
-    elseif a:operation ==# 'text'
-        return s:text_engine(a:1, get(a:000, 1, {}))
-    " ... more operations ...
+function! s:SendToR(selection_type, ...) abort
+    " Get text lines based on selection type or smart detection
+    let text_lines = s:GetTextByType(a:selection_type)
+    
+    if empty(text_lines)
+        call s:Error("No text to send to R.")
+        return
     endif
+    
+    " Always use temp file approach for consistency
+    let temp_file = tempname()
+    call writefile(text_lines, temp_file)
+    let cmd = "source('" . temp_file . "', echo=T)\n"
+    call s:Send_to_r(cmd, 0)
+    
+    " Provide feedback about what was sent
+    let line_count = len(text_lines)
+    echom "Sent " . line_count . " lines to R."
+endfunction
+```
+
+### Smart Detection Pattern
+
+```vim
+function! s:IsBlockStart(line) abort
+    " Remove leading/trailing whitespace
+    let clean_line = substitute(a:line, '^\s\+\|\s\+$', '', 'g')
+    
+    " Check each pattern individually
+    if clean_line =~# '.*function\s*('
+        return 1
+    endif
+    if clean_line =~# '^\s*if\s*('
+        return 1
+    endif
+    if clean_line =~# '^\s*for\s*('
+        return 1
+    endif
+    " ... more patterns ...
+    
     return 0
 endfunction
 ```
 
-### Autoload Delegation Pattern
+### Brace Matching Algorithm
 
 ```vim
-function! zzvim_r#open_terminal() abort
-    if exists('*s:public_wrapper') && exists('*s:terminal_engine')
-        return s:public_wrapper(function('s:terminal_engine'), 'create', {})
-    else
-        echom 'zzvim-R: Plugin core functions not available'
-        return 0
-    endif
+function! s:GetCodeBlock() abort
+    let save_pos = getpos('.')
+    let current_line_num = line('.')
+    
+    " Find the opening brace
+    let brace_line = current_line_num
+    let found_opening = 0
+    
+    while brace_line <= line('$')
+        let line_content = getline(brace_line)
+        if line_content =~ '{'
+            let found_opening = 1
+            break
+        endif
+        let brace_line += 1
+        if brace_line > current_line_num + 5
+            break
+        endif
+    endwhile
+    
+    " Find matching closing brace using brace counting
+    let brace_count = 0
+    let end_line = -1
+    
+    for line_num in range(brace_line, line('$'))
+        let line_content = getline(line_num)
+        let open_braces = len(substitute(line_content, '[^{]', '', 'g'))
+        let close_braces = len(substitute(line_content, '[^}]', '', 'g'))
+        let brace_count += open_braces - close_braces
+        
+        if brace_count == 0 && (open_braces > 0 || close_braces > 0)
+            let end_line = line_num
+            break
+        endif
+    endfor
+    
+    call setpos('.', save_pos)
+    return getline(current_line_num, end_line)
 endfunction
 ```
 
-### Unified API Pattern
+### Smart Submission Wrapper
 
 ```vim
-function! zzvim_r#inspect(type, ...) abort
-    " Define mapping of inspection types to R functions and default args
-    let l:inspect_map = {
-        \ 'head': ['head', 'n = 10'],
-        \ 'str': ['str', ''],
-        \ 'dim': ['dim', ''],
-        \ ...
-    \ }
-    
-    " Get the R function and default args
-    let [l:func, l:default_args] = l:inspect_map[a:type]
-    
-    " Override default args if provided
-    let l:extra_args = get(a:, 1, l:default_args)
-    
-    " Delegate to helper function
-    return s:send_inspect_command(l:func, l:extra_args)
+function! s:SmartSubmit() abort
+    " Use smart detection (empty string triggers auto-detection)
+    call s:SendToR('')
 endfunction
 ```
 
 ## Common Development Patterns
 
-1. **Function Validation**: Always check that required functions exist before calling them
-2. **Error Handling**: Use helper functions for consistent error messages
-3. **Configuration Access**: Use helper functions with fallbacks for accessing configuration
-4. **Terminal Checking**: Verify terminal exists before sending commands
-5. **Return Values**: Use integers (0/1) consistently for success/failure
-6. **Function References**: Pass script-local functions as references to avoid scoping issues
+1. **Pattern-Based Detection**: Use regex patterns to identify R code structures
+2. **Position Preservation**: Always save and restore cursor position in navigation functions
+3. **Temp File Approach**: Use temporary files for all R code submission to handle size limits
+4. **Error Handling**: Provide clear error messages and restore state on failure
+5. **Brace Counting**: Use proper brace matching algorithms for nested structures
+6. **Context Awareness**: Functions should adapt behavior based on cursor location
+7. **Return Values**: Use integers (0/1) consistently for success/failure
+8. **Script-Local Functions**: Keep internal functions private with `s:` prefix
 
 ## Key Issue Fixes
 
-### Chunk Navigation Fix
+### Character Limit Issue Resolution
 
-The original problematic implementation:
+**Problem**: R terminals and Vim's terminal communication have character/line limits that caused issues with large functions or chunks.
+
+**Solution**: Implemented unified temp file approach:
+```vim
+let temp_file = tempname()
+call writefile(text_lines, temp_file)
+let cmd = "source('" . temp_file . "', echo=T)\n"
+call s:Send_to_r(cmd, 0)
+```
+
+**Benefits**:
+- Works for any size selection
+- Consistent behavior across all submission types
+- No character limits
+- R's `source()` with `echo=T` shows executed code
+
+### Smart Code Detection Implementation
+
+**Problem**: Users had to manually specify whether to send a line, function, or code block.
+
+**Solution**: Implemented pattern-based detection system:
 
 ```vim
-function! zzvim_r#navigate_prev_chunk() abort
-    let l:chunk_start = get(g:, 'zzvim_r_chunk_start', '^```{[rR]')
-    call setpos('.', [0, l:chunk_start, 1, 0])
-    let l:chunk_end = get(g:, 'zzvim_r_chunk_end', '^```\s*$')
-    call setpos('.', [0, l:chunk_end, 1, 0])
-    let l:chunk_start = get(g:, 'zzvim_r_chunk_start', '^```{[rR]')
-    call setpos('.', [0, l:chunk_start, 1, 0])
-            normal! j
+function! s:IsBlockStart(line) abort
+    " Detects: function(), if(), for(), while(), repeat{}, {}
+    if clean_line =~# '.*function\s*('
+        return 1
+    endif
+    " ... more patterns
 endfunction
 ```
 
-The fixed implementation properly handles chunk navigation by:
-- Saving the current position
-- Checking if the cursor is inside a chunk
-- Using proper search functions with appropriate flags
-- Handling edge cases and providing feedback
-- Centering the display after navigation
+**Key Benefits**:
+- `<CR>` automatically detects context
+- Function definitions → send entire function
+- Control structures → send entire block  
+- Regular lines → send individual line
+- Lines inside functions → individual execution for debugging
 
-### Key Mapping Conflict Resolution
+### Brace Matching Algorithm
 
-The plugin had conflicts where pressing a single-letter mapping would delay to check for two-letter mappings with the same prefix. The solution was to change prefixes for two-letter mappings:
+**Problem**: Accurately finding the end of R code blocks with nested braces.
 
-- `<LocalLeader>h` for head() no longer conflicts with help functions
-- `<LocalLeader>p` for print() no longer conflicts with package functions
-- `<LocalLeader>d` for dim() no longer conflicts with data functions
+**Solution**: Implemented robust brace counting:
+
+```vim
+let brace_count = 0
+for line_num in range(brace_line, line('$'))
+    let open_braces = len(substitute(line_content, '[^{]', '', 'g'))
+    let close_braces = len(substitute(line_content, '[^}]', '', 'g'))
+    let brace_count += open_braces - close_braces
+    
+    if brace_count == 0 && (open_braces > 0 || close_braces > 0)
+        let end_line = line_num
+        break
+    endif
+endfor
+```
+
+**Handles**:
+- Nested functions and control structures
+- Multiple braces on same line
+- Complex R code patterns
 
 ## Vim-Specific Implementation Notes
 
-1. **Autoload Mechanism**: Functions in autoload/ are only loaded when called
+1. **Single File Architecture**: All functionality contained in plugin/zzvim-R.vim
 2. **Script-Local Functions**: Functions prefixed with `s:` are only accessible within their script
 3. **Terminal Management**: Uses Vim's built-in terminal features
 4. **Variable Scoping**:
-   - `g:` Global variables
+   - `g:` Global variables (configuration)
    - `s:` Script-local variables
    - `l:` Function-local variables
    - `a:` Function argument variables
-   - `t:` Tab-local variables
-5. **Error Handling**: Uses try/catch and existence checks
-6. **Command Registration**: Uses `execute` with `printf` for dynamic command creation
+5. **Pattern Matching**: Uses Vim's regex engine with `=~#` for case-sensitive matching
+6. **Position Management**: Uses `getpos()` and `setpos()` for cursor position handling
 7. **Key Mapping**: Uses autocmd with FileType to create filetype-specific mappings
 
-## Working with the Codebase
+## Working with the Current Codebase
 
 When modifying this plugin:
 
-1. **Test Files**: Use the test files in test_files/ for testing changes
-2. **Error Handling**: Always include proper error handling and dependency checks
-3. **Return Values**: Return 0 for failure and 1 for success consistently
-4. **Variable Scoping**: Be careful with variable scoping in loops
-5. **File Organization**: Keep core engines in plugin file, public API in autoload
-6. **Documentation**: Update both inline comments and help documentation
+1. **Test Files**: Use test_files/ for testing changes, especially:
+   - `test_generalized_send.R` - Test smart detection patterns
+   - `new_functionality_demo.R` - Demo various use cases
+2. **Pattern Testing**: Test new patterns in `s:IsBlockStart()` thoroughly
+3. **Position Preservation**: Always save/restore cursor position in navigation functions
+4. **Temp File Approach**: Maintain consistency with temp file method for R submission
+5. **Error Handling**: Include proper error messages and state restoration
+6. **Documentation**: Update CLAUDE.md when adding significant functionality
 
 ## Testing Process
 
-When testing the plugin, focus on these key areas:
+Focus on these key areas when testing:
 
-1. **Terminal Integration**: Verify terminal creation and interaction
-2. **Chunk Navigation**: Test navigation in R Markdown files
-3. **Object Inspection**: Test all inspection functions
-4. **Error Handling**: Test plugin behavior with invalid inputs
-5. **File Type Support**: Test with different R file types (R, RMD, QMD)
+1. **Smart Detection**: Test pattern recognition on various R code structures
+2. **Brace Matching**: Verify correct code block extraction with nested structures  
+3. **Context Awareness**: Test `<CR>` behavior in different cursor positions
+4. **Terminal Integration**: Verify R terminal creation and code submission
+5. **Chunk Navigation**: Test R Markdown chunk handling
+6. **Error Scenarios**: Test behavior with malformed code and missing braces
+7. **File Type Support**: Test with R, RMD, QMD files
 
-## Security & Limitations
+## Current Capabilities & Limitations
 
-- The plugin interacts directly with the R interpreter
-- Functions are designed to work with specific R data structures and patterns
-- Error handling is focused on missing functions and invalid inputs
-- The plugin does not implement any security restrictions beyond what Vim provides
+### **What Works Well**
+- Smart detection of function definitions and control structures
+- Accurate brace matching for nested code blocks
+- Consistent temp file approach handles any code size
+- Context-aware `<CR>` key behavior
+- Backward compatibility with existing workflows
+
+### **Current Limitations**
+- Pattern detection limited to common R structures
+- `s:GetPreviousChunks()` function not fully implemented
+- No advanced R parsing (uses regex patterns only)
+- Limited to basic R terminal interaction
+- No package management, data operations, or help functions
+
+### **Security Notes**
+- Plugin executes R code directly through terminal
+- Temp files created in system temp directory
+- No input sanitization beyond basic error checking
+- Relies on Vim's built-in security model
