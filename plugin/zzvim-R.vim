@@ -467,88 +467,152 @@ function! s:Send_to_r(cmd, stay_on_line) abort
     endif
 endfunction
 
+" Extract Text from Visual Selection with Precise Boundaries
+" Handles partial line selections and multi-line visual blocks
+" Returns: String containing selected text with proper line breaks
 function! s:GetVisualSelection() abort
+    " Get Visual Selection Boundaries
+    " getpos("'<") = start of visual selection (mark '<)
+    " getpos("'>") = end of visual selection (mark '>)
+    " [1:2] extracts line and column numbers from position list
+    " Position format: [bufnum, line, col, off] - we need line and col
     let [l:line_start, l:col_start] = getpos("'<")[1:2]
-    let [l:line_end, l:col_end] = getpos("'>")[1:2]
+    let [l:line_end, l:col_end] = getpos("'>')[1:2]
+    
+    " Extract All Lines in Selection Range
+    " getline(start, end) returns list of complete lines
     let l:lines = getline(l:line_start, l:line_end)
 
-    " Trim the first and last lines to the selection
-    let l:lines[-1] = l:lines[-1][: l:col_end - 1]
-    let l:lines[0] = l:lines[0][l:col_start - 1:]
+    " Trim Selection Boundaries for Partial Line Selections
+    " Handle case where selection doesn't include entire first/last lines
+    " VimScript array indexing: [-1] = last element, [0] = first element
+    " String slicing: [start:end] where end is exclusive
+    let l:lines[-1] = l:lines[-1][: l:col_end - 1]  " Trim end of last line
+    let l:lines[0] = l:lines[0][l:col_start - 1:]    " Trim start of first line
 
+    " Reconstruct Multi-line String
+    " join(list, separator) combines list elements with separator
+    " "\n" preserves original line breaks for R execution
     return join(l:lines, "\n")
 endfunction
 
-"------------------------------------------------------------------------------
-" Function: Add a pipe operator and create a new line
-"------------------------------------------------------------------------------
+" Insert R Pipe Operator for Functional Programming Workflows
+" Adds %>% operator on new line and positions cursor for chaining
+" Used extensively in tidyverse/dplyr data manipulation pipelines
 function! s:AddPipeAndNewLine() abort
+    " Insert pipe operator on new line after current line
+    " line('.') = current line number
+    " append(line, text) = insert text after specified line
+    " ' %>%' includes leading space for proper formatting
     call append(line('.'), ' %>%')
+    
+    " Move cursor to the newly created line
+    " normal! j = move down one line (! prevents mapping interference)
+    " Positions cursor at end of pipe operator for immediate typing
     normal! j
 endfunction
 
-"------------------------------------------------------------------------------
-" Function: Move to the next R Markdown chunk
-"------------------------------------------------------------------------------
+" =============================================================================
+" R MARKDOWN/QUARTO CHUNK NAVIGATION SYSTEM
+" =============================================================================
+" These functions enable seamless navigation between code chunks in literate
+" programming documents, essential for interactive data analysis workflows
+
+" Navigate to Next Code Chunk (Forward Direction)
+" Finds the next chunk boundary and positions cursor inside for editing
 function! s:MoveNextChunk() abort
+    " Get chunk start pattern from user configuration with safe fallback
+    " get(g:, 'var', default) safely retrieves global variable
     let l:chunk_start_pattern = get(g:, 'zzvim_r_chunk_start', '^```{')
+    
+    " Search for next chunk start from current position
+    " search(pattern, flags): 'W' = wrap around file end, don't wrap
+    " Returns line number if found, 0 if not found
     let l:chunk_start = search(l:chunk_start_pattern, 'W')
 
+    " Process Search Results and Position Cursor
     if l:chunk_start
-        " Move the cursor to the first line inside the chunk
+        " Chunk found - move cursor inside chunk for immediate editing
+        " line('.') = current line number, line('$') = last line in file
         if line('.') < line('$')
+            " Move one line down to enter chunk content area
             normal! j
+            " Provide user feedback about navigation success
             echom "Moved inside the next chunk at line " . line('.')
         else
+            " Edge case: chunk header is last line (malformed document)
             call s:Error("Next chunk found, but no lines inside the chunk.")
         endif
     else
+        " No more chunks found in forward direction
         call s:Error("No more chunks found.")
     endif
 endfunction
 
 
-"------------------------------------------------------------------------------
-" Function: Move to the previous R Markdown chunk
-"------------------------------------------------------------------------------
+" Navigate to Previous Code Chunk (Backward Direction)
+" Complex algorithm handling cursor context and chunk boundaries
+" More sophisticated than forward navigation due to context awareness
 function! s:MovePrevChunk() abort
-    " Get patterns for R code chunks from plugin config
+    " Get chunk detection pattern from configuration
     let chunk_start_pattern = get(g:, 'zzvim_r_chunk_start', '^```{')
     
-    " Save current position
+    " Position State Management
+    " Save current position for potential restoration on failure
+    " getpos('.') returns [bufnum, line, col, off] - full cursor position
     let current_pos = getpos('.')
+    " line('.') gets just the line number for simpler arithmetic
     let current_line_num = line('.')
     
-    " First, find the current chunk we might be in
+    " Context Detection: Find Current Chunk Relationship
+    " search(pattern, flags): 
+    " 'b' = backward search, 'c' = accept cursor position, 
+    " 'n' = don't move cursor, 'W' = don't wrap
+    " This finds the chunk start we're currently in or just passed
     let current_chunk_start = search(chunk_start_pattern, 'bcnW')
     
-    " If we're inside or at the start of the current chunk,
-    " we need to move before this chunk to find the previous one
+    " Smart Context Handling Based on Cursor Position
+    " Algorithm determines whether we're inside a chunk or between chunks
     if current_chunk_start > 0
-        " If we're not at the chunk start itself, go to it first
+        " Case 1: We're inside a chunk - need to exit before finding previous
         if current_line_num > current_chunk_start
+            " Position cursor at current chunk start for reference
+            " cursor(line, col) moves cursor without changing view
             call cursor(current_chunk_start, 1)
         endif
         
-        " Now go one line above the current chunk start to search
+        " Navigate to Search Starting Position
+        " Move one line above current chunk to avoid finding same chunk
+        " Boundary check prevents going above file start
         if current_chunk_start > 1
             call cursor(current_chunk_start - 1, 1)
         endif
     endif
     
-    " Now search for the previous chunk
+    " Execute Previous Chunk Search
+    " search() with 'bW' = backward search without wrapping
+    " Starting from position above current chunk (or cursor position)
     let prev_chunk_start = search(chunk_start_pattern, 'bW')
     
+    " Process Search Results and Navigate
     if prev_chunk_start > 0
-        " Move inside the chunk (to the line after the chunk header)
+        " Success: Previous chunk found
+        " Position cursor inside chunk content area (after header line)
         call cursor(prev_chunk_start + 1, 1)
+        " normal! zz centers current line in window for better visibility
         normal! zz
+        " Provide success feedback with line number
         echom "Moved to previous chunk at line " . line('.')
+        " Return success indicator (used by calling functions)
         return 1
     else
-        " No previous chunk found, restore position
+        " Failure: No previous chunk exists
+        " Restore original cursor position (undo any movement)
+        " setpos('.', pos) restores complete cursor position
         call setpos('.', current_pos)
+        " Inform user of navigation boundary
         echom "No previous chunk found"
+        " Return failure indicator
         return 0
     endif
 endfunction
@@ -628,120 +692,209 @@ endfunction
 "------------------------------------------------------------------------------
 " Function: Generalized text sending to R with smart detection
 "------------------------------------------------------------------------------
+" =============================================================================
+" GENERALIZED INTELLIGENT CODE SUBMISSION SYSTEM
+" =============================================================================
+" This is the main orchestrating function that coordinates smart code detection
+" and submission. It represents the core innovation of the plugin.
+
+" Universal Code Submission Function with Smart Detection
+" Handles all types of code submission through unified interface
+" Parameters:
+"   a:selection_type (string) - Type of selection: '', 'line', 'function', 'chunk', 'selection'
+"   ... (variadic) - Optional additional parameters for future extensibility
 function! s:SendToR(selection_type, ...) abort
-    " Get text lines based on selection type or smart detection
+    " Phase 1: Text Extraction with Intelligent Detection
+    " Delegate to specialized function that handles pattern recognition
     let text_lines = s:GetTextByType(a:selection_type)
     
+    " Input Validation - Ensure we have content to send
     if empty(text_lines)
         call s:Error("No text to send to R.")
-        return
+        return  " Fail gracefully without causing Vim errors
     endif
     
-    " Always use temp file approach for consistency
+    " Phase 2: Reliable Code Transmission via Temporary File
+    " Use temp file approach to handle any code size and avoid terminal limits
+    " tempname() generates unique temporary file path
     let temp_file = tempname()
+    " writefile(list, filename) writes list of lines to file
     call writefile(text_lines, temp_file)
+    
+    " Construct R source() command with echo for visibility
+    " source() executes R script file, echo=T shows code as it runs
+    " Single quotes prevent shell interpretation of special characters
     let cmd = "source('" . temp_file . "', echo=T)\n"
+    
+    " Phase 3: Submit to R Terminal
+    " Use existing terminal communication infrastructure
     call s:Send_to_r(cmd, 0)
     
-    " Provide feedback about what was sent
+    " Phase 4: User Feedback
+    " Provide clear information about what was submitted
     let line_count = len(text_lines)
+    " Smart pluralization for grammatically correct feedback
     echom "Sent " . line_count . " line" . (line_count == 1 ? "" : "s") . " to R."
 endfunction
 
-"------------------------------------------------------------------------------
-" Function: Extract text based on selection type with smart detection
-"------------------------------------------------------------------------------
+" Smart Text Extraction Dispatcher with Pattern Recognition
+" Central intelligence function that determines what code to extract based on context
+" This function embodies the plugin's smart detection capabilities
+" Parameters:
+"   a:selection_type (string) - Explicit type or empty for auto-detection
+" Returns: List of lines ready for R execution
 function! s:GetTextByType(selection_type) abort
-    " Auto-detection for empty selection type
+    " Intelligent Auto-Detection Mode
+    " When no explicit type specified, analyze current line for code patterns
+    " This enables the smart <CR> key behavior
     if empty(a:selection_type) && s:IsBlockStart(getline('.'))
+        " Current line starts a code block - extract complete block
+        " getline('.') gets content of current line for pattern analysis
         return s:GetCodeBlock()
     endif
     
-    " Selection type dispatch
+    " Explicit Selection Type Dispatch
+    " Route to appropriate extraction function based on user's explicit choice
+    " Using ==# for exact string comparison (case-sensitive)
     if a:selection_type ==# 'selection'
+        " Visual selection mode - extract user-highlighted text
         return s:GetVisualSelectionLines()
     elseif a:selection_type ==# 'chunk'
+        " R Markdown chunk mode - extract current chunk content
         return s:GetCurrentChunk()
     elseif a:selection_type ==# 'previous_chunks'
+        " Cumulative execution - extract all previous chunks for reproducibility
         return s:GetPreviousChunks()
     elseif a:selection_type ==# 'function'
+        " Force function extraction even if pattern detection fails
         return s:GetCodeBlock()
     else
-        " Default: line or auto-detection fallback
+        " Default Fallback: Single Line or Smart Detection
+        " Return current line as single-element list
+        " This handles simple assignments, function calls, and individual statements
         return [getline('.')]
     endif
 endfunction
 
 "------------------------------------------------------------------------------
-" Function: Check if line starts a code block (function, control structure, etc.)
-"------------------------------------------------------------------------------
+" =============================================================================
+" INTELLIGENT R CODE PATTERN DETECTION ENGINE
+" =============================================================================
+" These functions implement the core intelligence for recognizing R language
+" constructs and determining optimal code submission boundaries
+
+" Detect R Code Block Starting Patterns
+" Analyzes a line to determine if it begins a multi-line code structure
+" This is the heart of the smart submission system
+" Parameters:
+"   a:line (string) - Line of code to analyze
+" Returns: 1 if line starts a block, 0 otherwise
 function! s:IsBlockStart(line) abort
-    " Single optimized regex to match all R block start patterns
+    " Advanced Regex Pattern for R Language Constructs
+    " Using very-magic mode (\v) for cleaner regex syntax
+    " Pattern breakdown:
+    " 1. '.*function\s*\(' - Function definitions (any position on line)
+    "    Matches: 'my_func <- function(x)', '  f <- function()'
+    " 2. '^\s*(if|for|while)\s*\(' - Control structures at line start
+    "    Matches: 'if (x > 0)', '  for (i in 1:10)', 'while (TRUE)'
+    " 3. '^\s*(repeat\s*)?\{' - Repeat loops and standalone blocks
+    "    Matches: 'repeat {', '  {' (standalone code blocks)
+    " 
+    " =~# operator: case-sensitive regular expression match
+    " Returns 1 (true) if pattern matches, 0 (false) otherwise
     return a:line =~# '\v(.*function\s*\(|^\s*(if|for|while)\s*\(|^\s*(repeat\s*)?\{)'
 endfunction
 
-"------------------------------------------------------------------------------
-" Function: Get complete code block by matching braces
-"------------------------------------------------------------------------------
+" Extract Complete Code Block Using Sophisticated Brace Matching
+" Implements balanced brace algorithm to find exact code block boundaries
+" Handles nested structures like functions within functions, nested if statements
+" Returns: List of lines comprising the complete code block
 function! s:GetCodeBlock() abort
+    " Position State Management
+    " Save current cursor position for restoration if algorithm fails
     let save_pos = getpos('.')
-    let current_line_num = line('.')
-    let current_line = getline('.')
+    let current_line_num = line('.')  " Starting line number
+    let current_line = getline('.')   " Current line content
     
-    " Find the opening brace on current line or next lines
+    " Phase 1: Locate Opening Brace
+    " Search forward from current line to find opening brace of code block
+    " This handles cases where brace is on same line or following lines
     let brace_line = current_line_num
     let found_opening = 0
     
-    " Search for opening brace starting from current line
-    while brace_line <= line('$')
+    " Limited Forward Search for Opening Brace
+    " Prevents infinite search in malformed code
+    while brace_line <= line('$')  " line('$') = last line in file
         let line_content = getline(brace_line)
+        " Simple pattern match for any opening brace on line
         if line_content =~ '{'
             let found_opening = 1
-            break
+            break  " Exit loop when brace found
         endif
         let brace_line += 1
-        " Don't search too far
+        " Safety limit: don't search beyond 5 lines
+        " Prevents performance issues with large functions
         if brace_line > current_line_num + 5
             break
         endif
     endwhile
     
+    " Error Handling: No Opening Brace Found
     if !found_opening
+        " Restore cursor position and report failure
         call setpos('.', save_pos)
         call s:Error("No opening brace found for code block.")
+        " Return empty list to indicate failure
         return []
     endif
     
-    " Find matching closing brace
-    call cursor(brace_line, 1)
-    let brace_count = 0
-    let start_line = current_line_num
-    let end_line = -1
+    " Phase 2: Balanced Brace Counting Algorithm
+    " Find matching closing brace by counting brace balance
+    call cursor(brace_line, 1)  " Position at opening brace line
+    let brace_count = 0         " Running balance of open vs close braces
+    let start_line = current_line_num  " Block starts at original cursor position
+    let end_line = -1          " Will store line number of matching close brace
     
+    " Iterate Through Lines Counting Braces
     for line_num in range(brace_line, line('$'))
         let line_content = getline(line_num)
         
-        " Count braces in this line
+        " Advanced Brace Counting Using String Substitution
+        " substitute(string, pattern, replacement, flags)
+        " '[^{]' = everything except opening braces, replace with nothing
+        " Result: string length = number of opening braces
         let open_braces = len(substitute(line_content, '[^{]', '', 'g'))
+        " Same technique for closing braces
         let close_braces = len(substitute(line_content, '[^}]', '', 'g'))
         
+        " Update Running Brace Balance
+        " Positive = more opens than closes, Zero = balanced
         let brace_count += open_braces - close_braces
         
-        " When brace_count reaches 0, we found the matching closing brace
+        " Critical Balance Detection
+        " When brace_count reaches 0, we've found the matching closing brace
+        " Additional condition ensures we've actually processed braces on this line
+        " (prevents false positive on lines with no braces)
         if brace_count == 0 && (open_braces > 0 || close_braces > 0)
             let end_line = line_num
-            break
+            break  " Exit loop - block boundary found
         endif
     endfor
     
+    " Restore Original Cursor Position
+    " Always restore position regardless of success/failure
     call setpos('.', save_pos)
     
+    " Validate Algorithm Success
     if end_line == -1
+        " No matching brace found - malformed code or infinite loop
         call s:Error("No matching closing brace found.")
-        return []
+        return []  " Return empty list to indicate failure
     endif
     
-    " Get lines from start to end (inclusive)
+    " Extract Complete Code Block
+    " getline(start, end) returns list of lines from start to end (inclusive)
+    " This is the complete, balanced code block ready for R execution
     return getline(start_line, end_line)
 endfunction
 
