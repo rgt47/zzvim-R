@@ -29,7 +29,7 @@
 "
 " g:zzvim_r_terminal_width      (number)
 "   Sets the width of the R terminal in the vertical split.
-"   Default: 80
+"   Default: 100
 "
 " g:zzvim_r_command             (string)
 "   The command to start the R terminal.
@@ -66,17 +66,58 @@
 "   <localleader>g    - Run glimpse() on word under cursor
 "   <localleader>b    - Run dt() on word under cursor
 "
-" Commands:
-"   :RSubmitLine               - Submit current line to R
-"   :ROpenTerminal             - Open a new R terminal
+" Ex Commands:
+"   Core Operations:
+"     :ROpenTerminal           - Open a new R terminal
+"     :RSendLine               - Submit current line to R
+"     :RSendSelection          - Send visual selection to R
+"     :RSendFunction           - Send function block to R
+"     :RSendSmart              - Smart auto-detection send
+"     :RAddPipe                - Add pipe operator and new line
+"   
+"   Chunk Navigation & Execution:
+"     :RNextChunk              - Move to next R Markdown chunk
+"     :RPrevChunk              - Move to previous R Markdown chunk
+"     :RSendChunk              - Send current chunk to R
+"     :RSendPreviousChunks     - Send all previous chunks to R
+"   
+"   Object Inspection (optional arguments):
+"     :RHead [object]          - Run head() on object or word under cursor
+"     :RStr [object]           - Run str() on object or word under cursor
+"     :RDim [object]           - Run dim() on object or word under cursor
+"     :RPrint [object]         - Run print() on object or word under cursor
+"     :RNames [object]         - Run names() on object or word under cursor
+"     :RLength [object]        - Run length() on object or word under cursor
+"     :RGlimpse [object]       - Run glimpse() on object or word under cursor
+"     :RTail [object]          - Run tail() on object or word under cursor
+"     :RHelp [topic]           - Get help on topic or word under cursor
+"     :RSummary [object]       - Run summary() on object or word under cursor
+"   
+"   Control Commands:
+"     :RQuit                   - Send Q to R terminal (quit)
+"     :RInterrupt              - Send Ctrl-C to R terminal (interrupt)
+"   
+"   Advanced Commands:
+"     :RSend {code}            - Send arbitrary R code
+"     :RSource {file}          - Source R file
+"     :RLibrary {package}      - Load library/package
+"     :RInstall {package}      - Install package
+"     :RLoad {file}            - Load RDS file (prompts for variable name)
+"     :RSave {object} {file}   - Save object to RDS file
+"   
+"   Utility Commands:
+"     :RSetwd [directory]      - Set working directory (defaults to Vim's cwd)
+"     :RGetwd                  - Get current working directory
+"     :RLs                     - List objects in workspace
+"     :RRm                     - Remove all objects from workspace
 
 "------------------------------------------------------------------------------
 " Guard against multiple loading
 "------------------------------------------------------------------------------
-if exists('g:loaded_script')
+if exists('g:loaded_zzvim_r')
     finish
 endif
-let g:loaded_script = 1
+let g:loaded_zzvim_r = 1
 
 "------------------------------------------------------------------------------
 " Configuration variables with defaults
@@ -108,28 +149,10 @@ if !exists('g:zzvim_r_chunk_end')
     let g:zzvim_r_chunk_end = '^```$'
 endif
 
-"------------------------------------------------------------------------------
-" Function: Open a new R terminal
-"------------------------------------------------------------------------------
-function! s:OpenRTerminal() abort
-    if !executable('R')
-        call s:Error('R is not installed or not in PATH')
-        return
-    endif
+if !exists('g:zzvim_r_debug')
+    let g:zzvim_r_debug = 0
+endif
 
-    " Open a vertical split and start the R terminal
-    execute 'vertical term ' . g:zzvim_r_command
-    " execute 'vertical resize ' . g:zzvim_r_terminal_width
-
-    " Set terminal-specific options
-    setlocal norelativenumber nonumber signcolumn=no
-
-    " Indicate that an R terminal is active
-    let t:is_r_term = 1
-
-    " Return focus to the previous window
-    wincmd p
-endfunction
 "------------------------------------------------------------------------------
 " Utility Functions
 "------------------------------------------------------------------------------
@@ -144,7 +167,7 @@ function! s:Error(msg) abort
     echohl ErrorMsg
     echom "zzvim-R: " . a:msg
     echohl None
-    " call Log(a:msg, 1)
+    call s:Log(a:msg, 1)
 endfunction
 
 "------------------------------------------------------------------------------
@@ -152,7 +175,7 @@ endfunction
 "------------------------------------------------------------------------------
 function! s:OpenRTerminal() abort
     if !executable('R')
-        call Error('R is not installed or not in PATH')
+        call s:Error('R is not installed or not in PATH')
         return
     endif
 
@@ -204,9 +227,15 @@ function! s:Send_to_r(cmd, stay_on_line) abort
         let target_terminal = terms[0]
         " Skip empty commands
         if !empty(trim(a:cmd))
-            call term_sendkeys(target_terminal, a:cmd . "\n")
-            " Add small delay for terminal handling
-            sleep 10m
+            " Validate terminal is still active
+            if term_getstatus(target_terminal) =~# 'running'
+                call term_sendkeys(target_terminal, a:cmd . "\n")
+                " Add small delay for terminal handling
+                sleep 10m
+            else
+                call s:Error("Terminal is not active")
+                return
+            endif
         endif
     catch
         call s:Error("Failed to send to R terminal: " . v:exception)
@@ -230,121 +259,6 @@ function! s:GetVisualSelection() abort
     return join(lines, "\n")
 endfunction
 
-" function! s:SendVisualToR() abort
-"     " Get the selected text
-"     let selection = s:GetVisualSelection()
-
-"     " Check if R terminal exists
-"     if !exists('t:is_r_term') || t:is_r_term != 1
-"         echohl ErrorMsg
-"         echom "Error: No R terminal is active. Open one with :call OpenRTerminal()."
-"         echohl None
-"         return
-"     endif
-
-"     " Send the selection to the R terminal
-"     try
-"         let terms = term_list()
-"         let target_terminal = terms[0]
-"         call term_sendkeys(target_terminal, selection . "\n")
-"         echo "Sent visual selection to R terminal."
-
-"         " Re-select the Visual selection and move the cursor to its end
-"         normal! gv
-"         normal! `>j
-"         normal! 0
-"     catch
-"         echohl ErrorMsg
-"         echom "Error: Unable to send to R terminal."
-"         echohl None
-"     endtry
-" endfunction
-"
-" function! s:SendVisualToR() abort
-"     " Get the selected text
-"     let selection = s:GetVisualSelection()
-
-"     " Check if R terminal exists
-"     if !exists('t:is_r_term') || t:is_r_term != 1
-"         echohl ErrorMsg
-"         echom "Error: No R terminal is active. Open one with :call OpenRTerminal()."
-"         echohl None
-"         return
-"     endif
-
-"     " Send the selection to the R terminal
-"     try
-"         let terms = term_list()
-"         let target_terminal = terms[0] " Assuming the first terminal is R
-"         call term_sendkeys(target_terminal, selection . "\n")
-"         echo "Sent visual selection to R terminal."
-"     catch
-"         echohl ErrorMsg
-"         echom "Error: Unable to send to R terminal."
-"         echohl None
-"     endtry
-" endfunction
-function! s:SendVisualToR() abort
-    " Store the end position of the visual selection
-    let [line_start, col_start] = getpos("'<")[1:2]
-    let [line_end, col_end] = getpos("'>")[1:2]
-    
-    " Get the selected text
-    let selection = s:GetVisualSelection()
-    
-    " Validate selection isn't empty
-    if empty(selection)
-        call s:Error("No text selected")
-        return
-    endif
-
-    " Check if R terminal exists and try to create one if it doesn't
-    if !exists('t:is_r_term') || t:is_r_term != 1
-        " Try to open R terminal
-        call s:OpenRTerminal()
-        
-        " Verify terminal was created successfully
-        if !exists('t:is_r_term') || t:is_r_term != 1
-            call s:Error("Could not create R terminal. Please check R installation.")
-            return
-        endif
-    endif
-
-    " Get available terminals
-    let terms = term_list()
-    if empty(terms)
-        call s:Error("No active terminals found")
-        return
-    endif
-
-    " Send the selection to the R terminal
-    try
-        let target_terminal = terms[0]
-        
-        " Split multi-line selections and send line by line
-        let lines = split(selection, "\n")
-        for line in lines
-            " Skip empty lines
-            if !empty(trim(line))
-                call term_sendkeys(target_terminal, line . "\n")
-                " Add small delay between lines for better terminal handling
-                sleep 10m
-            endif
-        endfor
-        
-        " Provide feedback
-        echo "Sent " . len(lines) . " line" . (len(lines) > 1 ? "s" : "") . " to R"
-        
-        " Exit visual mode, move to next line, and ensure normal mode
-        execute "normal! \<ESC>"
-        call cursor(line_end + 1, 1)
-        
-    catch
-        call s:Error("Failed to send to R terminal: " . v:exception)
-        " Ensure we exit to normal mode even on error
-        execute "normal! \<ESC>"
-    endtry
-endfunction
 "------------------------------------------------------------------------------
 " Function: Add a pipe operator and create a new line
 "------------------------------------------------------------------------------
@@ -357,14 +271,8 @@ endfunction
 " Function: Move to the next R Markdown chunk
 "------------------------------------------------------------------------------
 function! s:MoveNextChunk() abort
-    " Ensure the pattern for chunk start is defined
-    if !exists('g:zzvim_r_chunk_start')
-        call s:Error("Chunk start pattern is not defined.")
-        return
-    endif
-
-    " Search for the next chunk start
-    let chunk_start = search(g:zzvim_r_chunk_start, 'W')
+    let chunk_start_pattern = get(g:, 'zzvim_r_chunk_start', '^```{')
+    let chunk_start = search(chunk_start_pattern, 'W')
 
     if chunk_start
         " Move the cursor to the first line inside the chunk
@@ -372,7 +280,7 @@ function! s:MoveNextChunk() abort
             normal! j
             echom "Moved inside the next chunk at line " . line('.')
         else
-            call Error("Next chunk found, but no lines inside the chunk.")
+            call s:Error("Next chunk found, but no lines inside the chunk.")
         endif
     else
         call s:Error("No more chunks found.")
@@ -384,13 +292,45 @@ endfunction
 " Function: Move to the previous R Markdown chunk
 "------------------------------------------------------------------------------
 function! s:MovePrevChunk() abort
-    let chunk_start = search(g:zzvim_r_chunk_start, 'bW')
-    call setpos('.', [0, chunk_start, 1, 0])
-    let chunk_end = search(g:zzvim_r_chunk_end, 'bW')
-    call setpos('.', [0, chunk_end, 1, 0])
-    let chunk_start = search(g:zzvim_r_chunk_start, 'bW')
-    call setpos('.', [0, chunk_start, 1, 0])
-            normal! j
+    " Get patterns for R code chunks from plugin config
+    let chunk_start_pattern = get(g:, 'zzvim_r_chunk_start', '^```{')
+    
+    " Save current position
+    let current_pos = getpos('.')
+    let current_line_num = line('.')
+    
+    " First, find the current chunk we might be in
+    let current_chunk_start = search(chunk_start_pattern, 'bcnW')
+    
+    " If we're inside or at the start of the current chunk,
+    " we need to move before this chunk to find the previous one
+    if current_chunk_start > 0
+        " If we're not at the chunk start itself, go to it first
+        if current_line_num > current_chunk_start
+            call cursor(current_chunk_start, 1)
+        endif
+        
+        " Now go one line above the current chunk start to search
+        if current_chunk_start > 1
+            call cursor(current_chunk_start - 1, 1)
+        endif
+    endif
+    
+    " Now search for the previous chunk
+    let prev_chunk_start = search(chunk_start_pattern, 'bW')
+    
+    if prev_chunk_start > 0
+        " Move inside the chunk (to the line after the chunk header)
+        call cursor(prev_chunk_start + 1, 1)
+        normal! zz
+        echom "Moved to previous chunk at line " . line('.')
+        return 1
+    else
+        " No previous chunk found, restore position
+        call setpos('.', current_pos)
+        echom "No previous chunk found"
+        return 0
+    endif
 endfunction
 
 
@@ -400,17 +340,20 @@ function! s:SubmitChunk() abort
     
     " Navigate to next chunk after submission (preserve original behavior)
     let save_pos = getpos('.')
-    let chunk_end = search(g:zzvim_r_chunk_end, 'W')
+    let chunk_end_pattern = get(g:, 'zzvim_r_chunk_end', '^```$')
+    let chunk_start_pattern = get(g:, 'zzvim_r_chunk_start', '^```{')
+    
+    let chunk_end = search(chunk_end_pattern, 'W')
     if chunk_end > 0
         call setpos('.', [0, chunk_end, 1, 0])
-        let next_chunk_start = search(g:zzvim_r_chunk_start, 'W')
+        let next_chunk_start = search(chunk_start_pattern, 'W')
         if next_chunk_start > 0
             let line_num = next_chunk_start
             let line_count = line('$')
             while line_num <= line_count
                 let current_line = getline(line_num)
-                if current_line !~# '^\s*$' && current_line !~# g:zzvim_r_chunk_start 
-                    \ && current_line !~# g:zzvim_r_chunk_end
+                if current_line !~# '^\s*$' && current_line !~# chunk_start_pattern 
+                    \ && current_line !~# chunk_end_pattern
                     break
                 endif
                 let line_num += 1
@@ -424,43 +367,6 @@ function! s:SubmitChunk() abort
     endif
 endfunction
 
-function! s:CollectPreviousChunks() abort
-    " Define the chunk delimiter as lines starting with ```
-    let l:chunk_start_delimiter = '^\s*```{.*'
-    let l:chunk_end_delimiter = '^\s*```$'
-
-    " Get the current line number
-    let l:current_line = line('.')
-
-    " Initialize variables
-    let l:all_chunk_lines = []
-    let l:inside_chunk = 0
-
-    " Loop through lines up to the current line
-    for l:line in range(1, l:current_line)
-        let l:current_content = getline(l:line)
-        
-        " Check if the line is a chunk start
-        if l:current_content =~ l:chunk_start_delimiter
-            let l:inside_chunk = 1
-            continue
-        endif
-        
-        " Check if the line is a chunk end
-        if l:current_content =~ l:chunk_end_delimiter
-            let l:inside_chunk = 0
-            continue
-        endif
-
-        " If inside a chunk, collect the line
-        if l:inside_chunk
-            call add(l:all_chunk_lines, l:current_content)
-        endif
-    endfor
-
-    " Return the collected lines joined as a single string
-    return join(l:all_chunk_lines, "\n")
-endfunction
 "------------------------------------------------------------------------------
 " Mapping to Collect and Submit All Previous Chunks
 "------------------------------------------------------------------------------
@@ -564,30 +470,8 @@ endfunction
 " Function: Check if line starts a code block (function, control structure, etc.)
 "------------------------------------------------------------------------------
 function! s:IsBlockStart(line) abort
-    " Remove leading/trailing whitespace
-    let clean_line = substitute(a:line, '^\s\+\|\s\+$', '', 'g')
-    
-    " Check each pattern individually
-    if clean_line =~# '.*function\s*('
-        return 1
-    endif
-    if clean_line =~# '^\s*if\s*('
-        return 1
-    endif
-    if clean_line =~# '^\s*for\s*('
-        return 1
-    endif
-    if clean_line =~# '^\s*while\s*('
-        return 1
-    endif
-    if clean_line =~# '^\s*repeat\s*{'
-        return 1
-    endif
-    if clean_line =~# '^\s*{'
-        return 1
-    endif
-    
-    return 0
+    " Single optimized regex to match all R block start patterns
+    return a:line =~# '\v(.*function\s*\(|^\s*(if|for|while)\s*\(|^\s*(repeat\s*)?\{)'
 endfunction
 
 "------------------------------------------------------------------------------
@@ -659,14 +543,8 @@ endfunction
 " Function: Get visual selection as lines
 "------------------------------------------------------------------------------
 function! s:GetVisualSelectionLines() abort
-    " Use the existing GetVisualSelection function logic
-    let save_reg = @"
-    normal! gvy
-    let selected_text = @"
-    let @" = save_reg
-    
-    " Split into lines
-    return split(selected_text, '\n')
+    " Reuse existing GetVisualSelection function and split into lines
+    return split(s:GetVisualSelection(), '\n')
 endfunction
 
 "------------------------------------------------------------------------------
@@ -674,12 +552,15 @@ endfunction
 "------------------------------------------------------------------------------
 function! s:GetCurrentChunk() abort
     let save_pos = getpos('.')
-    let chunk_start = search(g:zzvim_r_chunk_start, 'bW')
+    let chunk_start_pattern = get(g:, 'zzvim_r_chunk_start', '^```{')
+    let chunk_end_pattern = get(g:, 'zzvim_r_chunk_end', '^```$')
+    
+    let chunk_start = search(chunk_start_pattern, 'bW')
     if chunk_start == 0
         call setpos('.', save_pos)
         return []
     endif
-    let chunk_end = search(g:zzvim_r_chunk_end, 'W')
+    let chunk_end = search(chunk_end_pattern, 'W')
     if chunk_end == 0
         call setpos('.', save_pos)
         return []
@@ -782,3 +663,170 @@ if !g:zzvim_r_disable_mappings
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>sp :call <SID>SendToR('previous_chunks')<CR>
     augroup END
 endif
+
+"------------------------------------------------------------------------------
+" Ex Commands
+"------------------------------------------------------------------------------
+
+" Core Operations
+command! ROpenTerminal call s:OpenRTerminal()
+command! RSendLine call s:SendToR('line')
+command! RSendSelection call s:SendVisualToRGeneralized()
+command! RSendFunction call s:SendToR('function')
+command! RSendSmart call s:SendToR('')
+command! RAddPipe call s:AddPipeAndNewLine()
+
+" Chunk Navigation and Execution
+command! RNextChunk call s:MoveNextChunk()
+command! RPrevChunk call s:MovePrevChunk()
+command! RSendChunk call s:SendToR('chunk')
+command! RSendPreviousChunks call s:SendToR('previous_chunks')
+
+" Object Inspection Commands (with optional arguments)
+command! -nargs=? RHead call s:RCommandWithArg('head', <q-args>)
+command! -nargs=? RStr call s:RCommandWithArg('str', <q-args>)
+command! -nargs=? RDim call s:RCommandWithArg('dim', <q-args>)
+command! -nargs=? RPrint call s:RCommandWithArg('print', <q-args>)
+command! -nargs=? RNames call s:RCommandWithArg('names', <q-args>)
+command! -nargs=? RLength call s:RCommandWithArg('length', <q-args>)
+command! -nargs=? RGlimpse call s:RCommandWithArg('glimpse', <q-args>)
+command! -nargs=? RTail call s:RCommandWithArg('tail', <q-args>)
+command! -nargs=? RHelp call s:RCommandWithArg('help', <q-args>)
+command! -nargs=? RSummary call s:RCommandWithArg('summary', <q-args>)
+
+" Control Commands
+command! RQuit call s:SendControlKeys("Q")
+command! RInterrupt call s:SendControlKeys("\<C-c>")
+
+" Advanced Commands with Argument Handling
+command! -nargs=1 RSend call s:RSendCommand(<q-args>)
+command! -nargs=1 RSource call s:RSourceCommand(<q-args>)
+command! -nargs=1 RLibrary call s:RLibraryCommand(<q-args>)
+command! -nargs=1 RInstall call s:RInstallCommand(<q-args>)
+command! -nargs=1 RLoad call s:RLoadCommand(<q-args>)
+command! -nargs=1 RSave call s:RSaveCommand(<q-args>)
+
+" Utility Commands
+command! -nargs=? RSetwd call s:RSetwdCommand(<q-args>)
+command! RGetwd call s:Send_to_r('getwd()', 1)
+command! RLs call s:Send_to_r('ls()', 1)
+command! RRm call s:Send_to_r('rm(list=ls())', 1)
+
+"------------------------------------------------------------------------------
+" Helper Functions for Commands
+"------------------------------------------------------------------------------
+
+" Generic function for R commands that can take optional arguments
+function! s:RCommandWithArg(action, arg) abort
+    if empty(a:arg)
+        " Use word under cursor if no argument provided
+        let word = expand('<cword>')
+        if empty(word)
+            call s:Error("No argument provided and no word under cursor for " . a:action . "()")
+            return
+        endif
+        let target = word
+    else
+        let target = a:arg
+    endif
+    
+    call s:Send_to_r(a:action . '(' . target . ')', 1)
+    echom "Executed " . a:action . "(" . target . ")"
+endfunction
+
+" Send arbitrary R code
+function! s:RSendCommand(code) abort
+    if empty(a:code)
+        call s:Error("No R code provided")
+        return
+    endif
+    call s:Send_to_r(a:code, 0)
+    echom "Sent: " . a:code
+endfunction
+
+" Source an R file
+function! s:RSourceCommand(file) abort
+    if empty(a:file)
+        call s:Error("No file path provided")
+        return
+    endif
+    
+    " Handle relative paths and expand ~
+    let expanded_file = expand(a:file)
+    call s:Send_to_r("source('" . expanded_file . "')", 0)
+    echom "Sourced: " . expanded_file
+endfunction
+
+" Load a library/package
+function! s:RLibraryCommand(package) abort
+    if empty(a:package)
+        call s:Error("No package name provided")
+        return
+    endif
+    call s:Send_to_r('library(' . a:package . ')', 0)
+    echom "Loaded library: " . a:package
+endfunction
+
+" Install a package
+function! s:RInstallCommand(package) abort
+    if empty(a:package)
+        call s:Error("No package name provided")
+        return
+    endif
+    call s:Send_to_r("install.packages('" . a:package . "')", 0)
+    echom "Installing package: " . a:package
+endfunction
+
+" Load RDS file
+function! s:RLoadCommand(file) abort
+    if empty(a:file)
+        call s:Error("No file path provided")
+        return
+    endif
+    
+    let expanded_file = expand(a:file)
+    let var_name = input("Variable name (or press Enter for auto): ")
+    
+    if empty(var_name)
+        " Generate variable name from filename
+        let var_name = fnamemodify(expanded_file, ':t:r')
+        let var_name = substitute(var_name, '[^a-zA-Z0-9_]', '_', 'g')
+    endif
+    
+    call s:Send_to_r(var_name . " <- readRDS('" . expanded_file . "')", 0)
+    echom "Loaded " . expanded_file . " into " . var_name
+endfunction
+
+" Save to RDS file
+function! s:RSaveCommand(args) abort
+    if empty(a:args)
+        call s:Error("Usage: RSave object filename")
+        return
+    endif
+    
+    let parts = split(a:args)
+    if len(parts) < 2
+        call s:Error("Usage: RSave object filename")
+        return
+    endif
+    
+    let object = parts[0]
+    let filename = join(parts[1:])
+    let expanded_file = expand(filename)
+    
+    call s:Send_to_r("saveRDS(" . object . ", '" . expanded_file . "')", 0)
+    echom "Saved " . object . " to " . expanded_file
+endfunction
+
+" Set working directory
+function! s:RSetwdCommand(dir) abort
+    if empty(a:dir)
+        " Use current Vim directory if no argument
+        let target_dir = getcwd()
+    else
+        let target_dir = expand(a:dir)
+    endif
+    
+    call s:Send_to_r("setwd('" . target_dir . "')", 0)
+    echom "Set R working directory to: " . target_dir
+endfunction
