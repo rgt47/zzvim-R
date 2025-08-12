@@ -395,47 +395,33 @@ endfunction
 
 
 function! s:SubmitChunk() abort
-    let save_pos = getpos('.')  " Save the current cursor position
-    let chunk_start = search(g:zzvim_r_chunk_start, 'bW')
-    if chunk_start == 0
-        call s:Error("No valid chunk start found.")
-        call setpos('.', save_pos)  " Restore the cursor position
-        return
-    endif
+    " Use the generalized function for chunk submission
+    call s:SendToR('chunk')
+    
+    " Navigate to next chunk after submission (preserve original behavior)
+    let save_pos = getpos('.')
     let chunk_end = search(g:zzvim_r_chunk_end, 'W')
-    if chunk_end == 0
-        call s:Error("No valid chunk end found.")
-        call setpos('.', save_pos)  " Restore the cursor position
-        return
-    endif
-    let chunk_lines = getline(chunk_start + 1, chunk_end - 1)
-    let g:source_file = tempname()
-    call writefile(chunk_lines, g:source_file)
-
-    let cmd = "source('" . g:source_file . "', echo=T)\n"
-    call s:Send_to_r(cmd, 0)
-    echom "Submitted current chunk to R."
-    call setpos('.', [0, chunk_end, 1, 0])
-    let next_chunk_start = search(g:zzvim_r_chunk_start, 'W')
-    if next_chunk_start == 0
-        call s:Error("No more chunks found after submission.")
-        return
-    endif
-    let line_num = next_chunk_start
-    let line_count = line('$')
-    while line_num <= line_count
-        let current_line = getline(line_num)
-        if current_line !~# '^\s*$' && current_line !~# g:zzvim_r_chunk_start 
-				\ && current_line !~# g:zzvim_r_chunk_end
-            break
+    if chunk_end > 0
+        call setpos('.', [0, chunk_end, 1, 0])
+        let next_chunk_start = search(g:zzvim_r_chunk_start, 'W')
+        if next_chunk_start > 0
+            let line_num = next_chunk_start
+            let line_count = line('$')
+            while line_num <= line_count
+                let current_line = getline(line_num)
+                if current_line !~# '^\s*$' && current_line !~# g:zzvim_r_chunk_start 
+                    \ && current_line !~# g:zzvim_r_chunk_end
+                    break
+                endif
+                let line_num += 1
+            endwhile
+            if line_num <= line_count
+                call setpos('.', [0, line_num, 1, 0])
+            endif
         endif
-        let line_num += 1
-    endwhile
-    if line_num > line_count
-        call s:Error("No valid lines inside the next chunk.")
-        return
+    else
+        call setpos('.', save_pos)
     endif
-    call setpos('.', [0, line_num, 1, 0])
 endfunction
 
 function! s:CollectPreviousChunks() abort
@@ -723,47 +709,20 @@ function! s:GetPreviousChunks() abort
 endfunction
 
 "------------------------------------------------------------------------------
-" Temporary test function (remove after testing)
+" Function: Smart submission - uses generalized function with auto-detection
 "------------------------------------------------------------------------------
-function! TestGeneralizedSend()
-    echo "Testing s:IsBlockStart patterns:"
-    
-    " Test each pattern individually
-    let line1 = 'my_func <- function(x) {'
-    let result1 = s:IsBlockStart(line1)
-    echo printf("%-30s -> %s", line1, result1 ? 'BLOCK START' : 'regular line')
-    
-    let line2 = 'if (x > 0) {'
-    let result2 = s:IsBlockStart(line2)
-    echo printf("%-30s -> %s", line2, result2 ? 'BLOCK START' : 'regular line')
-    
-    let line3 = 'for (i in 1:10) {'
-    let result3 = s:IsBlockStart(line3)
-    echo printf("%-30s -> %s", line3, result3 ? 'BLOCK START' : 'regular line')
-    
-    let line4 = 'x <- 5'
-    let result4 = s:IsBlockStart(line4)
-    echo printf("%-30s -> %s", line4, result4 ? 'BLOCK START' : 'regular line')
-    
-    echo ""
-    echo "Test current line behavior:"
-    let current_line = getline('.')
-    let is_block = s:IsBlockStart(current_line)
-    echo "Current line: " . current_line
-    echo "Is block start: " . (is_block ? 'YES' : 'NO')
-    
-    echo ""
-    echo "Testing text extraction (without sending to R):"
-    try
-        let text_lines = s:GetTextByType('line')
-        echo "Line extraction: " . len(text_lines) . " lines"
-        if len(text_lines) > 0
-            echo "First line: " . text_lines[0]
-        endif
-    catch
-        echo "Error in GetTextByType: " . v:exception
-    endtry
+function! s:SmartSubmit() abort
+    " Use smart detection (empty string triggers auto-detection)
+    call s:SendToR('')
 endfunction
+
+"------------------------------------------------------------------------------
+" Function: Visual selection submission using generalized function
+"------------------------------------------------------------------------------  
+function! s:SendVisualToRGeneralized() abort
+    call s:SendToR('selection')
+endfunction
+
 
 "------------------------------------------------------------------------------
 " Mappings
@@ -775,8 +734,8 @@ if !g:zzvim_r_disable_mappings
     augroup zzvim_RMarkdown
         autocmd!
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>r  :call <SID>OpenRTerminal()<CR>
-        autocmd FileType r,rmd,qmd xnoremap <buffer> <silent> <CR>    :<C-u>call <SID>SendVisualToR()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <CR>  :call <SID>Send_to_r(getline("."),0)<CR>
+        autocmd FileType r,rmd,qmd xnoremap <buffer> <silent> <CR>    :<C-u>call <SID>SendVisualToRGeneralized()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <CR>  :call <SID>SmartSubmit()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>o   :call <SID>AddPipeAndNewLine()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>j   :call <SID>MoveNextChunk()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>k :call <SID>MovePrevChunk()<CR>
@@ -794,5 +753,9 @@ if !g:zzvim_r_disable_mappings
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>g :call <SID>RAction("glimpse",1)<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>b :call <SID>RAction("dt",1)<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>y :call <SID>RAction("help", 1)<CR>
+        " Additional generalized send mappings
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>sf :call <SID>SendToR('function')<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>sl :call <SID>SendToR('line')<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>sa :call <SID>SendToR('')<CR>
     augroup END
 endif
