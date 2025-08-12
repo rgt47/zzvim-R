@@ -530,6 +530,194 @@ function! s:RAction(action, stay_on_line) abort
 endfunction
 
 "------------------------------------------------------------------------------
+" Function: Generalized text sending to R with smart detection
+"------------------------------------------------------------------------------
+function! s:SendToR(selection_type, ...) abort
+    " Get text lines based on selection type or smart detection
+    let text_lines = s:GetTextByType(a:selection_type)
+    
+    if empty(text_lines)
+        call s:Error("No text to send to R.")
+        return
+    endif
+    
+    " Always use temp file approach for consistency
+    let temp_file = tempname()
+    call writefile(text_lines, temp_file)
+    let cmd = "source('" . temp_file . "', echo=T)\n"
+    call s:Send_to_r(cmd, 0)
+    
+    " Provide feedback about what was sent
+    let line_count = len(text_lines)
+    if line_count == 1
+        echom "Sent 1 line to R."
+    else
+        echom "Sent " . line_count . " lines to R."
+    endif
+endfunction
+
+"------------------------------------------------------------------------------
+" Function: Extract text based on selection type with smart detection
+"------------------------------------------------------------------------------
+function! s:GetTextByType(selection_type) abort
+    let current_line = getline('.')
+    
+    " Smart detection: check if current line starts a code block
+    if s:IsBlockStart(current_line)
+        return s:GetCodeBlock()
+    endif
+    
+    " Use explicit selection type
+    if a:selection_type ==# 'line'
+        return [current_line]
+    elseif a:selection_type ==# 'selection'
+        return s:GetVisualSelectionLines()
+    elseif a:selection_type ==# 'chunk'
+        return s:GetCurrentChunk()
+    elseif a:selection_type ==# 'previous_chunks'
+        return s:GetPreviousChunks()
+    elseif a:selection_type ==# 'function'
+        return s:GetCodeBlock()
+    else
+        " Default to current line
+        return [current_line]
+    endif
+endfunction
+
+"------------------------------------------------------------------------------
+" Function: Check if line starts a code block (function, control structure, etc.)
+"------------------------------------------------------------------------------
+function! s:IsBlockStart(line) abort
+    " Remove leading/trailing whitespace
+    let clean_line = substitute(a:line, '^\s\+\|\s\+$', '', 'g')
+    
+    " Patterns that indicate the start of a code block
+    let patterns = [
+        \ '.*function\s*(',        " function definitions
+        \ '^\s*if\s*(',           " if statements  
+        \ '^\s*for\s*(',          " for loops
+        \ '^\s*while\s*(',        " while loops
+        \ '^\s*repeat\s*{',       " repeat loops
+        \ '^\s*{',                " standalone code blocks
+    \ ]
+    
+    for pattern in patterns
+        if clean_line =~# pattern
+            return 1
+        endif
+    endfor
+    
+    return 0
+endfunction
+
+"------------------------------------------------------------------------------
+" Function: Get complete code block by matching braces
+"------------------------------------------------------------------------------
+function! s:GetCodeBlock() abort
+    let save_pos = getpos('.')
+    let current_line_num = line('.')
+    let current_line = getline('.')
+    
+    " Find the opening brace on current line or next lines
+    let brace_line = current_line_num
+    let found_opening = 0
+    
+    " Search for opening brace starting from current line
+    while brace_line <= line('$')
+        let line_content = getline(brace_line)
+        if line_content =~ '{'
+            let found_opening = 1
+            break
+        endif
+        let brace_line += 1
+        " Don't search too far
+        if brace_line > current_line_num + 5
+            break
+        endif
+    endwhile
+    
+    if !found_opening
+        call setpos('.', save_pos)
+        call s:Error("No opening brace found for code block.")
+        return []
+    endif
+    
+    " Find matching closing brace
+    call cursor(brace_line, 1)
+    let brace_count = 0
+    let start_line = current_line_num
+    let end_line = -1
+    
+    for line_num in range(brace_line, line('$'))
+        let line_content = getline(line_num)
+        
+        " Count braces in this line
+        let open_braces = len(substitute(line_content, '[^{]', '', 'g'))
+        let close_braces = len(substitute(line_content, '[^}]', '', 'g'))
+        
+        let brace_count += open_braces - close_braces
+        
+        if brace_count == 0 && open_braces > 0
+            let end_line = line_num
+            break
+        endif
+    endfor
+    
+    call setpos('.', save_pos)
+    
+    if end_line == -1
+        call s:Error("No matching closing brace found.")
+        return []
+    endif
+    
+    " Get lines from start to end (inclusive)
+    return getline(start_line, end_line)
+endfunction
+
+"------------------------------------------------------------------------------
+" Function: Get visual selection as lines
+"------------------------------------------------------------------------------
+function! s:GetVisualSelectionLines() abort
+    " Use the existing GetVisualSelection function logic
+    let save_reg = @"
+    normal! gvy
+    let selected_text = @"
+    let @" = save_reg
+    
+    " Split into lines
+    return split(selected_text, '\n')
+endfunction
+
+"------------------------------------------------------------------------------
+" Function: Get current chunk (reuse existing logic)
+"------------------------------------------------------------------------------
+function! s:GetCurrentChunk() abort
+    let save_pos = getpos('.')
+    let chunk_start = search(g:zzvim_r_chunk_start, 'bW')
+    if chunk_start == 0
+        call setpos('.', save_pos)
+        return []
+    endif
+    let chunk_end = search(g:zzvim_r_chunk_end, 'W')
+    if chunk_end == 0
+        call setpos('.', save_pos)
+        return []
+    endif
+    
+    call setpos('.', save_pos)
+    return getline(chunk_start + 1, chunk_end - 1)
+endfunction
+
+"------------------------------------------------------------------------------
+" Function: Get all previous chunks (reuse existing logic)
+"------------------------------------------------------------------------------
+function! s:GetPreviousChunks() abort
+    " This would reuse the existing CollectPreviousChunks logic
+    " For now, return empty (to be implemented)
+    return []
+endfunction
+
+"------------------------------------------------------------------------------
 " Mappings
 "------------------------------------------------------------------------------
 "
