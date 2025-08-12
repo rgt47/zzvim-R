@@ -117,7 +117,17 @@
 if exists('g:loaded_zzvim_r')
     finish
 endif
+
+" Check for minimum Vim version and terminal support
+if v:version < 800 || !has('terminal')
+    echohl ErrorMsg
+    echom "zzvim-R requires Vim 8.0+ with terminal support"
+    echohl None
+    finish
+endif
+
 let g:loaded_zzvim_r = 1
+let g:zzvim_r_version = '1.0'
 
 "------------------------------------------------------------------------------
 " Configuration variables with defaults
@@ -157,7 +167,7 @@ endif
 " Utility Functions
 "------------------------------------------------------------------------------
 function! s:Log(msg, level) abort
-    if g:zzvim_r_debug >= a:level
+    if get(g:, 'zzvim_r_debug', 0) >= a:level
         call writefile([strftime('%c') . ' - ' . a:msg], expand('~/zzvim_r.log'), 'a')
         echom "Debug: " . a:msg
     endif
@@ -217,19 +227,19 @@ function! s:Send_to_r(cmd, stay_on_line) abort
     endif
 
     " Get available terminals
-    let terms = term_list()
-    if empty(terms)
+    let l:terms = term_list()
+    if empty(l:terms)
         call s:Error("No active terminals found")
         return
     endif
 
     try
-        let target_terminal = terms[0]
+        let l:target_terminal = l:terms[0]
         " Skip empty commands
         if !empty(trim(a:cmd))
             " Validate terminal is still active
-            if term_getstatus(target_terminal) =~# 'running'
-                call term_sendkeys(target_terminal, a:cmd . "\n")
+            if term_getstatus(l:target_terminal) =~# 'running'
+                call term_sendkeys(l:target_terminal, a:cmd . "\n")
                 " Add small delay for terminal handling
                 sleep 10m
             else
@@ -248,15 +258,15 @@ function! s:Send_to_r(cmd, stay_on_line) abort
 endfunction
 
 function! s:GetVisualSelection() abort
-    let [line_start, col_start] = getpos("'<")[1:2]
-    let [line_end, col_end] = getpos("'>")[1:2]
-    let lines = getline(line_start, line_end)
+    let [l:line_start, l:col_start] = getpos("'<")[1:2]
+    let [l:line_end, l:col_end] = getpos("'>")[1:2]
+    let l:lines = getline(l:line_start, l:line_end)
 
     " Trim the first and last lines to the selection
-    let lines[-1] = lines[-1][: col_end - 1]
-    let lines[0] = lines[0][col_start - 1:]
+    let l:lines[-1] = l:lines[-1][: l:col_end - 1]
+    let l:lines[0] = l:lines[0][l:col_start - 1:]
 
-    return join(lines, "\n")
+    return join(l:lines, "\n")
 endfunction
 
 "------------------------------------------------------------------------------
@@ -271,10 +281,10 @@ endfunction
 " Function: Move to the next R Markdown chunk
 "------------------------------------------------------------------------------
 function! s:MoveNextChunk() abort
-    let chunk_start_pattern = get(g:, 'zzvim_r_chunk_start', '^```{')
-    let chunk_start = search(chunk_start_pattern, 'W')
+    let l:chunk_start_pattern = get(g:, 'zzvim_r_chunk_start', '^```{')
+    let l:chunk_start = search(l:chunk_start_pattern, 'W')
 
-    if chunk_start
+    if l:chunk_start
         " Move the cursor to the first line inside the chunk
         if line('.') < line('$')
             normal! j
@@ -402,13 +412,7 @@ endfunction
 " Function: Perform an R action on the word under the cursor
 "------------------------------------------------------------------------------
 function! s:RAction(action, stay_on_line) abort
-    let word = expand('<cword>')
-    if empty(word)
-        call s:Error("No word under cursor.")
-        return
-    endif
-    call s:Send_to_r(a:action . '(' . word . ')', a:stay_on_line)
-    echom "Ran " . a:action . " on " . word . "."
+    call s:RCommandWithArg(a:action, '', a:stay_on_line)
 endfunction
 
 "------------------------------------------------------------------------------
@@ -431,28 +435,20 @@ function! s:SendToR(selection_type, ...) abort
     
     " Provide feedback about what was sent
     let line_count = len(text_lines)
-    if line_count == 1
-        echom "Sent 1 line to R."
-    else
-        echom "Sent " . line_count . " lines to R."
-    endif
+    echom "Sent " . line_count . " line" . (line_count == 1 ? "" : "s") . " to R."
 endfunction
 
 "------------------------------------------------------------------------------
 " Function: Extract text based on selection type with smart detection
 "------------------------------------------------------------------------------
 function! s:GetTextByType(selection_type) abort
-    let current_line = getline('.')
-    
-    " Smart detection: check if current line starts a code block
-    if s:IsBlockStart(current_line)
+    " Auto-detection for empty selection type
+    if empty(a:selection_type) && s:IsBlockStart(getline('.'))
         return s:GetCodeBlock()
     endif
     
-    " Use explicit selection type
-    if a:selection_type ==# 'line'
-        return [current_line]
-    elseif a:selection_type ==# 'selection'
+    " Selection type dispatch
+    if a:selection_type ==# 'selection'
         return s:GetVisualSelectionLines()
     elseif a:selection_type ==# 'chunk'
         return s:GetCurrentChunk()
@@ -461,8 +457,8 @@ function! s:GetTextByType(selection_type) abort
     elseif a:selection_type ==# 'function'
         return s:GetCodeBlock()
     else
-        " Default to current line
-        return [current_line]
+        " Default: line or auto-detection fallback
+        return [getline('.')]
     endif
 endfunction
 
@@ -614,17 +610,6 @@ endfunction
 "------------------------------------------------------------------------------
 " Function: Smart submission - uses generalized function with auto-detection
 "------------------------------------------------------------------------------
-function! s:SmartSubmit() abort
-    " Use smart detection (empty string triggers auto-detection)
-    call s:SendToR('')
-endfunction
-
-"------------------------------------------------------------------------------
-" Function: Visual selection submission using generalized function
-"------------------------------------------------------------------------------  
-function! s:SendVisualToRGeneralized() abort
-    call s:SendToR('selection')
-endfunction
 
 
 "------------------------------------------------------------------------------
@@ -637,8 +622,8 @@ if !g:zzvim_r_disable_mappings
     augroup zzvim_RMarkdown
         autocmd!
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>r  :call <SID>OpenRTerminal()<CR>
-        autocmd FileType r,rmd,qmd xnoremap <buffer> <silent> <CR>    :<C-u>call <SID>SendVisualToRGeneralized()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <CR>  :call <SID>SmartSubmit()<CR>
+        autocmd FileType r,rmd,qmd xnoremap <buffer> <silent> <CR>    :<C-u>call <SID>SendToR('selection')<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <CR>  :call <SID>SendToR('')<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>o   :call <SID>AddPipeAndNewLine()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>j   :call <SID>MoveNextChunk()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>k :call <SID>MovePrevChunk()<CR>
@@ -669,55 +654,57 @@ endif
 "------------------------------------------------------------------------------
 
 " Core Operations
-command! ROpenTerminal call s:OpenRTerminal()
-command! RSendLine call s:SendToR('line')
-command! RSendSelection call s:SendVisualToRGeneralized()
-command! RSendFunction call s:SendToR('function')
-command! RSendSmart call s:SendToR('')
-command! RAddPipe call s:AddPipeAndNewLine()
+command! -bar ROpenTerminal call s:OpenRTerminal()
+command! -bar RSendLine call s:SendToR('line')
+command! -bar RSendSelection call s:SendToR('selection')
+command! -bar RSendFunction call s:SendToR('function')
+command! -bar RSendSmart call s:SendToR('')
+command! -bar RAddPipe call s:AddPipeAndNewLine()
 
 " Chunk Navigation and Execution
-command! RNextChunk call s:MoveNextChunk()
-command! RPrevChunk call s:MovePrevChunk()
-command! RSendChunk call s:SendToR('chunk')
-command! RSendPreviousChunks call s:SendToR('previous_chunks')
+command! -bar RNextChunk call s:MoveNextChunk()
+command! -bar RPrevChunk call s:MovePrevChunk()
+command! -bar RSendChunk call s:SendToR('chunk')
+command! -bar RSendPreviousChunks call s:SendToR('previous_chunks')
 
 " Object Inspection Commands (with optional arguments)
-command! -nargs=? RHead call s:RCommandWithArg('head', <q-args>)
-command! -nargs=? RStr call s:RCommandWithArg('str', <q-args>)
-command! -nargs=? RDim call s:RCommandWithArg('dim', <q-args>)
-command! -nargs=? RPrint call s:RCommandWithArg('print', <q-args>)
-command! -nargs=? RNames call s:RCommandWithArg('names', <q-args>)
-command! -nargs=? RLength call s:RCommandWithArg('length', <q-args>)
-command! -nargs=? RGlimpse call s:RCommandWithArg('glimpse', <q-args>)
-command! -nargs=? RTail call s:RCommandWithArg('tail', <q-args>)
-command! -nargs=? RHelp call s:RCommandWithArg('help', <q-args>)
-command! -nargs=? RSummary call s:RCommandWithArg('summary', <q-args>)
+command! -bar -nargs=? RHead call s:RCommandWithArg('head', <q-args>)
+command! -bar -nargs=? RStr call s:RCommandWithArg('str', <q-args>)
+command! -bar -nargs=? RDim call s:RCommandWithArg('dim', <q-args>)
+command! -bar -nargs=? RPrint call s:RCommandWithArg('print', <q-args>)
+command! -bar -nargs=? RNames call s:RCommandWithArg('names', <q-args>)
+command! -bar -nargs=? RLength call s:RCommandWithArg('length', <q-args>)
+command! -bar -nargs=? RGlimpse call s:RCommandWithArg('glimpse', <q-args>)
+command! -bar -nargs=? RTail call s:RCommandWithArg('tail', <q-args>)
+command! -bar -nargs=? RHelp call s:RCommandWithArg('help', <q-args>)
+command! -bar -nargs=? RSummary call s:RCommandWithArg('summary', <q-args>)
 
 " Control Commands
-command! RQuit call s:SendControlKeys("Q")
-command! RInterrupt call s:SendControlKeys("\<C-c>")
+command! -bar RQuit call s:SendControlKeys("Q")
+command! -bar RInterrupt call s:SendControlKeys("\<C-c>")
 
 " Advanced Commands with Argument Handling
-command! -nargs=1 RSend call s:RSendCommand(<q-args>)
-command! -nargs=1 RSource call s:RSourceCommand(<q-args>)
-command! -nargs=1 RLibrary call s:RLibraryCommand(<q-args>)
-command! -nargs=1 RInstall call s:RInstallCommand(<q-args>)
-command! -nargs=1 RLoad call s:RLoadCommand(<q-args>)
-command! -nargs=1 RSave call s:RSaveCommand(<q-args>)
+command! -bar -nargs=1 RSend call s:RSendCommand(<q-args>)
+command! -bar -nargs=1 RSource call s:RSourceCommand(<q-args>)
+command! -bar -nargs=1 RLibrary call s:RLibraryCommand(<q-args>)
+command! -bar -nargs=1 RInstall call s:RInstallCommand(<q-args>)
+command! -bar -nargs=1 RLoad call s:RLoadCommand(<q-args>)
+command! -bar -nargs=1 RSave call s:RSaveCommand(<q-args>)
 
 " Utility Commands
-command! -nargs=? RSetwd call s:RSetwdCommand(<q-args>)
-command! RGetwd call s:Send_to_r('getwd()', 1)
-command! RLs call s:Send_to_r('ls()', 1)
-command! RRm call s:Send_to_r('rm(list=ls())', 1)
+command! -bar -nargs=? RSetwd call s:RSetwdCommand(<q-args>)
+command! -bar RGetwd call s:Send_to_r('getwd()', 1)
+command! -bar RLs call s:Send_to_r('ls()', 1)
+command! -bar RRm call s:Send_to_r('rm(list=ls())', 1)
 
 "------------------------------------------------------------------------------
 " Helper Functions for Commands
 "------------------------------------------------------------------------------
 
 " Generic function for R commands that can take optional arguments
-function! s:RCommandWithArg(action, arg) abort
+function! s:RCommandWithArg(action, arg, ...) abort
+    let stay_on_line = a:0 > 0 ? a:1 : 1
+    
     if empty(a:arg)
         " Use word under cursor if no argument provided
         let word = expand('<cword>')
@@ -730,51 +717,39 @@ function! s:RCommandWithArg(action, arg) abort
         let target = a:arg
     endif
     
-    call s:Send_to_r(a:action . '(' . target . ')', 1)
+    call s:Send_to_r(a:action . '(' . target . ')', stay_on_line)
     echom "Executed " . a:action . "(" . target . ")"
+endfunction
+
+" Helper for simple R commands with validation
+function! s:SimpleRCommand(arg, error_msg, cmd_template, success_msg) abort
+    if empty(a:arg)
+        call s:Error(a:error_msg)
+        return
+    endif
+    let expanded_arg = expand(a:arg)
+    call s:Send_to_r(printf(a:cmd_template, expanded_arg), 0)
+    echom printf(a:success_msg, expanded_arg)
 endfunction
 
 " Send arbitrary R code
 function! s:RSendCommand(code) abort
-    if empty(a:code)
-        call s:Error("No R code provided")
-        return
-    endif
-    call s:Send_to_r(a:code, 0)
-    echom "Sent: " . a:code
+    call s:SimpleRCommand(a:code, "No R code provided", "%s", "Sent: %s")
 endfunction
 
 " Source an R file
 function! s:RSourceCommand(file) abort
-    if empty(a:file)
-        call s:Error("No file path provided")
-        return
-    endif
-    
-    " Handle relative paths and expand ~
-    let expanded_file = expand(a:file)
-    call s:Send_to_r("source('" . expanded_file . "')", 0)
-    echom "Sourced: " . expanded_file
+    call s:SimpleRCommand(a:file, "No file path provided", "source('%s')", "Sourced: %s")
 endfunction
 
 " Load a library/package
 function! s:RLibraryCommand(package) abort
-    if empty(a:package)
-        call s:Error("No package name provided")
-        return
-    endif
-    call s:Send_to_r('library(' . a:package . ')', 0)
-    echom "Loaded library: " . a:package
+    call s:SimpleRCommand(a:package, "No package name provided", "library(%s)", "Loaded library: %s")
 endfunction
 
 " Install a package
 function! s:RInstallCommand(package) abort
-    if empty(a:package)
-        call s:Error("No package name provided")
-        return
-    endif
-    call s:Send_to_r("install.packages('" . a:package . "')", 0)
-    echom "Installing package: " . a:package
+    call s:SimpleRCommand(a:package, "No package name provided", "install.packages('%s')", "Installing package: %s")
 endfunction
 
 " Load RDS file
@@ -820,13 +795,7 @@ endfunction
 
 " Set working directory
 function! s:RSetwdCommand(dir) abort
-    if empty(a:dir)
-        " Use current Vim directory if no argument
-        let target_dir = getcwd()
-    else
-        let target_dir = expand(a:dir)
-    endif
-    
+    let target_dir = empty(a:dir) ? getcwd() : expand(a:dir)
     call s:Send_to_r("setwd('" . target_dir . "')", 0)
     echom "Set R working directory to: " . target_dir
 endfunction

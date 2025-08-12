@@ -28,7 +28,7 @@ The plugin supports R script files (.R) as well as R Markdown (.rmd) and Quarto
 2. REQUIREMENTS                                            *zzvim-r-requirements*
 
 The plugin requires:
-    * Vim 8.1 or newer with the +terminal feature
+    * Vim 8.0 or newer with the +terminal feature
     * R installed and available in your PATH
 
 ==============================================================================
