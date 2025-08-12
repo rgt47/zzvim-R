@@ -591,21 +591,25 @@ function! s:IsBlockStart(line) abort
     " Remove leading/trailing whitespace
     let clean_line = substitute(a:line, '^\s\+\|\s\+$', '', 'g')
     
-    " Patterns that indicate the start of a code block
-    let patterns = [
-        \ '.*function\s*(',        " function definitions
-        \ '^\s*if\s*(',           " if statements  
-        \ '^\s*for\s*(',          " for loops
-        \ '^\s*while\s*(',        " while loops
-        \ '^\s*repeat\s*{',       " repeat loops
-        \ '^\s*{',                " standalone code blocks
-    \ ]
-    
-    for pattern in patterns
-        if clean_line =~# pattern
-            return 1
-        endif
-    endfor
+    " Check each pattern individually
+    if clean_line =~# '.*function\s*('
+        return 1
+    endif
+    if clean_line =~# '^\s*if\s*('
+        return 1
+    endif
+    if clean_line =~# '^\s*for\s*('
+        return 1
+    endif
+    if clean_line =~# '^\s*while\s*('
+        return 1
+    endif
+    if clean_line =~# '^\s*repeat\s*{'
+        return 1
+    endif
+    if clean_line =~# '^\s*{'
+        return 1
+    endif
     
     return 0
 endfunction
@@ -657,7 +661,8 @@ function! s:GetCodeBlock() abort
         
         let brace_count += open_braces - close_braces
         
-        if brace_count == 0 && open_braces > 0
+        " When brace_count reaches 0, we found the matching closing brace
+        if brace_count == 0 && (open_braces > 0 || close_braces > 0)
             let end_line = line_num
             break
         endif
@@ -715,6 +720,49 @@ function! s:GetPreviousChunks() abort
     " This would reuse the existing CollectPreviousChunks logic
     " For now, return empty (to be implemented)
     return []
+endfunction
+
+"------------------------------------------------------------------------------
+" Temporary test function (remove after testing)
+"------------------------------------------------------------------------------
+function! TestGeneralizedSend()
+    echo "Testing s:IsBlockStart patterns:"
+    
+    " Test each pattern individually
+    let line1 = 'my_func <- function(x) {'
+    let result1 = s:IsBlockStart(line1)
+    echo printf("%-30s -> %s", line1, result1 ? 'BLOCK START' : 'regular line')
+    
+    let line2 = 'if (x > 0) {'
+    let result2 = s:IsBlockStart(line2)
+    echo printf("%-30s -> %s", line2, result2 ? 'BLOCK START' : 'regular line')
+    
+    let line3 = 'for (i in 1:10) {'
+    let result3 = s:IsBlockStart(line3)
+    echo printf("%-30s -> %s", line3, result3 ? 'BLOCK START' : 'regular line')
+    
+    let line4 = 'x <- 5'
+    let result4 = s:IsBlockStart(line4)
+    echo printf("%-30s -> %s", line4, result4 ? 'BLOCK START' : 'regular line')
+    
+    echo ""
+    echo "Test current line behavior:"
+    let current_line = getline('.')
+    let is_block = s:IsBlockStart(current_line)
+    echo "Current line: " . current_line
+    echo "Is block start: " . (is_block ? 'YES' : 'NO')
+    
+    echo ""
+    echo "Testing text extraction (without sending to R):"
+    try
+        let text_lines = s:GetTextByType('line')
+        echo "Line extraction: " . len(text_lines) . " lines"
+        if len(text_lines) > 0
+            echo "First line: " . text_lines[0]
+        endif
+    catch
+        echo "Error in GetTextByType: " . v:exception
+    endtry
 endfunction
 
 "------------------------------------------------------------------------------
