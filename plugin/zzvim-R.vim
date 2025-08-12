@@ -467,18 +467,8 @@ endfunction
 
 " Collect and submit all previous chunks to R
 function! s:CollectAndSubmitPreviousChunks() abort
-    " Collect all previous chunks
-    let l:previous_chunks = s:CollectPreviousChunks()
-
-    " Check if there is anything to submit
-    if empty(l:previous_chunks)
-        echo "No previous chunks to submit."
-        return
-    endif
-
-    " Submit to R using the existing send_to_r function
-    call s:Send_to_r(l:previous_chunks . "\n",0)
-    echo "Submitted all previous chunks to R."
+    " Use the generalized SendToR system for previous chunks
+    call s:SendToR('previous_chunks')
 endfunction
 
 "------------------------------------------------------------------------------
@@ -703,9 +693,41 @@ endfunction
 " Function: Get all previous chunks (reuse existing logic)
 "------------------------------------------------------------------------------
 function! s:GetPreviousChunks() abort
-    " This would reuse the existing CollectPreviousChunks logic
-    " For now, return empty (to be implemented)
-    return []
+    " Get patterns for R code chunks from plugin config
+    let l:chunk_start_pattern = get(g:, 'zzvim_r_chunk_start', '^```{')
+    let l:chunk_end_pattern = get(g:, 'zzvim_r_chunk_end', '^```$')
+    
+    " Get the current line number
+    let l:current_line = line('.')
+    
+    " Initialize variables
+    let l:all_chunk_lines = []
+    let l:inside_chunk = 0
+    
+    " Loop through lines up to the current line (exclusive)
+    for l:line_num in range(1, l:current_line - 1)
+        let l:line_content = getline(l:line_num)
+        
+        " Check if the line is a chunk start
+        if l:line_content =~ l:chunk_start_pattern
+            let l:inside_chunk = 1
+            continue
+        endif
+        
+        " Check if the line is a chunk end
+        if l:line_content =~ l:chunk_end_pattern
+            let l:inside_chunk = 0
+            continue
+        endif
+        
+        " If inside a chunk, collect the line
+        if l:inside_chunk
+            call add(l:all_chunk_lines, l:line_content)
+        endif
+    endfor
+    
+    " Return the collected lines as array (for consistency with other GetText functions)
+    return l:all_chunk_lines
 endfunction
 
 "------------------------------------------------------------------------------
@@ -757,5 +779,6 @@ if !g:zzvim_r_disable_mappings
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>sf :call <SID>SendToR('function')<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>sl :call <SID>SendToR('line')<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>sa :call <SID>SendToR('')<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>sp :call <SID>SendToR('previous_chunks')<CR>
     augroup END
 endif
