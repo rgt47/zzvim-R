@@ -277,11 +277,36 @@ Major architectural improvement implementing intelligent code detection:
 **Key Benefits**:
 - **Intelligent Workflow**: `<CR>` automatically detects functions, control structures, or individual lines with enhanced accuracy
 - **Character Limit Handling**: Temp file approach handles any code size consistently
-- **Advanced Pattern Recognition**: Recognizes `function()`, `if()`, `for()`, `while()`, standalone `{}` blocks, and multi-line function calls
+- **Comprehensive Pattern Recognition**: Recognizes all R language constructs including `function()`, `if()`, `for()`, `while()`, standalone `{}` blocks, multi-line function calls `()`, indexing operations `[]`, and all infix operators (`+`, `<-`, `|>`, `%>%`, etc.)
 - **Debugging Friendly**: Lines inside functions still execute individually with proper cursor advancement
 - **Performance Optimized**: Fast pattern detection with bounded searches and early termination
 - **Error Prevention**: Smart detection prevents submission of incomplete statements
 - **Extensible Architecture**: Clean separation of concerns makes adding new features easier
+
+#### **Comprehensive Delimiter Support (Claude Session Enhancement 4)**
+1. **Complete R Block Delimiter System**:
+   - **`[]` bracket support**: Multi-line indexing operations with balanced bracket counting
+   - **All infix operators**: Comprehensive coverage of R's infix operator syntax
+   - **Native pipe operator**: Support for R 4.1.0+ `|>` pipe alongside traditional `%>%`
+   - **Smart comment handling**: After submitting comments, cursor advances to next executable line
+
+2. **Enhanced Delimiter Detection**:
+   - **Balanced character pairs**: `{}`, `()`, `[]` with sophisticated nested structure handling
+   - **Infix expressions**: All R infix operators including arithmetic (`+`, `-`, `*`, `/`, `^`), logical (`&`, `|`), comparison (`<`, `>`, `=`, `!`), assignment (`<-`), and special operators (`%in%`, `%*%`, etc.)
+   - **Priority system**: Parentheses > brackets > braces for conflict resolution
+   - **Forward scanning**: Arithmetic and pipe expressions use continuation-based detection
+
+3. **Comprehensive Pattern Coverage**:
+   - **Multi-line indexing**: `data[condition1, condition2]` across multiple lines
+   - **Complex assignments**: `result <- data |> operation` with intervening empty lines
+   - **Nested structures**: Proper handling of brackets within functions and vice versa
+   - **Comment-aware navigation**: Intelligent cursor movement that skips comments and empty lines
+
+**New Capabilities**:
+- **Complete R syntax support**: All major R language constructs now supported for intelligent submission
+- **Mixed delimiter handling**: Proper priority when multiple delimiter types appear on same line
+- **Robust continuation detection**: Prevents syntax errors from incomplete multi-line expressions
+- **Enhanced user experience**: Seamless workflow with intelligent cursor positioning after any block type
 
 ### Version 1.0.1 (Educational Documentation Enhancement)
 
@@ -612,7 +637,7 @@ Focus on these key areas when testing:
 - **Multi-Terminal Architecture**: Buffer-specific R terminal sessions with complete workflow isolation
 - **Advanced Window Management**: Flexible split window terminals (vertical/horizontal) with configurable sizing
 - **Terminal Association Visibility**: Comprehensive commands to view and manage R file ↔ terminal associations
-- **Enhanced Pattern Recognition**: Sophisticated balanced character counting for nested structures (both {} and ())
+- **Enhanced Pattern Recognition**: Sophisticated balanced character counting for nested structures (`{}`, `()`, `[]`) and comprehensive infix operator support
 - **Reliable Transmission**: Temp file approach handles unlimited code size consistently with optimized performance
 - **Terminal Management**: Robust buffer-specific R session creation and communication with auto-recovery
 - **Chunk Navigation**: Complete R Markdown/Quarto chunk traversal and execution in isolated terminals
@@ -624,7 +649,7 @@ Focus on these key areas when testing:
 - **30+ Ex Commands**: Complete command-line interface with tab completion including terminal management
 - **Educational Documentation**: 400+ inline comments for VimScript learning with multi-terminal examples
 - **Comprehensive Test Suite**: Testing framework with multi-terminal functionality validation
-- **Enhanced Pattern Recognition**: Advanced regex engine for R language construct detection with brace/parenthesis support
+- **Enhanced Pattern Recognition**: Advanced regex engine for R language construct detection with complete delimiter support (`{}`, `()`, `[]`, and all infix operators)
 - **Flexible Configuration System**: Extensive customization with safe defaults including:
   - `g:zzvim_r_terminal_width` (default: 100) - Vertical split terminal width
   - `g:zzvim_r_terminal_height` (default: 15) - Horizontal split terminal height  
