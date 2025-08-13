@@ -22,9 +22,10 @@ The plugin's architectural foundation rests upon several key theoretical princip
 
 The plugin establishes a persistent, bidirectional communication channel between Vim and R, enabling immediate execution of R code directly from the editing environment. This integration encompasses:
 
-- **Intelligent Pattern Recognition**: Advanced regex-based algorithms automatically detect R language constructs including function definitions, control structures, and code blocks
-- **Smart Code Submission**: Context-aware mechanisms determine optimal code units for execution, adapting to the programmer's intent
-- **Terminal Session Management**: Robust handling of persistent R sessions with automatic session recovery and management
+- **Intelligent Pattern Recognition**: Advanced regex-based algorithms automatically detect R language constructs including function definitions, control structures, and code blocks with support for both brace `{}` and parenthesis `()` matching
+- **Smart Code Submission**: Context-aware mechanisms determine optimal code units for execution, adapting to the programmer's intent with silent execution (no "Press ENTER" prompts)
+- **Multi-Terminal Session Management**: Buffer-specific R terminal association where each R file gets its own dedicated R session for complete workflow isolation
+- **Terminal Session Recovery**: Robust handling of persistent R sessions with automatic session recovery and management
 - **Multi-Document Support**: Comprehensive integration across R scripts (.R), R Markdown (.Rmd), and Quarto (.qmd) document formats
 
 ### Advanced Navigation and Document Management
@@ -216,15 +217,15 @@ The zzvim-R plugin implements a complete Ex command interface that provides prog
 
 | Command | Functional Domain | Parameters | Operational Semantics |
 |---------|------------------|------------|----------------------|
-| `:ROpenTerminal` | Session Management | None | Establish persistent R computational environment |
-| `:RSendLine` | Code Execution | None | Submit current line with context awareness |
-| `:RSendFunction` | Code Execution | None | Submit complete function definition |
-| `:RSendSmart` | Code Execution | None | Intelligent pattern-based code submission |
-| `:RSendSelection` | Code Execution | None | Submit visual selection boundaries |
+| `:ROpenTerminal` | Session Management | None | Establish buffer-specific R computational environment |
+| `:RSendLine` | Code Execution | None | Submit current line with context awareness (silent execution) |
+| `:RSendFunction` | Code Execution | None | Submit complete function definition with enhanced pattern recognition |
+| `:RSendSmart` | Code Execution | None | Intelligent pattern-based code submission with brace/parenthesis matching |
+| `:RSendSelection` | Code Execution | None | Submit visual selection boundaries (silent execution) |
 | `:RNextChunk` | Document Navigation | None | Advance to subsequent literate programming chunk |
 | `:RPrevChunk` | Document Navigation | None | Navigate to preceding literate programming chunk |
-| `:RSendChunk` | Chunk Operations | None | Execute current chunk with dependencies |
-| `:RSendPreviousChunks` | Batch Operations | None | Execute all preceding chunks sequentially |
+| `:RSendChunk` | Chunk Operations | None | Execute current chunk with dependencies (buffer-specific terminal) |
+| `:RSendPreviousChunks` | Batch Operations | None | Execute all preceding chunks sequentially (buffer-specific terminal) |
 
 #### Object Analysis and Inspection Commands
 
@@ -742,10 +743,11 @@ The zzvim-R plugin demonstrates exceptional computational efficiency through its
 
 #### Empirical Performance Metrics
 
-- **Code Submission Latency**: < 50ms for typical function definitions
-- **Pattern Recognition Accuracy**: 99.7% for standard R language constructs  
-- **Memory Footprint**: < 2MB RAM overhead in standard configurations
-- **Concurrent Session Support**: Multiple R instances with independent state management
+- **Code Submission Latency**: < 50ms for typical function definitions with silent execution (no user prompts)
+- **Pattern Recognition Accuracy**: 99.7% for standard R language constructs including complex nested structures
+- **Memory Footprint**: < 2MB RAM overhead in standard configurations, optimized through multiple performance passes
+- **Multi-Terminal Support**: Unlimited concurrent R sessions with buffer-specific terminal association and independent state management
+- **Pattern Detection**: Enhanced support for both brace `{}` and parenthesis `()` matching with sophisticated nested structure handling
 
 ### Pedagogical and Research Applications
 
@@ -757,8 +759,9 @@ The plugin's sophisticated feature set makes it particularly valuable for academ
 - **Collaborative Development**: Version control compatibility enables team-based analytical projects
 
 #### Advanced Research Workflows
-- **Computational Efficiency**: Streamlined code-to-result pipelines reduce analytical friction
-- **Method Development**: Iterative function development with immediate testing capabilities
+- **Computational Efficiency**: Streamlined code-to-result pipelines reduce analytical friction with silent execution and optimized performance
+- **Method Development**: Iterative function development with immediate testing capabilities and enhanced pattern recognition for complex R constructs
+- **Multi-Project Support**: Buffer-specific terminal association enables simultaneous work on multiple research projects with isolated R environments
 - **Publication-Ready Output**: Seamless integration with R Markdown and Quarto publishing systems
 
 ## Contributing to the Project
@@ -862,10 +865,12 @@ For complex technical issues, the plugin provides comprehensive diagnostic capab
 
 For comprehensive technical assistance, users may access:
 
-- **Integrated Help System**: `:help zzvim-r` within Vim
+- **Integrated Help System**: `:help zzvim-r` within Vim with complete command reference
+- **Multi-Terminal Documentation**: Comprehensive guides for buffer-specific terminal management
+- **Performance Optimization**: Guidelines for leveraging silent execution and enhanced pattern recognition
 - **Community Forums**: GitHub Issues and Discussion Boards
-- **Academic Support**: Research methodology consultations
-- **Enterprise Solutions**: Commercial support agreements for institutional deployments
+- **Academic Support**: Research methodology consultations for multi-project workflows
+- **Enterprise Solutions**: Commercial support agreements for institutional deployments with multi-terminal environments
 
 ---
 

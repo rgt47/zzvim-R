@@ -273,6 +273,53 @@ let g:zzvim_r_debug = get(g:, 'zzvim_r_debug', 0)
 "------------------------------------------------------------------------------
 " Utility Functions
 "------------------------------------------------------------------------------
+
+" Generate unique terminal name for current buffer
+" Returns terminal name based on buffer characteristics
+function! s:GetTerminalName() abort
+    " Use buffer name (filename) as base for terminal identification
+    let buffer_name = expand('%:t:r')  " Get filename without extension
+    
+    if empty(buffer_name)
+        " Unnamed buffer - use buffer number
+        let buffer_name = 'buffer' . bufnr('%')
+    endif
+    
+    " Create unique terminal name: R-filename
+    return 'R-' . buffer_name
+endfunction
+
+" Find or create R terminal for current buffer
+" Returns terminal buffer number or -1 if failed
+function! s:GetBufferTerminal() abort
+    " Check if buffer already has an associated terminal
+    if exists('b:r_terminal_id') && b:r_terminal_id > 0
+        " Verify the terminal still exists and is running
+        let terminal_buffers = term_list()
+        if index(terminal_buffers, b:r_terminal_id) >= 0
+            if term_getstatus(b:r_terminal_id) =~# 'running'
+                return b:r_terminal_id
+            endif
+        endif
+        " Terminal died or doesn't exist - clear the association
+        unlet b:r_terminal_id
+    endif
+    
+    " No valid terminal - create new one
+    let old_terminal_count = len(term_list())
+    call s:OpenRTerminal()
+    
+    " Find the newly created terminal
+    let new_terminals = term_list()
+    if len(new_terminals) > old_terminal_count
+        " Associate new terminal with this buffer
+        let b:r_terminal_id = new_terminals[-1]  " Last in list = newly created
+        return b:r_terminal_id
+    endif
+    
+    " Failed to create terminal
+    return -1
+endfunction
 function! s:Log(msg, level) abort
     if get(g:, 'zzvim_r_debug', 0) >= a:level
         call writefile([strftime('%c') . ' - ' . a:msg], expand('~/zzvim_r.log'), 'a')
@@ -304,7 +351,10 @@ endfunction
 " Create and Configure R Terminal Session
 " This function creates a persistent R terminal in a vertical split
 " Returns: Nothing (void function)
-function! s:OpenRTerminal() abort
+function! s:OpenRTerminal(...) abort
+    " Generate unique terminal name for this buffer
+    let terminal_name = a:0 > 0 ? a:1 : s:GetTerminalName()
+    
     " executable('R') checks if R command is available in system PATH
     " Returns 1 if found, 0 if not found
     if !executable('R')
@@ -329,9 +379,14 @@ function! s:OpenRTerminal() abort
     " signcolumn=no = hide sign column (used for diagnostics, not needed in terminal)
     setlocal norelativenumber nonumber signcolumn=no
 
-    " Set tab-local variable to track R terminal existence
-    " t: prefix = tab-scoped variable (persists for this tab)
-    " Used by other functions to detect if R session is available
+    " Store terminal buffer information for buffer association
+    " Get the terminal buffer number that was just created
+    let current_terminal = bufnr('%')
+    
+    " Set terminal name for identification
+    execute 'file ' . terminal_name
+    
+    " Set legacy tab-local variable for backward compatibility
     let t:is_r_term = 1
 
     " Return cursor focus to previous window (usually the editor)
@@ -346,42 +401,16 @@ endfunction
 "   a:cmd (string) - R command/code to execute
 "   a:stay_on_line (boolean) - whether to keep cursor on current line (unused in current implementation)
 function! s:Send_to_r(cmd, stay_on_line) abort
-    " Terminal Session Validation and Auto-Recovery
-    " exists('t:is_r_term') checks if tab-local R terminal flag exists
-    " This defensive programming pattern handles edge cases gracefully
-    if !exists('t:is_r_term') || t:is_r_term != 1
-        " Automatic terminal creation for seamless workflow
-        " Silent creation - no user prompts needed
-        call s:OpenRTerminal()
-        
-        " Verify recovery was successful before proceeding
-        " Double-check prevents errors if R installation has issues
-        if !exists('t:is_r_term') || t:is_r_term != 1
-            call s:Error("Could not create R terminal. Please check R installation.")
-            " Fail gracefully rather than causing Vim errors
-            return
-        endif
-        
-        " Brief pause to allow terminal initialization
-        " sleep 100m = sleep 100 milliseconds
-        " Prevents race condition where terminal isn't fully ready for input
-        sleep 100m
-    endif
-
-    " Terminal Discovery and Validation
-    " term_list() returns list of all terminal buffer numbers in current session
-    let l:terms = term_list()
-    if empty(l:terms)
-        " No terminals found - this shouldn't happen after auto-creation above
-        call s:Error("No active terminals found")
+    " Get buffer-specific terminal (creates if needed)
+    let target_terminal = s:GetBufferTerminal()
+    
+    if target_terminal == -1
+        call s:Error("Could not create or find R terminal for this buffer.")
         return
     endif
 
     " Command Transmission with Error Handling
     try
-        " Use first terminal in list (most recently created)
-        " In practice, this will be our R terminal since we just created it
-        let l:target_terminal = l:terms[0]
         
         " Input Validation - avoid sending empty commands to R
         " trim() removes leading/trailing whitespace
@@ -390,11 +419,11 @@ function! s:Send_to_r(cmd, stay_on_line) abort
             " Terminal Status Verification
             " term_getstatus() returns terminal state ("running", "finished", etc.)
             " =~# is case-sensitive regex match operator
-            if term_getstatus(l:target_terminal) =~# 'running'
+            if term_getstatus(target_terminal) =~# 'running'
                 " Send command with newline to execute in R
                 " term_sendkeys() simulates typing in terminal
                 " "\n" = newline character to execute command
-                call term_sendkeys(l:target_terminal, a:cmd . "\n")
+                call term_sendkeys(target_terminal, a:cmd . "\n")
                 
                 " Brief delay for terminal command processing
                 " Allows R to begin processing before next command
@@ -622,17 +651,16 @@ endfunction
 "------------------------------------------------------------------------------
 function! s:SendControlKeys(key) abort
     try
-        let terms = term_list()
-        if empty(terms)
-            call s:Error("No active terminals found.")
+        " Get buffer-specific terminal
+        let target_terminal = s:GetBufferTerminal()
+        
+        if target_terminal == -1
+            call s:Error("No R terminal found for this buffer.")
             return
         endif
 
-        " Assume the first terminal in the list is the target
-        let target_terminal = terms[0]
-        " Use term_sendkeys to send the control key
+        " Use term_sendkeys to send the control key to buffer's terminal
         call term_sendkeys(target_terminal, a:key)
-        echom "Sent control key: " . a:key
     catch
         call s:Error("Failed to send control key: " . a:key)
     endtry
@@ -1163,4 +1191,14 @@ endfunction
 " Public wrapper for testing s:GetCodeBlock()
 function! ZzvimRTestGetCodeBlock() abort
     return s:GetCodeBlock()
+endfunction
+
+" Public wrapper for testing s:GetTerminalName()
+function! ZzvimRTestGetTerminalName() abort
+    return s:GetTerminalName()
+endfunction
+
+" Public wrapper for testing s:GetBufferTerminal()
+function! ZzvimRTestGetBufferTerminal() abort
+    return s:GetBufferTerminal()
 endfunction
