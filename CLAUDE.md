@@ -16,13 +16,15 @@ zzvim-R is a Vim plugin that provides R integration for Vim/Neovim, enabling sea
 
 ### Key Features
 
-- **Smart Code Execution**: Intelligent detection of R functions, control structures, and code blocks
-- **Terminal Integration**: R terminal session management with persistent sessions
-- **Chunk Navigation**: Navigate between R Markdown code chunks
-- **Pattern-Based Detection**: Automatic recognition of function definitions, if/else blocks, loops
-- **Unified Temp File Approach**: Consistent handling of code submission regardless of size
-- **Object Inspection**: Examine R objects with various inspection functions
-- **Flexible Key Mappings**: Smart `<CR>` behavior adapts to context
+- **Smart Code Execution**: Intelligent detection of R functions, control structures, and code blocks with silent execution (no "Press ENTER" prompts)
+- **Multi-Terminal Management**: Buffer-specific R terminal sessions with complete workflow isolation between different R files
+- **Advanced Window Management**: Flexible terminal split windows (vertical/horizontal) with configurable sizing
+- **Terminal Association Visibility**: Comprehensive commands to view and manage R file ↔ terminal associations
+- **Chunk Navigation**: Navigate between R Markdown code chunks with buffer-specific execution
+- **Enhanced Pattern Recognition**: Advanced detection of R language constructs including both brace {} and parenthesis () matching
+- **Unified Temp File Approach**: Consistent handling of code submission regardless of size with optimized performance
+- **Object Inspection**: Examine R objects with various inspection functions in isolated terminal environments
+- **Flexible Key Mappings**: Smart `<CR>` behavior adapts to context with extensive customization options
 
 ## Project Structure
 
@@ -38,6 +40,8 @@ zzvim-R/
 │   ├── test.Rmd            # R Markdown test file
 │   ├── test_generalized_send.R     # Tests for generalized SendToR
 │   ├── new_functionality_demo.R    # Demo of smart detection
+│   ├── test_multi_terminal.vim     # Multi-terminal functionality tests
+│   ├── verify_multi_terminal.vim   # Terminal association verification
 │   └── test_error_handling.vim     # Error handling test
 ├── CHANGELOG.md            # Version history
 ├── LICENSE                 # License information
@@ -83,18 +87,26 @@ The plugin uses a simple, single-file architecture with clear functional separat
 - **`s:GetCurrentChunk()`**: Extract R Markdown chunk content
 - **`s:GetPreviousChunks()`**: Collect all previous chunks (placeholder)
 
-### **3. Terminal and Communication**
+### **3. Multi-Terminal Management and Communication**
+- **`s:GetTerminalName()`**: Generate unique terminal names for buffer-specific association
+- **`s:GetBufferTerminal()`**: Find or create buffer-specific R terminal with auto-recovery
 - **`s:OpenRTerminal()`**: Create and manage R terminal sessions
-- **`s:Send_to_r(cmd, stay_on_line)`**: Send commands to R terminal
+- **`s:Send_to_r(cmd, stay_on_line)`**: Send commands to buffer-specific R terminal with silent execution
 - **`s:SendControlKeys(key)`**: Send control sequences to terminal
+- **`s:ROpenSplitCommand(split_type)`**: Open R terminal in new split window (vertical/horizontal)
 
-### **4. Chunk Navigation**
+### **4. Terminal Association Visibility**
+- **`s:RShowTerminalCommand()`**: Display current buffer's terminal association with status
+- **`s:RListTerminalsCommand()`**: List all R file ↔ terminal associations with visual formatting
+- **`s:RSwitchToTerminalCommand()`**: Switch to buffer-specific terminal window
+
+### **5. Chunk Navigation**
 - **`s:MoveNextChunk()`**: Navigate to next R Markdown chunk
-- **`s:MovePrevChunk()`**: Navigate to previous R Markdown chunk
-- **`s:SubmitChunk()`**: Execute current chunk (uses generalized system)
+- **`s:MovePrevChunk()`**: Navigate to previous R Markdown chunk  
+- **`s:SubmitChunk()`**: Execute current chunk (uses generalized system with buffer-specific terminal)
 
-### **5. Object Inspection**
-- **`s:RAction(action, stay_on_line)`**: Execute R functions on word under cursor
+### **6. Object Inspection**
+- **`s:RAction(action, stay_on_line)`**: Execute R functions on word under cursor in buffer-specific terminal
 - **Built-in actions**: head, str, dim, print, names, length, glimpse, etc.
 
 ## Key Mappings System
@@ -111,15 +123,17 @@ The plugin provides an intelligent key mapping system with smart context detecti
 
 **Visual Mode**: `<CR>` → sends visual selection to R
 
-### **Core Operations**
-- **`<LocalLeader>r`**: Open R terminal
-- **`<CR>`**: Smart submission (context-aware)
+### **Multi-Terminal Management Operations**
+- **`<LocalLeader>r`**: Create buffer-specific R terminal (replaces current window)
+- **`<LocalLeader>w`**: Open R terminal in new vertical split window
+- **`<LocalLeader>W`**: Open R terminal in new horizontal split window
+- **`<CR>`**: Smart submission (context-aware, silent execution)
 
 ### **Chunk Navigation**
 - **`<LocalLeader>j`**: Next chunk
 - **`<LocalLeader>k`**: Previous chunk
-- **`<LocalLeader>l`**: Execute current chunk
-- **`<LocalLeader>t`**: Execute all previous chunks
+- **`<LocalLeader>l`**: Execute current chunk (buffer-specific terminal)
+- **`<LocalLeader>t`**: Execute all previous chunks (buffer-specific terminal)
 
 ### **Object Inspection (Single-Letter)**
 - **`<LocalLeader>h`**: head()
@@ -134,8 +148,8 @@ The plugin provides an intelligent key mapping system with smart context detecti
 - **`<LocalLeader>y`**: help()
 
 ### **Control Keys**
-- **`<LocalLeader>q`**: Send Q to R (quit)
-- **`<LocalLeader>c`**: Send Ctrl-C to R (interrupt)
+- **`<LocalLeader>q`**: Send Q to R (quit buffer-specific session)
+- **`<LocalLeader>c`**: Send Ctrl-C to R (interrupt buffer-specific session)
 
 ### **Generalized Send Functions (Advanced)**
 - **`<LocalLeader>sf`**: Force send function block
@@ -194,6 +208,45 @@ Major architectural improvement implementing intelligent code detection:
 5. **Unified Temp File Approach**: All code submission uses consistent temporary file method
 6. **Backward Compatibility**: Existing functions updated to use new system while preserving behavior
 7. **Additional Key Mappings**: Added `<LocalLeader>sf/sl/sa` for explicit control
+
+### Version 1.0.1+ (Multi-Terminal Architecture + Advanced Window Management)
+
+**MAJOR ENHANCEMENT**: Comprehensive multi-terminal system with advanced window management:
+
+#### **Multi-Terminal Foundation (Claude Session Enhancement 1)**
+1. **Buffer-Specific Terminal Association**: Each R file gets its own isolated terminal session
+   - Implemented `s:GetTerminalName()` for unique terminal identification  
+   - Added `s:GetBufferTerminal()` for buffer-specific terminal management
+   - Terminal naming scheme: `R-filename` (e.g., `analysis.R` → `R-analysis`)
+   - Complete workflow isolation between different R files
+
+2. **Enhanced Pattern Recognition**: Extended smart detection to support both brace `{}` and parenthesis `()` matching
+   - Generalized `s:GetCodeBlock()` for configurable character matching
+   - Sophisticated nested structure handling for complex R constructs
+   - Advanced algorithm supporting function calls like `p_load(dplyr, ggplot2)`
+
+3. **Silent Execution Implementation**: Eliminated "Press ENTER" prompts for streamlined workflows
+   - All code submission operations now use silent execution
+   - Removed user-facing command line prompts and messages
+   - Enhanced user experience with seamless code-to-result pipelines
+
+#### **Terminal Visibility & Management (Claude Session Enhancement 2)**
+1. **Comprehensive Terminal Association Commands**: 
+   - **`:RShowTerminal`**: Display current buffer's terminal association with detailed status
+   - **`:RListTerminals`**: Visual overview of all R file ↔ terminal associations  
+   - **`:RSwitchToTerminal`**: Quick navigation to buffer-specific terminal
+
+2. **Advanced Window Management**:
+   - **`:ROpenSplit [type]`**: Open buffer-specific R terminal in new split window
+   - Support for both vertical and horizontal split orientations
+   - **`<LocalLeader>w`**: Key mapping for vertical split terminal
+   - **`<LocalLeader>W`**: Key mapping for horizontal split terminal
+   - Configurable split sizing with `g:zzvim_r_terminal_height` (default: 15)
+
+3. **Smart Window Detection**: 
+   - Automatic detection of existing terminal windows
+   - Intelligent switching vs. creation logic
+   - Preservation of current buffer view during terminal operations
 
 **Key Benefits**:
 - **Intelligent Workflow**: `<CR>` automatically detects functions, control structures, or individual lines
@@ -526,24 +579,31 @@ Focus on these key areas when testing:
 ## Current Capabilities & Limitations
 
 ### **✅ Core Functionality (Production Ready)**
-- **Smart Code Detection**: Automatic recognition of R functions, control structures, and code blocks
-- **Intelligent Submission**: Context-aware `<CR>` key determines optimal code boundaries
-- **Brace Matching Algorithm**: Sophisticated balanced brace counting for nested structures
-- **Reliable Transmission**: Temp file approach handles unlimited code size consistently
-- **Terminal Management**: Robust R session creation and communication with auto-recovery
-- **Chunk Navigation**: Complete R Markdown/Quarto chunk traversal and execution
-- **Object Inspection**: Full suite of R data analysis functions (head, str, dim, etc.)
-- **Visual Selection**: Precise boundary handling for custom code selection
+- **Smart Code Detection**: Automatic recognition of R functions, control structures, and code blocks with enhanced brace/parenthesis matching
+- **Intelligent Submission**: Context-aware `<CR>` key determines optimal code boundaries with silent execution
+- **Multi-Terminal Architecture**: Buffer-specific R terminal sessions with complete workflow isolation
+- **Advanced Window Management**: Flexible split window terminals (vertical/horizontal) with configurable sizing
+- **Terminal Association Visibility**: Comprehensive commands to view and manage R file ↔ terminal associations
+- **Enhanced Pattern Recognition**: Sophisticated balanced character counting for nested structures (both {} and ())
+- **Reliable Transmission**: Temp file approach handles unlimited code size consistently with optimized performance
+- **Terminal Management**: Robust buffer-specific R session creation and communication with auto-recovery
+- **Chunk Navigation**: Complete R Markdown/Quarto chunk traversal and execution in isolated terminals
+- **Object Inspection**: Full suite of R data analysis functions (head, str, dim, etc.) in buffer-specific environments
+- **Visual Selection**: Precise boundary handling for custom code selection with silent execution
 - **Error Handling**: Comprehensive validation and graceful failure recovery
 
 ### **✅ Advanced Features (Fully Implemented)**
-- **24 Ex Commands**: Complete command-line interface with tab completion
-- **Educational Documentation**: 300+ inline comments for VimScript learning
-- **Test Suite**: Comprehensive testing framework with 40+ test assertions
-- **Pattern Recognition**: Advanced regex engine for R language construct detection
-- **Configuration System**: Extensive customization with safe defaults
-- **Cross-Platform**: Linux, macOS, Windows compatibility verified
-- **Version Compatibility**: Vim 8.0+ and Neovim support
+- **30+ Ex Commands**: Complete command-line interface with tab completion including terminal management
+- **Educational Documentation**: 400+ inline comments for VimScript learning with multi-terminal examples
+- **Comprehensive Test Suite**: Testing framework with multi-terminal functionality validation
+- **Enhanced Pattern Recognition**: Advanced regex engine for R language construct detection with brace/parenthesis support
+- **Flexible Configuration System**: Extensive customization with safe defaults including:
+  - `g:zzvim_r_terminal_width` (default: 100) - Vertical split terminal width
+  - `g:zzvim_r_terminal_height` (default: 15) - Horizontal split terminal height  
+  - `g:zzvim_r_disable_mappings` - Master switch for key mappings
+  - `g:zzvim_r_command` - R startup command customization
+- **Cross-Platform**: Linux, macOS, Windows compatibility verified with multi-terminal support
+- **Version Compatibility**: Vim 8.0+ and Neovim support with terminal emulation requirements
 
 ### **✅ Quality Assurance (Production Grade)**
 - **Test Coverage**: 24/24 Ex commands verified, pattern matching validated

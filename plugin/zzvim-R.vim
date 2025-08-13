@@ -771,10 +771,18 @@ function! s:GetTextByType(selection_type) abort
     " Intelligent Auto-Detection Mode
     " When no explicit type specified, analyze current line for code patterns
     " This enables the smart <CR> key behavior
-    if empty(a:selection_type) && s:IsBlockStart(getline('.'))
-        " Current line starts a code block - extract complete block
-        " getline('.') gets content of current line for pattern analysis
-        return s:GetCodeBlock()
+    if empty(a:selection_type)
+        " First check if we're inside a function definition
+        if s:IsInsideFunction()
+            " Inside function - send current line only for debugging
+            return [getline('.')]
+        endif
+        
+        " Check if current line starts a code block
+        if s:IsBlockStart(getline('.'))
+            " Current line starts a code block - extract complete block
+            return s:GetCodeBlock()
+        endif
     endif
     
     " Explicit Selection Type Dispatch
@@ -807,6 +815,58 @@ endfunction
 " These functions implement the core intelligence for recognizing R language
 " constructs and determining optimal code submission boundaries
 
+" Check if cursor is inside a function definition
+" Looks backward to find function start and forward to find function end
+" Returns: 1 if inside function, 0 otherwise
+function! s:IsInsideFunction() abort
+    let save_pos = getpos('.')
+    let current_line = line('.')
+    
+    " Search backward for function definition
+    let function_start = search('function\s*(', 'bcnW')
+    
+    if function_start == 0
+        " No function definition found above
+        return 0
+    endif
+    
+    " Check if there's a function end (closing brace) after current position
+    call cursor(function_start, 1)
+    
+    " Find the opening brace of the function
+    let brace_line = search('{', 'W', function_start + 10)
+    
+    if brace_line == 0
+        call setpos('.', save_pos)
+        return 0
+    endif
+    
+    " Count braces to find function end
+    let brace_count = 0
+    let end_line = -1
+    
+    for line_num in range(brace_line, line('$'))
+        let line_content = getline(line_num)
+        let open_braces = len(substitute(line_content, '[^{]', '', 'g'))
+        let close_braces = len(substitute(line_content, '[^}]', '', 'g'))
+        let brace_count += open_braces - close_braces
+        
+        if brace_count == 0 && (open_braces > 0 || close_braces > 0)
+            let end_line = line_num
+            break
+        endif
+    endfor
+    
+    call setpos('.', save_pos)
+    
+    " Check if current line is between function start and end
+    if end_line > 0 && current_line > function_start && current_line < end_line
+        return 1
+    endif
+    
+    return 0
+endfunction
+
 " Detect R Code Block Starting Patterns
 " Enhanced Pattern Recognition for R Language Constructs
 " Analyzes a line to determine if it begins a multi-line code structure
@@ -833,9 +893,15 @@ function! s:IsBlockStart(line) abort
         return 1  
     endif
     
-    " Function calls - any identifier followed by opening parenthesis
-    if a:line =~# '[a-zA-Z_][a-zA-Z0-9_.]*\s*('
-        return 1
+    " Function calls that start at beginning of line (not continuation lines)
+    " More specific pattern to avoid catching continuation lines
+    " Exclude lines that start with closing characters or are clearly continuation lines
+    if a:line =~# '^\s*[a-zA-Z_][a-zA-Z0-9_.]*\s*(' && a:line !~ '^\s*[)}\],]'
+        " Additional check: make sure it's not just a parameter name with parentheses
+        " like "       dplyr)" which shouldn't be treated as a function call
+        if a:line !~ '^\s*[a-zA-Z_][a-zA-Z0-9_.]*\s*)\s*$'
+            return 1
+        endif
     endif
     
     return 0
@@ -1475,4 +1541,9 @@ endfunction
 " Public wrapper for testing s:GetBufferTerminal()
 function! ZzvimRTestGetBufferTerminal() abort
     return s:GetBufferTerminal()
+endfunction
+
+" Public wrapper for testing s:IsInsideFunction()
+function! ZzvimRTestIsInsideFunction() abort
+    return s:IsInsideFunction()
 endfunction
