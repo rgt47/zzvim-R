@@ -57,6 +57,11 @@
 "   Default: 100
 "   Example: let g:zzvim_r_terminal_width = 120  " Wider terminal
 "
+" g:zzvim_r_terminal_height     (number)
+"   Terminal window height in rows when opened as horizontal split.
+"   Default: 15
+"   Example: let g:zzvim_r_terminal_height = 20  " Taller terminal
+"
 " User Interface Configuration:
 " ----------------------------
 " g:zzvim_r_disable_mappings    (boolean)
@@ -241,6 +246,16 @@
 "     :RRm                     - Remove all objects from workspace 
 "                               (rm(list=ls()))
 "
+" Terminal Association Utilities:
+" ------------------------------
+"     :RShowTerminal           - Show which terminal is associated with current 
+"                               R buffer
+"     :RListTerminals          - List all R file-terminal associations
+"     :RSwitchToTerminal       - Switch to the terminal associated with current
+"                               R buffer
+"     :ROpenSplit              - Open buffer-specific R terminal in new split 
+"                               window (horizontal or vertical)
+"
 " =============================================================================
 " PLUGIN IMPLEMENTATION BEGINS
 " =============================================================================
@@ -293,6 +308,7 @@ let g:zzvim_r_default_terminal = get(g:, 'zzvim_r_default_terminal', 'R')
 let g:zzvim_r_disable_mappings = get(g:, 'zzvim_r_disable_mappings', 0)
 let g:zzvim_r_map_submit = get(g:, 'zzvim_r_map_submit', '<CR>')
 let g:zzvim_r_terminal_width = get(g:, 'zzvim_r_terminal_width', 100)
+let g:zzvim_r_terminal_height = get(g:, 'zzvim_r_terminal_height', 15)
 let g:zzvim_r_command = get(g:, 'zzvim_r_command', 'R --no-save --quiet')
 let g:zzvim_r_chunk_start = get(g:, 'zzvim_r_chunk_start', '^```{')
 let g:zzvim_r_chunk_end = get(g:, 'zzvim_r_chunk_end', '^```$')
@@ -1116,6 +1132,12 @@ command! -bar RGetwd call s:Send_to_r('getwd()', 1)
 command! -bar RLs call s:Send_to_r('ls()', 1)
 command! -bar RRm call s:Send_to_r('rm(list=ls())', 1)
 
+" Terminal Association Commands
+command! -bar RShowTerminal call s:RShowTerminalCommand()
+command! -bar RListTerminals call s:RListTerminalsCommand()
+command! -bar RSwitchToTerminal call s:RSwitchToTerminalCommand()
+command! -bar -nargs=? ROpenSplit call s:ROpenSplitCommand(<q-args>)
+
 "------------------------------------------------------------------------------
 " Helper Functions for Commands
 "------------------------------------------------------------------------------
@@ -1211,6 +1233,213 @@ function! s:RSetwdCommand(dir) abort
     let target_dir = empty(a:dir) ? getcwd() : expand(a:dir)
     call s:Send_to_r("setwd('" . target_dir . "')", 0)
     echom "Set R working directory to: " . target_dir
+endfunction
+
+"------------------------------------------------------------------------------
+" Terminal Association Utility Functions
+"------------------------------------------------------------------------------
+
+" Show which terminal is associated with current R buffer
+function! s:RShowTerminalCommand() abort
+    if &filetype != 'r' && &filetype != 'rmd' && &filetype != 'quarto'
+        call s:Error("This command only works in R/Rmd/Quarto files")
+        return
+    endif
+    
+    let buffer_name = expand('%:t')
+    let terminal_name = s:GetTerminalName()
+    
+    if exists('b:r_terminal_id') && b:r_terminal_id > 0
+        let terminal_buffers = term_list()
+        if index(terminal_buffers, b:r_terminal_id) >= 0
+            echohl Title
+            echo "Terminal Association for: " . buffer_name
+            echohl None
+            echo "  ├─ Terminal Name: " . terminal_name
+            echo "  ├─ Terminal Buffer ID: " . b:r_terminal_id
+            echo "  └─ Status: Active"
+        else
+            echohl WarningMsg
+            echo "Terminal Association for: " . buffer_name
+            echohl None
+            echo "  ├─ Terminal Name: " . terminal_name
+            echo "  ├─ Terminal Buffer ID: " . b:r_terminal_id . " (INVALID)"
+            echo "  └─ Status: Terminal no longer exists"
+        endif
+    else
+        echohl Comment
+        echo "Terminal Association for: " . buffer_name
+        echohl None
+        echo "  ├─ Terminal Name: " . terminal_name . " (would be created)"
+        echo "  └─ Status: No terminal associated yet"
+    endif
+endfunction
+
+" List all R file-terminal associations
+function! s:RListTerminalsCommand() abort
+    let associations = []
+    let terminal_buffers = term_list()
+    
+    " Scan all buffers for R files with terminal associations
+    for bufnr in range(1, bufnr('$'))
+        if buflisted(bufnr)
+            let bufname = bufname(bufnr)
+            let filetype = getbufvar(bufnr, '&filetype')
+            
+            if filetype == 'r' || filetype == 'rmd' || filetype == 'quarto'
+                let terminal_id = getbufvar(bufnr, 'r_terminal_id')
+                let buffer_display = empty(bufname) ? '[No Name]' : fnamemodify(bufname, ':t')
+                
+                if terminal_id > 0
+                    let status = index(terminal_buffers, terminal_id) >= 0 ? 'Active' : 'Dead'
+                    call add(associations, {
+                        \ 'buffer': buffer_display,
+                        \ 'bufnr': bufnr,
+                        \ 'terminal_id': terminal_id,
+                        \ 'status': status
+                        \ })
+                else
+                    call add(associations, {
+                        \ 'buffer': buffer_display,
+                        \ 'bufnr': bufnr,
+                        \ 'terminal_id': 0,
+                        \ 'status': 'None'
+                        \ })
+                endif
+            endif
+        endif
+    endfor
+    
+    " Display results
+    if empty(associations)
+        echohl Comment
+        echo "No R files currently open"
+        echohl None
+        return
+    endif
+    
+    echohl Title
+    echo "R File ↔ Terminal Associations:"
+    echohl None
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    
+    for assoc in associations
+        let status_color = assoc.status == 'Active' ? 'DiffAdd' : 
+                         \ assoc.status == 'Dead' ? 'ErrorMsg' : 'Comment'
+        
+        echo printf("  %-20s", assoc.buffer)
+        echohl Operator | echo " ↔ " | echohl None
+        
+        if assoc.terminal_id > 0
+            echo "Terminal " . assoc.terminal_id . " "
+            execute 'echohl ' . status_color
+            echo "(" . assoc.status . ")"
+            echohl None
+        else
+            echohl Comment
+            echo "(No terminal)"
+            echohl None
+        endif
+    endfor
+    
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "Use :RSwitchToTerminal to jump to your buffer's terminal"
+endfunction
+
+" Switch to the terminal associated with current R buffer
+function! s:RSwitchToTerminalCommand() abort
+    if &filetype != 'r' && &filetype != 'rmd' && &filetype != 'quarto'
+        call s:Error("This command only works in R/Rmd/Quarto files")
+        return
+    endif
+    
+    let terminal_id = s:GetBufferTerminal()
+    
+    if terminal_id == -1
+        call s:Error("No terminal associated with this buffer. Use <LocalLeader>r to create one.")
+        return
+    endif
+    
+    " Find window containing the terminal
+    let terminal_winnr = bufwinnr(terminal_id)
+    
+    if terminal_winnr != -1
+        " Terminal is visible, jump to it
+        execute terminal_winnr . 'wincmd w'
+        echom "Switched to terminal for " . expand('%:t')
+    else
+        " Terminal exists but not visible, open it
+        execute 'vertical sbuffer ' . terminal_id
+        echom "Opened terminal for " . expand('%:t')
+    endif
+endfunction
+
+" Open buffer-specific R terminal in new split window
+" Parameters:
+"   a:split_type (string) - 'horizontal', 'vertical', or 'h'/'v' for short
+" Creates or opens the buffer-specific terminal in a new split
+function! s:ROpenSplitCommand(split_type) abort
+    if &filetype != 'r' && &filetype != 'rmd' && &filetype != 'quarto'
+        call s:Error("This command only works in R/Rmd/Quarto files")
+        return
+    endif
+    
+    " Validate and normalize split type
+    let split_cmd = ''
+    if a:split_type == 'vertical' || a:split_type == 'v' || a:split_type == ''
+        let split_cmd = 'vertical split'
+        let split_desc = 'vertical'
+    elseif a:split_type == 'horizontal' || a:split_type == 'h'
+        let split_cmd = 'split'
+        let split_desc = 'horizontal'
+    else
+        call s:Error("Invalid split type. Use 'vertical', 'horizontal', 'v', or 'h'")
+        return
+    endif
+    
+    " Get or create the buffer-specific terminal
+    let terminal_id = s:GetBufferTerminal()
+    
+    if terminal_id == -1
+        call s:Error("Failed to create terminal for this buffer")
+        return
+    endif
+    
+    " Check if terminal is already visible in a window
+    let terminal_winnr = bufwinnr(terminal_id)
+    
+    if terminal_winnr != -1
+        " Terminal is already visible, just switch to it
+        execute terminal_winnr . 'wincmd w'
+        echom "Terminal for " . expand('%:t') . " is already open (switched to it)"
+        return
+    endif
+    
+    " Save current window and buffer info
+    let current_buffer = bufnr('%')
+    let buffer_name = expand('%:t')
+    
+    " Create new split window and open the terminal buffer
+    try
+        execute split_cmd
+        execute 'buffer ' . terminal_id
+        
+        " Resize the terminal window based on configuration
+        if split_desc == 'vertical'
+            let terminal_width = get(g:, 'zzvim_r_terminal_width', 100)
+            execute 'vertical resize ' . terminal_width
+        else
+            " For horizontal splits, use a reasonable height
+            let terminal_height = get(g:, 'zzvim_r_terminal_height', 15)
+            execute 'resize ' . terminal_height
+        endif
+        
+        echom "Opened " . split_desc . " split with R terminal for " . buffer_name
+        
+    catch /^Vim\%((\a\+)\)\=:E/
+        call s:Error("Failed to open terminal in split: " . v:exception)
+        return
+    endtry
 endfunction
 
 "------------------------------------------------------------------------------
