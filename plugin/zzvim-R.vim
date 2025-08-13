@@ -819,35 +819,50 @@ function! s:GetCodeBlock() abort
     let current_line_num = line('.')  " Starting line number
     let current_line = getline('.')   " Current line content
     
-    " Phase 1: Detect Block Type and Locate Opening Character
-    " Search for either opening brace { or opening parenthesis (
+    " Phase 1: Detect Block Type Based on Current Line First
+    " This ensures we respect the context of where the cursor is positioned
+    let block_type = ''  " Will be 'brace' or 'paren'
     let block_line = current_line_num
     let found_opening = 0
-    let block_type = ''  " Will be 'brace' or 'paren'
     
-    " Limited Forward Search for Opening Character
-    " Prevents infinite search in malformed code
-    while block_line <= line('$')  " line('$') = last line in file
-        let line_content = getline(block_line)
-        " Check for opening brace first (original behavior)
-        if line_content =~ '{'
-            let found_opening = 1
-            let block_type = 'brace'
-            break  " Exit loop when brace found
-        endif
-        " Check for opening parenthesis (new functionality)
-        if line_content =~ '('
-            let found_opening = 1
-            let block_type = 'paren'
-            break  " Exit loop when parenthesis found
-        endif
-        let block_line += 1
-        " Safety limit: don't search beyond 5 lines for braces, 1 line for parens
-        " Parentheses are typically on same line as function call
-        if block_line > current_line_num + 5
-            break
-        endif
-    endwhile
+    " Efficient Single-Pass Character Detection
+    let has_paren = current_line =~ '('
+    let has_brace = current_line =~ '{'
+    
+    " First Priority: Check current line for parentheses (function calls)
+    " This prevents parenthesis blocks inside functions from being treated as brace blocks
+    if has_paren && !has_brace
+        let block_type = 'paren'
+        let found_opening = 1
+        " For parentheses, the opening character is typically on the current line
+    " Second Priority: Check current line for braces (function definitions, control structures)
+    elseif has_brace
+        let block_type = 'brace'
+        let found_opening = 1
+    else
+        " Fallback: Limited Forward Search for Opening Character
+        " Only search forward if current line doesn't contain opening characters
+        let search_limit = current_line_num + 5
+        while block_line <= line('$') && block_line <= search_limit
+            let line_content = getline(block_line)
+            let line_has_brace = line_content =~ '{'
+            let line_has_paren = line_content =~ '('
+            
+            " For forward search, prioritize braces (original behavior for function definitions)
+            if line_has_brace
+                let found_opening = 1
+                let block_type = 'brace'
+                break  " Exit loop when brace found
+            endif
+            " Check for parenthesis only if no braces found
+            if line_has_paren
+                let found_opening = 1
+                let block_type = 'paren'
+                break  " Exit loop when parenthesis found
+            endif
+            let block_line += 1
+        endwhile
+    endif
     
     " Error Handling: No Opening Character Found
     if !found_opening
@@ -865,24 +880,33 @@ function! s:GetCodeBlock() abort
     let start_line = current_line_num  " Block starts at original cursor position
     let end_line = -1          " Will store line number of matching close character
     
-    " Set Character Patterns Based on Block Type
+    " Set Character Patterns Based on Block Type (Pre-computed for efficiency)
     if block_type == 'brace'
-        let open_pattern = '[^{]'   " Match everything except opening braces
-        let close_pattern = '[^}]'  " Match everything except closing braces
+        let open_char = '{'
+        let close_char = '}'
     else  " block_type == 'paren'
-        let open_pattern = '[^(]'   " Match everything except opening parentheses
-        let close_pattern = '[^)]'  " Match everything except closing parentheses
+        let open_char = '('
+        let close_char = ')'
     endif
     
     " Iterate Through Lines Counting Characters
     for line_num in range(block_line, line('$'))
         let line_content = getline(line_num)
         
-        " Advanced Character Counting Using String Substitution
-        " substitute(string, pattern, replacement, flags)
-        " Result: string length = number of opening/closing characters
-        let open_chars = len(substitute(line_content, open_pattern, '', 'g'))
-        let close_chars = len(substitute(line_content, close_pattern, '', 'g'))
+        " Efficient Character Counting Using Direct Character Matching
+        " Avoids creating intermediate strings via substitute()
+        let open_chars = 0
+        let close_chars = 0
+        let i = 0
+        while i < len(line_content)
+            let char = line_content[i]
+            if char == open_char
+                let open_chars += 1
+            elseif char == close_char
+                let close_chars += 1
+            endif
+            let i += 1
+        endwhile
         
         " Update Running Character Balance
         " Positive = more opens than closes, Zero = balanced

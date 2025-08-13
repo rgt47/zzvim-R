@@ -18,9 +18,12 @@ function! TestPatternMatching()
         \ ['while (condition) {', 1, 'While loop'],
         \ ['repeat {', 1, 'Repeat loop'],
         \ ['  {', 1, 'Standalone block'],
+        \ ['library(pacman)', 1, 'Function call with parentheses'],
+        \ ['p_load(dplyr)', 1, 'Package load function call'],
+        \ ['data.frame(', 1, 'Multi-line function call start'],
         \ ['x <- 5', 0, 'Simple assignment'],
         \ ['  result <- x + y', 0, 'Assignment inside block'],
-        \ ['print(x)', 0, 'Function call']
+        \ ['# Comment line', 0, 'Comment line']
     \ ]
     
     let passed = 0
@@ -179,6 +182,12 @@ function! RunComprehensiveTests()
     call add(test_results, TestCommands())
     call add(test_results, TestPatternMatching())
     call add(test_results, TestTextExtraction())
+    
+    " Note: For detailed block matching tests, run:
+    " :source test_files/test_block_matching.vim
+    echo ""
+    echo "💡 For comprehensive block matching tests, run:"
+    echo "   :source test_files/test_block_matching.vim"
     
     " Summary
     let passed_suites = 0
