@@ -350,12 +350,8 @@ function! s:Send_to_r(cmd, stay_on_line) abort
     " exists('t:is_r_term') checks if tab-local R terminal flag exists
     " This defensive programming pattern handles edge cases gracefully
     if !exists('t:is_r_term') || t:is_r_term != 1
-        " User-friendly warning with automatic recovery
-        echohl WarningMsg
-        echo "No R terminal open - creating new terminal and submitting line..."
-        echohl None
-        
-        " Attempt automatic terminal creation for seamless workflow
+        " Automatic terminal creation for seamless workflow
+        " Silent creation - no user prompts needed
         call s:OpenRTerminal()
         
         " Verify recovery was successful before proceeding
@@ -677,8 +673,7 @@ function! s:SendToR(selection_type, ...) abort
     call writefile(text_lines, temp_file)
     call s:Send_to_r("source('" . temp_file . "', echo=T)\n", 0)
     
-    " Phase 3: User Feedback with smart pluralization
-    echom "Sent " . len(text_lines) . " line" . (len(text_lines) == 1 ? "" : "s") . " to R."
+    " Phase 3: Silent execution - no command line prompts
 endfunction
 
 " Smart Text Extraction Dispatcher with Pattern Recognition
