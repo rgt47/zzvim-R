@@ -759,13 +759,13 @@ function! s:SendToR(selection_type, ...) abort
     
     " Phase 3: Determine actual submission type for cursor movement
     let actual_type = a:selection_type
+    echom "DEBUG: Phase3 - selection_type='" . a:selection_type . "', empty=" . empty(a:selection_type) . ", exists(s:last_block_end_line)=" . exists('s:last_block_end_line')
     if empty(a:selection_type) && exists('s:last_block_end_line')
         " Smart detection found a block - treat as function for cursor movement
         let actual_type = 'function'
-        echom "DEBUG: Set actual_type to function, s:last_block_end_line = " . s:last_block_end_line
-    else
-        echom "DEBUG: actual_type = '" . actual_type . "', exists(s:last_block_end_line) = " . exists('s:last_block_end_line')
+        echom "DEBUG: Phase3 - Set actual_type to function"
     endif
+    echom "DEBUG: Phase3 - Final actual_type = '" . actual_type . "'"
     
     " Phase 4: Intelligent Cursor Movement Based on Actual Submission Type
     call s:MoveCursorAfterSubmission(actual_type, len(text_lines))
@@ -787,6 +787,11 @@ endfunction
 "   a:selection_type (string) - Type of submission that occurred
 "   a:line_count (number) - Number of lines that were submitted
 function! s:MoveCursorAfterSubmission(selection_type, line_count) abort
+    " TEMPORARY: Force move to line 5 for function type
+    if a:selection_type ==# 'function'
+        call cursor(5, 1)
+        return
+    endif
     " Handle different submission types with appropriate cursor movement
     if a:selection_type ==# 'selection'
         " Visual selection - don't move cursor, user controls position
