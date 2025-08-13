@@ -1,0 +1,42 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Create Release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        body: |
+          ## Changes in this Release
+          
+          See [CHANGELOG.md](CHANGELOG.md) for detailed changes.
+          
+          ## Installation
+          
+          ### Via vim-plug
+          ```vim
+          Plug 'yourusername/zzvim-R'
+          ```
+          
+          ### Via Vundle
+          ```vim
+          Plugin 'yourusername/zzvim-R'
+          ```
+          
+          ### Manual Installation
+          Copy `plugin/zzvim-R.vim` and `doc/zzvim-R.txt` to your Vim runtime path.
+          
+        draft: false
+        prerelease: false

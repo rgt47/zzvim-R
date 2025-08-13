@@ -40,3 +40,6 @@ test_plan.md
 # OS files
 .DS_Store
 **/.DS_Store
+
+# GitHub Actions (keep workflows)
+# .github/ - intentionally not ignored

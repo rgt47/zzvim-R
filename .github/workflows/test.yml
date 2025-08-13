@@ -1,0 +1,97 @@
+name: Test zzvim-R Plugin
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        vim: [vim, neovim]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Vim/Neovim
+      run: |
+        if [ "${{ matrix.vim }}" = "vim" ]; then
+          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+            sudo apt-get update
+            sudo apt-get install -y vim
+          else
+            brew install vim
+          fi
+        else
+          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+            sudo apt-get update  
+            sudo apt-get install -y neovim
+          else
+            brew install neovim
+          fi
+        fi
+    
+    - name: Install R
+      run: |
+        if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+          sudo apt-get update
+          sudo apt-get install -y r-base
+        else
+          brew install r
+        fi
+    
+    - name: Verify R installation
+      run: R --version
+    
+    - name: Test plugin syntax
+      run: |
+        if [ "${{ matrix.vim }}" = "vim" ]; then
+          vim -es -c "source plugin/zzvim-R.vim" -c "qa!"
+        else
+          nvim --headless -c "source plugin/zzvim-R.vim" -c "qa!"
+        fi
+    
+    - name: Run comprehensive tests
+      run: |
+        if [ "${{ matrix.vim }}" = "vim" ]; then
+          vim -es -c "source test_files/comprehensive_test.vim" -c "call TestAll()" -c "qa!"
+        else
+          nvim --headless -c "source test_files/comprehensive_test.vim" -c "call TestAll()" -c "qa!"
+        fi
+    
+    - name: Validate help documentation
+      run: |
+        if [ "${{ matrix.vim }}" = "vim" ]; then
+          vim -es -c "helptags doc/" -c "qa!"
+        else
+          nvim --headless -c "helptags doc/" -c "qa!"
+        fi
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install vint (VimScript linter)
+      run: pip install vim-vint
+    
+    - name: Lint VimScript files
+      run: vint plugin/zzvim-R.vim
+
+  compatibility:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Test minimum Vim version (8.0)
+      run: |
+        # Install Vim 8.0 for compatibility testing
+        sudo add-apt-repository ppa:jonathonf/vim
+        sudo apt-get update
+        sudo apt-get install vim=2:8.0*
+        vim --version | head -5
+        vim -es -c "source plugin/zzvim-R.vim" -c "qa!"
