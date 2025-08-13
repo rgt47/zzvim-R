@@ -1,3 +1,4 @@
+# Generated files
 zzvim-R.tex
 zzvim-R.Rproj
 zzvim-R.docx
@@ -18,3 +19,24 @@ cache/
 sudoku_apple.pdf
 preamble.tex
 library.bib
+
+# Development files that shouldn't be in plugin distribution
+plugin/gemini_suggestions.txt
+plugin/new_modifications.md
+plugin/new_modifications.pdf
+plugin/notes.txt
+plugin/test
+plugin/test2.Rmd
+test.R
+test2.R
+temp.R
+*.tmp
+
+# Development documentation (keep in repo but don't package)
+code_quality_report.md
+improvements.md
+test_plan.md
+
+# OS files
+.DS_Store
+**/.DS_Store
