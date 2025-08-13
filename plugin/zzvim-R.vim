@@ -762,6 +762,9 @@ function! s:SendToR(selection_type, ...) abort
     if empty(a:selection_type) && exists('s:last_block_end_line')
         " Smart detection found a block - treat as function for cursor movement
         let actual_type = 'function'
+        echom "DEBUG: Set actual_type to function, s:last_block_end_line = " . s:last_block_end_line
+    else
+        echom "DEBUG: actual_type = '" . actual_type . "', exists(s:last_block_end_line) = " . exists('s:last_block_end_line')
     endif
     
     " Phase 4: Intelligent Cursor Movement Based on Actual Submission Type
