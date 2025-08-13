@@ -799,10 +799,13 @@ function! s:IsBlockStart(line) abort
     "    Matches: 'if (x > 0)', '  for (i in 1:10)', 'while (TRUE)'
     " 3. '^\s*(repeat\s*)?\{' - Repeat loops and standalone blocks
     "    Matches: 'repeat {', '  {' (standalone code blocks)
+    " 4. '^\s*[a-zA-Z_][a-zA-Z0-9_.]*\s*\(' - Function calls with opening parenthesis
+    "    Matches: 'p_load(', 'data.frame(', 'ggplot('
+    "    This detects multi-line function calls that need parenthesis matching
     " 
     " =~# operator: case-sensitive regular expression match
     " Returns 1 (true) if pattern matches, 0 (false) otherwise
-    return a:line =~# '\v(.*function\s*\(|^\s*(if|for|while)\s*\(|^\s*(repeat\s*)?\{)'
+    return a:line =~# '\v(.*function\s*\(|^\s*(if|for|while)\s*\(|^\s*(repeat\s*)?\{|^\s*[a-zA-Z_][a-zA-Z0-9_.]*\s*\()'
 endfunction
 
 " Extract Complete Code Block Using Sophisticated Brace Matching
@@ -816,66 +819,80 @@ function! s:GetCodeBlock() abort
     let current_line_num = line('.')  " Starting line number
     let current_line = getline('.')   " Current line content
     
-    " Phase 1: Locate Opening Brace
-    " Search forward from current line to find opening brace of code block
-    " This handles cases where brace is on same line or following lines
-    let brace_line = current_line_num
+    " Phase 1: Detect Block Type and Locate Opening Character
+    " Search for either opening brace { or opening parenthesis (
+    let block_line = current_line_num
     let found_opening = 0
+    let block_type = ''  " Will be 'brace' or 'paren'
     
-    " Limited Forward Search for Opening Brace
+    " Limited Forward Search for Opening Character
     " Prevents infinite search in malformed code
-    while brace_line <= line('$')  " line('$') = last line in file
-        let line_content = getline(brace_line)
-        " Simple pattern match for any opening brace on line
+    while block_line <= line('$')  " line('$') = last line in file
+        let line_content = getline(block_line)
+        " Check for opening brace first (original behavior)
         if line_content =~ '{'
             let found_opening = 1
+            let block_type = 'brace'
             break  " Exit loop when brace found
         endif
-        let brace_line += 1
-        " Safety limit: don't search beyond 5 lines
-        " Prevents performance issues with large functions
-        if brace_line > current_line_num + 5
+        " Check for opening parenthesis (new functionality)
+        if line_content =~ '('
+            let found_opening = 1
+            let block_type = 'paren'
+            break  " Exit loop when parenthesis found
+        endif
+        let block_line += 1
+        " Safety limit: don't search beyond 5 lines for braces, 1 line for parens
+        " Parentheses are typically on same line as function call
+        if block_line > current_line_num + 5
             break
         endif
     endwhile
     
-    " Error Handling: No Opening Brace Found
+    " Error Handling: No Opening Character Found
     if !found_opening
         " Restore cursor position and report failure
         call setpos('.', save_pos)
-        call s:Error("No opening brace found for code block.")
+        call s:Error("No opening brace or parenthesis found for code block.")
         " Return empty list to indicate failure
         return []
     endif
     
-    " Phase 2: Balanced Brace Counting Algorithm
-    " Find matching closing brace by counting brace balance
-    call cursor(brace_line, 1)  " Position at opening brace line
-    let brace_count = 0         " Running balance of open vs close braces
+    " Phase 2: Balanced Character Counting Algorithm
+    " Find matching closing character by counting balance (braces or parentheses)
+    call cursor(block_line, 1)  " Position at opening character line
+    let char_count = 0         " Running balance of open vs close characters
     let start_line = current_line_num  " Block starts at original cursor position
-    let end_line = -1          " Will store line number of matching close brace
+    let end_line = -1          " Will store line number of matching close character
     
-    " Iterate Through Lines Counting Braces
-    for line_num in range(brace_line, line('$'))
+    " Set Character Patterns Based on Block Type
+    if block_type == 'brace'
+        let open_pattern = '[^{]'   " Match everything except opening braces
+        let close_pattern = '[^}]'  " Match everything except closing braces
+    else  " block_type == 'paren'
+        let open_pattern = '[^(]'   " Match everything except opening parentheses
+        let close_pattern = '[^)]'  " Match everything except closing parentheses
+    endif
+    
+    " Iterate Through Lines Counting Characters
+    for line_num in range(block_line, line('$'))
         let line_content = getline(line_num)
         
-        " Advanced Brace Counting Using String Substitution
+        " Advanced Character Counting Using String Substitution
         " substitute(string, pattern, replacement, flags)
-        " '[^{]' = everything except opening braces, replace with nothing
-        " Result: string length = number of opening braces
-        let open_braces = len(substitute(line_content, '[^{]', '', 'g'))
-        " Same technique for closing braces
-        let close_braces = len(substitute(line_content, '[^}]', '', 'g'))
+        " Result: string length = number of opening/closing characters
+        let open_chars = len(substitute(line_content, open_pattern, '', 'g'))
+        let close_chars = len(substitute(line_content, close_pattern, '', 'g'))
         
-        " Update Running Brace Balance
+        " Update Running Character Balance
         " Positive = more opens than closes, Zero = balanced
-        let brace_count += open_braces - close_braces
+        let char_count += open_chars - close_chars
         
         " Critical Balance Detection
-        " When brace_count reaches 0, we've found the matching closing brace
-        " Additional condition ensures we've actually processed braces on this line
-        " (prevents false positive on lines with no braces)
-        if brace_count == 0 && (open_braces > 0 || close_braces > 0)
+        " When char_count reaches 0, we've found the matching closing character
+        " Additional condition ensures we've actually processed characters on this line
+        " (prevents false positive on lines with no characters)
+        if char_count == 0 && (open_chars > 0 || close_chars > 0)
             let end_line = line_num
             break  " Exit loop - block boundary found
         endif
@@ -887,8 +904,9 @@ function! s:GetCodeBlock() abort
     
     " Validate Algorithm Success
     if end_line == -1
-        " No matching brace found - malformed code or infinite loop
-        call s:Error("No matching closing brace found.")
+        " No matching character found - malformed code or infinite loop
+        let error_msg = block_type == 'brace' ? "No matching closing brace found." : "No matching closing parenthesis found."
+        call s:Error(error_msg)
         return []  " Return empty list to indicate failure
     endif
     
