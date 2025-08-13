@@ -766,8 +766,6 @@ function! s:SendToR(selection_type, ...) abort
     endif
     
     " Phase 4: Intelligent Cursor Movement Based on Actual Submission Type
-    " TEMP: Write debug info to a file since echom isn't working
-    call writefile(['DEBUG: actual_type=' . actual_type . ', len=' . len(text_lines)], '/tmp/debug.txt')
     call s:MoveCursorAfterSubmission(actual_type, len(text_lines))
 endfunction
 
