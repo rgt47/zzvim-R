@@ -259,56 +259,16 @@ let g:zzvim_r_version = '1.0'
 " If user didn't set variable, provide sensible default
 " This allows customization while ensuring plugin always has valid values
 
-" Terminal identification string for R session management
-if !exists('g:zzvim_r_default_terminal')
-    " Default terminal name - simple identifier for session tracking
-    let g:zzvim_r_default_terminal = 'R'
-endif
-
-" Master switch for all key mappings - allows complete customization
-if !exists('g:zzvim_r_disable_mappings')
-    " 0 = enable default mappings, 1 = disable (user defines own)
-    let g:zzvim_r_disable_mappings = 0
-endif
-
-" Key sequence for smart code submission in normal mode
-if !exists('g:zzvim_r_map_submit')
-    " <CR> = Enter key, most intuitive for "send this code"
-    let g:zzvim_r_map_submit = '<CR>'
-endif
-
-" Terminal window dimensions (columns)
-if !exists('g:zzvim_r_terminal_width')
-    " 100 columns provides good balance between terminal and editor space
-    let g:zzvim_r_terminal_width = 100
-endif
-
-" R startup command with command-line arguments
-if !exists('g:zzvim_r_command')
-    " --no-save: Don't prompt to save workspace on exit (faster workflow)
-    " --quiet: Suppress R startup messages (cleaner terminal)
-    let g:zzvim_r_command = 'R --no-save --quiet'
-endif
-
-" Regular expression patterns for R Markdown chunk detection
-" These patterns are used by search() function to find chunk boundaries
-if !exists('g:zzvim_r_chunk_start')
-    " Pattern breakdown: ^ = line start, ``` = literal backticks, { = opening brace
-    " Matches: ```{r}, ```{python}, ```{sql}, etc.
-    let g:zzvim_r_chunk_start = '^```{'
-endif
-
-if !exists('g:zzvim_r_chunk_end')
-    " Pattern breakdown: ^ = line start, ``` = literal backticks, $ = line end
-    " Matches: ``` at start of line with nothing after (chunk closing)
-    let g:zzvim_r_chunk_end = '^```$'
-endif
-
-" Debug logging level (0=off, 1=basic, 2=verbose)
-if !exists('g:zzvim_r_debug')
-    " Disabled by default for performance - enable for troubleshooting
-    let g:zzvim_r_debug = 0
-endif
+" Efficient configuration initialization using get() with defaults
+" VimScript get() pattern: get(dict, key, default) - no need for exists() checks
+let g:zzvim_r_default_terminal = get(g:, 'zzvim_r_default_terminal', 'R')
+let g:zzvim_r_disable_mappings = get(g:, 'zzvim_r_disable_mappings', 0)
+let g:zzvim_r_map_submit = get(g:, 'zzvim_r_map_submit', '<CR>')
+let g:zzvim_r_terminal_width = get(g:, 'zzvim_r_terminal_width', 100)
+let g:zzvim_r_command = get(g:, 'zzvim_r_command', 'R --no-save --quiet')
+let g:zzvim_r_chunk_start = get(g:, 'zzvim_r_chunk_start', '^```{')
+let g:zzvim_r_chunk_end = get(g:, 'zzvim_r_chunk_end', '^```$')
+let g:zzvim_r_debug = get(g:, 'zzvim_r_debug', 0)
 
 "------------------------------------------------------------------------------
 " Utility Functions
@@ -685,9 +645,7 @@ endfunction
 "------------------------------------------------------------------------------
 " Function: Perform an R action on the word under the cursor
 "------------------------------------------------------------------------------
-function! s:RAction(action, stay_on_line) abort
-    call s:RCommandWithArg(a:action, '', a:stay_on_line)
-endfunction
+" Function removed - s:RCommandWithArg used directly for efficiency
 
 "------------------------------------------------------------------------------
 " Function: Generalized text sending to R with smart detection
@@ -705,36 +663,22 @@ endfunction
 "   ... (variadic) - Optional additional parameters for future extensibility
 function! s:SendToR(selection_type, ...) abort
     " Phase 1: Text Extraction with Intelligent Detection
-    " Delegate to specialized function that handles pattern recognition
     let text_lines = s:GetTextByType(a:selection_type)
     
     " Input Validation - Ensure we have content to send
     if empty(text_lines)
         call s:Error("No text to send to R.")
-        return  " Fail gracefully without causing Vim errors
+        return
     endif
     
     " Phase 2: Reliable Code Transmission via Temporary File
-    " Use temp file approach to handle any code size and avoid terminal limits
-    " tempname() generates unique temporary file path
+    " Write to temp file and send source() command directly
     let temp_file = tempname()
-    " writefile(list, filename) writes list of lines to file
     call writefile(text_lines, temp_file)
+    call s:Send_to_r("source('" . temp_file . "', echo=T)\n", 0)
     
-    " Construct R source() command with echo for visibility
-    " source() executes R script file, echo=T shows code as it runs
-    " Single quotes prevent shell interpretation of special characters
-    let cmd = "source('" . temp_file . "', echo=T)\n"
-    
-    " Phase 3: Submit to R Terminal
-    " Use existing terminal communication infrastructure
-    call s:Send_to_r(cmd, 0)
-    
-    " Phase 4: User Feedback
-    " Provide clear information about what was submitted
-    let line_count = len(text_lines)
-    " Smart pluralization for grammatically correct feedback
-    echom "Sent " . line_count . " line" . (line_count == 1 ? "" : "s") . " to R."
+    " Phase 3: User Feedback with smart pluralization
+    echom "Sent " . len(text_lines) . " line" . (len(text_lines) == 1 ? "" : "s") . " to R."
 endfunction
 
 " Smart Text Extraction Dispatcher with Pattern Recognition
@@ -790,22 +734,30 @@ endfunction
 "   a:line (string) - Line of code to analyze
 " Returns: 1 if line starts a block, 0 otherwise
 function! s:IsBlockStart(line) abort
-    " Advanced Regex Pattern for R Language Constructs
-    " Using very-magic mode (\v) for cleaner regex syntax
-    " Pattern breakdown:
-    " 1. '.*function\s*\(' - Function definitions (any position on line)
-    "    Matches: 'my_func <- function(x)', '  f <- function()'
-    " 2. '^\s*(if|for|while)\s*\(' - Control structures at line start
-    "    Matches: 'if (x > 0)', '  for (i in 1:10)', 'while (TRUE)'
-    " 3. '^\s*(repeat\s*)?\{' - Repeat loops and standalone blocks
-    "    Matches: 'repeat {', '  {' (standalone code blocks)
-    " 4. '^\s*[a-zA-Z_][a-zA-Z0-9_.]*\s*\(' - Function calls with opening parenthesis
-    "    Matches: 'p_load(', 'data.frame(', 'ggplot('
-    "    This detects multi-line function calls that need parenthesis matching
-    " 
-    " =~# operator: case-sensitive regular expression match
-    " Returns 1 (true) if pattern matches, 0 (false) otherwise
-    return a:line =~# '\v(.*function\s*\(|^\s*(if|for|while)\s*\(|^\s*(repeat\s*)?\{|^\s*[a-zA-Z_][a-zA-Z0-9_.]*\s*\()'
+    " Optimized pattern detection using multiple efficient checks
+    " Return 1 if line starts a block that needs special handling
+    
+    " Function definitions (most specific - contains both 'function' and parentheses)
+    if a:line =~# 'function\s*('
+        return 1
+    endif
+    
+    " Control structures at line start  
+    if a:line =~# '^\s*\(if\|for\|while\)\s*('
+        return 1
+    endif
+    
+    " Repeat and standalone blocks
+    if a:line =~# '^\s*\(repeat\s*\)\?{'
+        return 1  
+    endif
+    
+    " Function calls - any identifier followed by opening parenthesis
+    if a:line =~# '[a-zA-Z_][a-zA-Z0-9_.]*\s*('
+        return 1
+    endif
+    
+    return 0
 endfunction
 
 " Extract Complete Code Block Using Sophisticated Brace Matching
@@ -1108,20 +1060,14 @@ command! -bar RRm call s:Send_to_r('rm(list=ls())', 1)
 
 " Generic function for R commands that can take optional arguments
 function! s:RCommandWithArg(action, arg, ...) abort
-    let stay_on_line = a:0 > 0 ? a:1 : 1
-    
-    if empty(a:arg)
-        " Use word under cursor if no argument provided
-        let word = expand('<cword>')
-        if empty(word)
-            call s:Error("No argument provided and no word under cursor for " . a:action . "()")
-            return
-        endif
-        let target = word
-    else
-        let target = a:arg
+    " Use argument or word under cursor, with validation
+    let target = empty(a:arg) ? expand('<cword>') : a:arg
+    if empty(target)
+        call s:Error("No argument provided and no word under cursor for " . a:action . "()")
+        return
     endif
     
+    let stay_on_line = a:0 > 0 ? a:1 : 1
     call s:Send_to_r(a:action . '(' . target . ')', stay_on_line)
     echom "Executed " . a:action . "(" . target . ")"
 endfunction
@@ -1217,4 +1163,9 @@ endfunction
 " Public wrapper for testing s:GetTextByType()
 function! ZzvimRTestGetTextByType(selection_type) abort
     return s:GetTextByType(a:selection_type)
+endfunction
+
+" Public wrapper for testing s:GetCodeBlock()
+function! ZzvimRTestGetCodeBlock() abort
+    return s:GetCodeBlock()
 endfunction
