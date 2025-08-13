@@ -12,20 +12,23 @@
 " Vim into a powerful R development environment. It provides:
 " 
 " 1. Smart Code Submission: Intelligently detects and sends R code blocks
-" 2. Terminal Management: Creates and manages persistent R terminal sessions
+"    with silent execution (no "Press ENTER" prompts)
+" 2. Multi-Terminal Management: Buffer-specific R terminal sessions for 
+"    complete workflow isolation between different R files
 " 3. Chunk Navigation: Navigate between R Markdown/Quarto code chunks
 " 4. Object Inspection: Quick access to R's data examination functions
-" 5. Pattern Recognition: Automatically detects R language constructs
+" 5. Enhanced Pattern Recognition: Detects R language constructs including
+"    both brace {} and parenthesis () matching with nested structures
 "
 " ARCHITECTURE:
 " =============
 " The plugin uses a single-file architecture with clear functional separation:
-" - Configuration management and validation
-" - Core terminal communication functions
-" - Intelligent pattern detection for R code structures
-" - Text extraction and processing functions
-" - User interface (commands and key mappings)
-" - Testing infrastructure
+" - Configuration management and validation with safe defaults
+" - Multi-terminal session management with buffer-specific association
+" - Enhanced pattern detection for R code structures (braces/parentheses)
+" - Optimized text extraction and processing functions  
+" - Silent execution user interface (commands and key mappings)
+" - Comprehensive testing infrastructure for all functionality
 "
 " CONFIGURATION VARIABLES:
 " ========================
@@ -89,11 +92,12 @@
 "
 " KEY MAPPINGS REFERENCE:
 " ======================
-" VimScript Mapping Convention: <LocalLeader> is typically backslash (\) by default
-" Users can customize by setting: let maplocalleader = ","  (use comma instead)
-" Mappings are buffer-local and only active in R/Rmd files (controlled by autocmd)
+" VimScript Mapping Convention: <LocalLeader> is typically backslash (\) by 
+" default. Users can customize by setting: let maplocalleader = ","  
+" Mappings are buffer-local and only active in R/Rmd files (controlled by 
+" autocmd). All submissions use silent execution (no "Press ENTER" prompts).
 "
-" Smart Code Submission (Context-Aware):
+" Smart Code Submission (Context-Aware with Enhanced Pattern Recognition):
 " -------------------------------------
 "   <CR> (Enter)      - Intelligent code submission based on cursor position
 "                      * On function definition: sends entire function
@@ -101,10 +105,11 @@
 "                      * On regular line: sends current line only
 "                      * Inside function: sends individual line for debugging
 "
-" Terminal Management:
-" -------------------
-"   <LocalLeader>r    - Create new R terminal session (vertical split)
-"   <LocalLeader>q    - Send 'Q' command to R (quit R session)
+" Multi-Terminal Management:
+" -------------------------
+"   <LocalLeader>r    - Create buffer-specific R terminal session (vertical 
+"                      split, each R file gets its own isolated terminal)
+"   <LocalLeader>q    - Send 'Q' command to R (quit current buffer's R session)
 "   <LocalLeader>c    - Send Ctrl-C interrupt signal (stop running commands)
 "
 " Code Enhancement:
@@ -116,8 +121,9 @@
 " ----------------------------
 "   <LocalLeader>j    - Jump to next code chunk (forward navigation)
 "   <LocalLeader>k    - Jump to previous code chunk (backward navigation)
-"   <LocalLeader>l    - Execute current chunk (submit all code in current chunk)
-"   <LocalLeader>t    - Execute all previous chunks (reproducing analysis up to cursor)
+"   <LocalLeader>l    - Execute current chunk (submit to buffer-specific terminal)
+"   <LocalLeader>t    - Execute all previous chunks (reproducing analysis in
+"                      buffer-specific terminal up to cursor position)
 "
 " Object Inspection (Data Analysis):
 " ---------------------------------
@@ -142,19 +148,20 @@
 "
 " Session Management:
 " ------------------
-"     :ROpenTerminal           - Create new R terminal in vertical split
+"     :ROpenTerminal           - Create buffer-specific R terminal (vertical 
+"                               split, isolated per R file)
 "                               Uses g:zzvim_r_terminal_width for window size
 "                               Executes g:zzvim_r_command to start R
 "
-" Code Submission (Multiple Methods):
-" -----------------------------------
-"     :RSendLine               - Send current line to R terminal
-"                               Simple line-by-line execution
-"     :RSendSmart              - Intelligent context-aware submission
-"                               Auto-detects functions, control structures, or lines
-"     :RSendFunction           - Force submission of complete function block
-"                               Uses brace-matching algorithm to find function boundaries
-"     :RSendSelection          - Send visual selection to R (use in visual mode)
+" Code Submission (Multiple Methods with Silent Execution):
+" --------------------------------------------------------
+"     :RSendLine               - Send current line to buffer-specific R terminal
+"                               Simple line-by-line execution, no user prompts
+"     :RSendSmart              - Intelligent context-aware submission with enhanced
+"                               pattern recognition for both {} and () structures
+"     :RSendFunction           - Force submission of complete function block using
+"                               enhanced brace/parenthesis-matching algorithm
+"     :RSendSelection          - Send visual selection to buffer-specific R terminal
 "                               Allows precise control over code boundaries
 "
 " Document Navigation (R Markdown/Quarto):
@@ -163,10 +170,10 @@
 "                               Uses g:zzvim_r_chunk_start pattern for detection
 "     :RPrevChunk              - Navigate to previous code chunk  
 "                               Handles cursor context to find correct chunk
-"     :RSendChunk              - Execute all code in current chunk
-"                               Automatically extracts chunk content
+"     :RSendChunk              - Execute all code in current chunk using 
+"                               buffer-specific terminal, silent execution
 "     :RSendPreviousChunks     - Execute all chunks from start to current position
-"                               Ensures reproducible analysis workflow
+"                               in buffer-specific terminal for reproducible analysis
 "
 " Data Inspection (R Object Analysis):
 " ------------------------------------
@@ -274,8 +281,9 @@ let g:zzvim_r_debug = get(g:, 'zzvim_r_debug', 0)
 " Utility Functions
 "------------------------------------------------------------------------------
 
-" Generate unique terminal name for current buffer
-" Returns terminal name based on buffer characteristics
+" Generate unique terminal name for current buffer (multi-terminal support)
+" Creates buffer-specific terminal names for workflow isolation
+" Returns: string - terminal name based on buffer characteristics
 function! s:GetTerminalName() abort
     " Use buffer name (filename) as base for terminal identification
     let buffer_name = expand('%:t:r')  " Get filename without extension
@@ -289,8 +297,9 @@ function! s:GetTerminalName() abort
     return 'R-' . buffer_name
 endfunction
 
-" Find or create R terminal for current buffer
-" Returns terminal buffer number or -1 if failed
+" Find or create buffer-specific R terminal (multi-terminal architecture)
+" Implements buffer-specific terminal association for workflow isolation
+" Returns: number - terminal buffer number or -1 if failed
 function! s:GetBufferTerminal() abort
     " Check if buffer already has an associated terminal
     if exists('b:r_terminal_id') && b:r_terminal_id > 0
@@ -395,11 +404,13 @@ function! s:OpenRTerminal(...) abort
     wincmd p
 endfunction
 
-" Send Commands to R Terminal with Auto-Recovery
-" Core communication function between Vim and R session
+" Send Commands to Buffer-Specific R Terminal with Auto-Recovery
+" Core communication function between Vim and R session (silent execution)
 " Parameters:
 "   a:cmd (string) - R command/code to execute
-"   a:stay_on_line (boolean) - whether to keep cursor on current line (unused in current implementation)
+"   a:stay_on_line (boolean) - whether to keep cursor on current line 
+"                              (unused in current implementation)
+" Returns: nothing (void) - uses silent execution, no user prompts
 function! s:Send_to_r(cmd, stay_on_line) abort
     " Get buffer-specific terminal (creates if needed)
     let target_terminal = s:GetBufferTerminal()
@@ -680,11 +691,14 @@ endfunction
 " This is the main orchestrating function that coordinates smart code detection
 " and submission. It represents the core innovation of the plugin.
 
-" Universal Code Submission Function with Smart Detection
-" Handles all types of code submission through unified interface
+" Universal Code Submission Function with Enhanced Smart Detection
+" Handles all types of code submission through unified interface with silent 
+" execution and buffer-specific terminal routing
 " Parameters:
-"   a:selection_type (string) - Type of selection: '', 'line', 'function', 'chunk', 'selection'
+"   a:selection_type (string) - Type: '', 'line', 'function', 'chunk', 
+"                               'selection'
 "   ... (variadic) - Optional additional parameters for future extensibility
+" Returns: nothing (void) - uses silent execution, no user prompts
 function! s:SendToR(selection_type, ...) abort
     " Phase 1: Text Extraction with Intelligent Detection
     let text_lines = s:GetTextByType(a:selection_type)
@@ -705,11 +719,12 @@ function! s:SendToR(selection_type, ...) abort
 endfunction
 
 " Smart Text Extraction Dispatcher with Pattern Recognition
-" Central intelligence function that determines what code to extract based on context
-" This function embodies the plugin's smart detection capabilities
+" Central intelligence function with enhanced pattern recognition
+" Determines what code to extract based on context using sophisticated 
+" algorithms for both brace {} and parenthesis () matching
 " Parameters:
 "   a:selection_type (string) - Explicit type or empty for auto-detection
-" Returns: List of lines ready for R execution
+" Returns: List of lines ready for R execution in buffer-specific terminal
 function! s:GetTextByType(selection_type) abort
     " Intelligent Auto-Detection Mode
     " When no explicit type specified, analyze current line for code patterns
@@ -751,8 +766,9 @@ endfunction
 " constructs and determining optimal code submission boundaries
 
 " Detect R Code Block Starting Patterns
+" Enhanced Pattern Recognition for R Language Constructs
 " Analyzes a line to determine if it begins a multi-line code structure
-" This is the heart of the smart submission system
+" Supports both brace {} and parenthesis () matching with nested structures
 " Parameters:
 "   a:line (string) - Line of code to analyze
 " Returns: 1 if line starts a block, 0 otherwise
@@ -783,9 +799,10 @@ function! s:IsBlockStart(line) abort
     return 0
 endfunction
 
-" Extract Complete Code Block Using Sophisticated Brace Matching
-" Implements balanced brace algorithm to find exact code block boundaries
-" Handles nested structures like functions within functions, nested if statements
+" Extract Complete Code Block Using Enhanced Brace/Parenthesis Matching
+" Implements sophisticated balanced character algorithm for exact boundaries
+" Handles nested structures: functions within functions, nested if statements
+" Supports both brace {} and parenthesis () detection with configurable types
 " Returns: List of lines comprising the complete code block
 function! s:GetCodeBlock() abort
     " Position State Management
