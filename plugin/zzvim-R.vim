@@ -751,13 +751,16 @@ function! s:SendToR(selection_type, ...) abort
         return
     endif
     
-    " Phase 2: Reliable Code Transmission via Temporary File
+    " Phase 2: Intelligent Cursor Movement Based on Submission Type
+    call s:MoveCursorAfterSubmission(a:selection_type, len(text_lines))
+    
+    " Phase 3: Reliable Code Transmission via Temporary File
     " Write to temp file and send source() command directly
     let temp_file = tempname()
     call writefile(text_lines, temp_file)
     call s:Send_to_r("source('" . temp_file . "', echo=T)\n", 0)
     
-    " Phase 3: Silent execution - no command line prompts
+    " Phase 4: Silent execution - no command line prompts
 endfunction
 
 " Smart Text Extraction Dispatcher with Pattern Recognition
@@ -775,14 +778,7 @@ function! s:GetTextByType(selection_type) abort
         " First check if we're inside a function definition
         if s:IsInsideFunction()
             " Inside function - send current line only for debugging
-            let current_line_content = getline('.')
-            
-            " Move cursor to next line for continued debugging (unless at end of file)
-            if line('.') < line('$')
-                call cursor(line('.') + 1, 1)
-            endif
-            
-            return [current_line_content]
+            return [getline('.')]
         endif
         
         " Check if we're in the middle of an incomplete statement
@@ -819,14 +815,7 @@ function! s:GetTextByType(selection_type) abort
         " Default Fallback: Single Line or Smart Detection
         " Return current line as single-element list
         " This handles simple assignments, function calls, and individual statements
-        let current_line_content = getline('.')
-        
-        " Move cursor to next line for continued editing (unless at end of file)
-        if line('.') < line('$')
-            call cursor(line('.') + 1, 1)
-        endif
-        
-        return [current_line_content]
+        return [getline('.')]
     endif
 endfunction
 
@@ -1080,29 +1069,22 @@ function! s:GetCodeBlock() abort
         endif
     endfor
     
+    " Restore Original Cursor Position
+    call setpos('.', save_pos)
+    
     " Validate Algorithm Success
     if end_line == -1
         " No matching character found - malformed code or infinite loop
         let error_msg = block_type == 'brace' ? "No matching closing brace found." : "No matching closing parenthesis found."
         call s:Error(error_msg)
-        " Restore position on failure
-        call setpos('.', save_pos)
         return []  " Return empty list to indicate failure
-    endif
-    
-    " Position cursor after the block for continued editing
-    " Move to the line after the closing character
-    if end_line < line('$')
-        " Move to next line after the block
-        call cursor(end_line + 1, 1)
-    else
-        " If at end of file, stay on the closing line
-        call cursor(end_line, 1)
     endif
     
     " Extract Complete Code Block
     " getline(start, end) returns list of lines from start to end (inclusive)
     " This is the complete, balanced code block ready for R execution
+    " Note: end_line is stored in script-local variable for cursor movement
+    let s:last_block_end_line = end_line
     return getline(start_line, end_line)
 endfunction
 
