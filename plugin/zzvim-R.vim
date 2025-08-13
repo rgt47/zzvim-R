@@ -22,7 +22,8 @@
 "
 " ARCHITECTURE:
 " =============
-" The plugin uses a single-file architecture with clear functional separation:
+" The plugin uses a single-file architecture with clear functional 
+" separation:
 " - Configuration management and validation with safe defaults
 " - Multi-terminal session management with buffer-specific association
 " - Enhanced pattern detection for R code structures (braces/parentheses)
@@ -41,7 +42,8 @@
 " g:zzvim_r_default_terminal    (string) 
 "   Identifier for R terminal sessions. Useful for multiple R versions.
 "   Default: 'R'
-"   Example: let g:zzvim_r_default_terminal = 'R-4.1'  " Use specific R version
+"   Example: let g:zzvim_r_default_terminal = 'R-4.1'  " Use specific R 
+"            version
 "
 " g:zzvim_r_command             (string)
 "   Shell command executed to start R. Arguments customize R behavior.
@@ -73,14 +75,17 @@
 " g:zzvim_r_chunk_start         (string)
 "   Regular expression pattern matching code chunk start lines.
 "   Default: '^```{' (matches ```{r}, ```{python}, etc.)
-"   Pattern explanation: ^ = start of line, ``` = literal backticks, { = opening brace
+"   Pattern explanation: ^ = start of line, ``` = literal backticks, 
+"                        { = opening brace
 "   Example: let g:zzvim_r_chunk_start = '^```{r'  " Only R chunks
 "
 " g:zzvim_r_chunk_end           (string)
 "   Regular expression pattern matching code chunk end lines.
 "   Default: '^```$' (matches ``` at start of line, nothing after)
-"   Pattern explanation: ^ = start of line, ``` = literal backticks, $ = end of line
-"   Example: let g:zzvim_r_chunk_end = '^```\s*$'  " Allow trailing whitespace
+"   Pattern explanation: ^ = start of line, ``` = literal backticks, 
+"                        $ = end of line
+"   Example: let g:zzvim_r_chunk_end = '^```\s*$'  " Allow trailing 
+"            whitespace
 "
 " Development and Debugging:
 " -------------------------
@@ -101,7 +106,7 @@
 " -------------------------------------
 "   <CR> (Enter)      - Intelligent code submission based on cursor position
 "                      * On function definition: sends entire function
-"                      * On control structure (if/for/while): sends entire block  
+"                      * On control structure (if/for/while): sends entire block
 "                      * On regular line: sends current line only
 "                      * Inside function: sends individual line for debugging
 "
@@ -109,7 +114,8 @@
 " -------------------------
 "   <LocalLeader>r    - Create buffer-specific R terminal session (vertical 
 "                      split, each R file gets its own isolated terminal)
-"   <LocalLeader>q    - Send 'Q' command to R (quit current buffer's R session)
+"   <LocalLeader>q    - Send 'Q' command to R (quit current buffer's R 
+"                      session)
 "   <LocalLeader>c    - Send Ctrl-C interrupt signal (stop running commands)
 "
 " Code Enhancement:
@@ -121,7 +127,8 @@
 " ----------------------------
 "   <LocalLeader>j    - Jump to next code chunk (forward navigation)
 "   <LocalLeader>k    - Jump to previous code chunk (backward navigation)
-"   <LocalLeader>l    - Execute current chunk (submit to buffer-specific terminal)
+"   <LocalLeader>l    - Execute current chunk (submit to buffer-specific 
+"                      terminal)
 "   <LocalLeader>t    - Execute all previous chunks (reproducing analysis in
 "                      buffer-specific terminal up to cursor position)
 "
@@ -142,8 +149,9 @@
 "
 " EX COMMANDS REFERENCE:
 " =====================
-" These commands can be executed from Vim's command line (type : to enter command mode)
-" Commands with [optional] arguments use word under cursor if no argument provided
+" These commands can be executed from Vim's command line (type : to enter 
+" command mode). Commands with [optional] arguments use word under cursor 
+" if no argument provided
 " All commands support tab completion for discoverability
 "
 " Session Management:
@@ -155,34 +163,41 @@
 "
 " Code Submission (Multiple Methods with Silent Execution):
 " --------------------------------------------------------
-"     :RSendLine               - Send current line to buffer-specific R terminal
-"                               Simple line-by-line execution, no user prompts
-"     :RSendSmart              - Intelligent context-aware submission with enhanced
-"                               pattern recognition for both {} and () structures
-"     :RSendFunction           - Force submission of complete function block using
-"                               enhanced brace/parenthesis-matching algorithm
-"     :RSendSelection          - Send visual selection to buffer-specific R terminal
+"     :RSendLine               - Send current line to buffer-specific R 
+"                               terminal, no user prompts
+"     :RSendSmart              - Intelligent context-aware submission with 
+"                               enhanced pattern recognition for both {} and () 
+"                               structures
+"     :RSendFunction           - Force submission of complete function block 
+"                               using enhanced brace/parenthesis-matching 
+"                               algorithm
+"     :RSendSelection          - Send visual selection to buffer-specific R 
+"                               terminal
 "                               Allows precise control over code boundaries
 "
 " Document Navigation (R Markdown/Quarto):
 " ----------------------------------------
 "     :RNextChunk              - Navigate to next code chunk
-"                               Uses g:zzvim_r_chunk_start pattern for detection
+"                               Uses g:zzvim_r_chunk_start pattern for 
+"                               detection
 "     :RPrevChunk              - Navigate to previous code chunk  
 "                               Handles cursor context to find correct chunk
 "     :RSendChunk              - Execute all code in current chunk using 
 "                               buffer-specific terminal, silent execution
-"     :RSendPreviousChunks     - Execute all chunks from start to current position
-"                               in buffer-specific terminal for reproducible analysis
+"     :RSendPreviousChunks     - Execute all chunks from start to current 
+"                               position in buffer-specific terminal for 
+"                               reproducible analysis
 "
 " Data Inspection (R Object Analysis):
 " ------------------------------------
-" Pattern: Commands accept optional argument, use word under cursor if none provided
+" Pattern: Commands accept optional argument, use word under cursor if none 
+" provided
 " Usage: :RHead mydata  OR  position cursor on variable and type :RHead
 "     :RHead [object]          - head(object) - Preview first rows/elements
 "     :RTail [object]          - tail(object) - Preview last rows/elements
 "     :RStr [object]           - str(object) - Examine object structure
-"     :RDim [object]           - dim(object) - Get dimensions (rows × columns)
+"     :RDim [object]           - dim(object) - Get dimensions (rows × 
+"                               columns)
 "     :RPrint [object]         - print(object) - Display complete object
 "     :RNames [object]         - names(object) - Show variable/column names
 "     :RLength [object]        - length(object) - Count elements
@@ -194,14 +209,16 @@
 " ---------------
 "     :RQuit                   - Send 'Q' to R (graceful session termination)
 "     :RInterrupt              - Send Ctrl-C (interrupt running computation)
-"                               Useful for stopping infinite loops or long calculations
+"                               Useful for stopping infinite loops or long 
+"                               calculations
 "   
 " Advanced Workflow Commands:
 " --------------------------
 "     :RSend {code}            - Execute arbitrary R code string
 "                               Example: :RSend library(ggplot2)
 "     :RSource {file}          - Source (execute) external R script file
-"                               Example: :RSource ~/analysis/helper_functions.R
+"                               Example: :RSource 
+"                               ~/analysis/helper_functions.R
 "     :RLibrary {package}      - Load R package into session
 "                               Example: :RLibrary dplyr
 "     :RInstall {package}      - Install package from CRAN
@@ -217,10 +234,12 @@
 " Workspace Utilities:
 " -------------------
 "     :RSetwd [directory]      - Set R working directory
-"                               Defaults to Vim's current working directory if no arg
+"                               Defaults to Vim's current working directory if 
+"                               no arg
 "     :RGetwd                  - Display current R working directory
 "     :RLs                     - List all objects in R workspace (ls())
-"     :RRm                     - Remove all objects from workspace (rm(list=ls()))
+"     :RRm                     - Remove all objects from workspace 
+"                               (rm(list=ls()))
 "
 " =============================================================================
 " PLUGIN IMPLEMENTATION BEGINS
@@ -239,7 +258,8 @@ if exists('g:loaded_zzvim_r')
 endif
 
 " Compatibility Check: Ensure Vim version and feature requirements
-" v:version is built-in variable containing Vim version as integer (e.g., 801 = 8.01)
+" v:version is built-in variable containing Vim version as integer 
+" (e.g., 801 = 8.01)
 " has('terminal') checks if Vim was compiled with terminal emulation support
 if v:version < 800 || !has('terminal')
     " echohl sets highlight group for subsequent echo commands
@@ -267,7 +287,8 @@ let g:zzvim_r_version = '1.0'
 " This allows customization while ensuring plugin always has valid values
 
 " Efficient configuration initialization using get() with defaults
-" VimScript get() pattern: get(dict, key, default) - no need for exists() checks
+" VimScript get() pattern: get(dict, key, default) - no need for exists() 
+" checks
 let g:zzvim_r_default_terminal = get(g:, 'zzvim_r_default_terminal', 'R')
 let g:zzvim_r_disable_mappings = get(g:, 'zzvim_r_disable_mappings', 0)
 let g:zzvim_r_map_submit = get(g:, 'zzvim_r_map_submit', '<CR>')
@@ -688,7 +709,8 @@ endfunction
 " =============================================================================
 " GENERALIZED INTELLIGENT CODE SUBMISSION SYSTEM
 " =============================================================================
-" This is the main orchestrating function that coordinates smart code detection
+" This is the main orchestrating function that coordinates smart code 
+" detection
 " and submission. It represents the core innovation of the plugin.
 
 " Universal Code Submission Function with Enhanced Smart Detection
