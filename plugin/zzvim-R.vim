@@ -119,6 +119,10 @@
 " -------------------------
 "   <LocalLeader>r    - Create buffer-specific R terminal session (vertical 
 "                      split, each R file gets its own isolated terminal)
+"   <LocalLeader>w    - Open buffer-specific R terminal in new vertical split
+"                      window (preserves current buffer view)
+"   <LocalLeader>W    - Open buffer-specific R terminal in new horizontal split
+"                      window (preserves current buffer view)
 "   <LocalLeader>q    - Send 'Q' command to R (quit current buffer's R 
 "                      session)
 "   <LocalLeader>c    - Send Ctrl-C interrupt signal (stop running commands)
@@ -1057,6 +1061,8 @@ if !g:zzvim_r_disable_mappings
     augroup zzvim_RMarkdown
         autocmd!
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>r  :call <SID>OpenRTerminal()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>w  :call <SID>ROpenSplitCommand('vertical')<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>W  :call <SID>ROpenSplitCommand('horizontal')<CR>
         autocmd FileType r,rmd,qmd xnoremap <buffer> <silent> <CR>    :<C-u>call <SID>SendToR('selection')<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <CR>  :call <SID>SendToR('')<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>o   :call <SID>AddPipeAndNewLine()<CR>
