@@ -763,6 +763,38 @@ function! s:SendToR(selection_type, ...) abort
     " Phase 4: Silent execution - no command line prompts
 endfunction
 
+" Intelligent Cursor Movement After Code Submission
+" Moves cursor to appropriate position based on what was submitted
+" Parameters:
+"   a:selection_type (string) - Type of submission that occurred
+"   a:line_count (number) - Number of lines that were submitted
+function! s:MoveCursorAfterSubmission(selection_type, line_count) abort
+    " Handle different submission types with appropriate cursor movement
+    if a:selection_type ==# 'selection'
+        " Visual selection - don't move cursor, user controls position
+        return
+    elseif a:selection_type ==# 'chunk'
+        " R Markdown chunk - cursor should move to after the chunk
+        " This is handled by the chunk navigation functions
+        return
+    elseif a:selection_type ==# 'function' || (empty(a:selection_type) && exists('s:last_block_end_line'))
+        " Code block submission - move to line after the block
+        if exists('s:last_block_end_line')
+            if s:last_block_end_line < line('$')
+                call cursor(s:last_block_end_line + 1, 1)
+            else
+                call cursor(s:last_block_end_line, 1)
+            endif
+            unlet s:last_block_end_line
+        endif
+    else
+        " Single line or inside function - move to next line
+        if line('.') < line('$')
+            call cursor(line('.') + 1, 1)
+        endif
+    endif
+endfunction
+
 " Smart Text Extraction Dispatcher with Pattern Recognition
 " Central intelligence function with enhanced pattern recognition
 " Determines what code to extract based on context using sophisticated 
@@ -1599,4 +1631,9 @@ endfunction
 " Public wrapper for testing s:IsIncompleteStatement()
 function! ZzvimRTestIsIncompleteStatement() abort
     return s:IsIncompleteStatement()
+endfunction
+
+" Public wrapper for testing s:MoveCursorAfterSubmission()
+function! ZzvimRTestMoveCursorAfterSubmission(selection_type, line_count) abort
+    return s:MoveCursorAfterSubmission(a:selection_type, a:line_count)
 endfunction
