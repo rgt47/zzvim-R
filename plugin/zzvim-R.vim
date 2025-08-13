@@ -896,15 +896,11 @@ function! s:IsIncompleteStatement() abort
         endif
     endif
     
-    " Check for arithmetic continuation lines
+    " Check for infix operator continuation lines
     if line('.') > 1
         let prev_line = getline(line('.') - 1)
-        " Previous line ends with arithmetic operator
-        if prev_line =~# '[+\-*/^%]\s*$'
-            return 1
-        endif
-        " Previous line ends with pipe operator
-        if prev_line =~# '%>%\s*$'
+        " Previous line ends with any infix operator
+        if prev_line =~# '[+\-*/^&|<>=!]\s*$' || prev_line =~# '%[^%]*%\s*$' || prev_line =~# '<-\s*$' || prev_line =~# '|>\s*$'
             return 1
         endif
     endif
@@ -1012,7 +1008,12 @@ function! s:IsBlockStart(line) abort
     endif
     
     " Multi-line expressions - lines ending with infix operators
-    if a:line =~# '[+\-*/^&|<>=!]\s*$' || a:line =~# '%[^%]*%\s*$' || a:line =~# '<-\s*$'
+    if a:line =~# '[+\-*/^&|<>=!]\s*$' || a:line =~# '%[^%]*%\s*$' || a:line =~# '<-\s*$' || a:line =~# '|>\s*$'
+        return 1
+    endif
+    
+    " Multi-line indexing - lines ending with opening bracket
+    if a:line =~# '\[\s*$'
         return 1
     endif
     
@@ -1031,8 +1032,8 @@ function! s:GetCodeBlock() abort
     let current_line_num = line('.')  " Starting line number
     let current_line = getline('.')   " Current line content
     
-    " Phase 1: Check for arithmetic expressions first (no balanced delimiters)
-    if current_line =~# '[+\-*/^%]\s*$' || current_line =~# '%>%\s*$'
+    " Phase 1: Check for infix expressions first (no balanced delimiters)
+    if current_line =~# '[+\-*/^&|<>=!]\s*$' || current_line =~# '%[^%]*%\s*$' || current_line =~# '<-\s*$' || current_line =~# '|>\s*$'
         " Multi-line arithmetic expression - read until we find the continuation value
         let end_line = current_line_num
         while end_line < line('$')
@@ -1052,21 +1053,26 @@ function! s:GetCodeBlock() abort
     
     " Phase 2: Detect Block Type Based on Current Line for balanced delimiters
     " This ensures we respect the context of where the cursor is positioned
-    let block_type = ''  " Will be 'brace' or 'paren'
+    let block_type = ''  " Will be 'brace', 'paren', or 'bracket'
     let block_line = current_line_num
     let found_opening = 0
     
     " Efficient Single-Pass Character Detection
     let has_paren = current_line =~ '('
     let has_brace = current_line =~ '{'
+    let has_bracket = current_line =~ '\['
     
     " First Priority: Check current line for parentheses (function calls)
     " This prevents parenthesis blocks inside functions from being treated as brace blocks
-    if has_paren && !has_brace
+    if has_paren && !has_brace && !has_bracket
         let block_type = 'paren'
         let found_opening = 1
         " For parentheses, the opening character is typically on the current line
-    " Second Priority: Check current line for braces (function definitions, control structures)
+    " Second Priority: Check current line for brackets (indexing)
+    elseif has_bracket && !has_brace
+        let block_type = 'bracket'
+        let found_opening = 1
+    " Third Priority: Check current line for braces (function definitions, control structures)
     elseif has_brace
         let block_type = 'brace'
         let found_opening = 1
@@ -1078,18 +1084,21 @@ function! s:GetCodeBlock() abort
             let line_content = getline(block_line)
             let line_has_brace = line_content =~ '{'
             let line_has_paren = line_content =~ '('
+            let line_has_bracket = line_content =~ '\['
             
-            " For forward search, prioritize braces (original behavior for function definitions)
-            if line_has_brace
-                let found_opening = 1
-                let block_type = 'brace'
-                break  " Exit loop when brace found
-            endif
-            " Check for parenthesis only if no braces found
+            " For forward search, prioritize parentheses, then brackets, then braces
             if line_has_paren
                 let found_opening = 1
                 let block_type = 'paren'
-                break  " Exit loop when parenthesis found
+                break
+            elseif line_has_bracket
+                let found_opening = 1
+                let block_type = 'bracket'
+                break
+            elseif line_has_brace
+                let found_opening = 1
+                let block_type = 'brace'
+                break
             endif
             let block_line += 1
         endwhile
@@ -1099,7 +1108,7 @@ function! s:GetCodeBlock() abort
     if !found_opening
         " Restore cursor position and report failure
         call setpos('.', save_pos)
-        call s:Error("No opening brace or parenthesis found for code block.")
+        call s:Error("No opening delimiter found for code block.")
         " Return empty list to indicate failure
         return []
     endif
@@ -1115,6 +1124,9 @@ function! s:GetCodeBlock() abort
     if block_type == 'brace'
         let open_char = '{'
         let close_char = '}'
+    elseif block_type == 'bracket'
+        let open_char = '['
+        let close_char = ']'
     else  " block_type == 'paren'
         let open_char = '('
         let close_char = ')'
