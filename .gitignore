@@ -37,6 +37,9 @@ code_quality_report.md
 improvements.md
 test_plan.md
 
+# Workflow documentation (keep in repo)
+# MULTI_FILE_WORKFLOW.md - intentionally not ignored
+
 # OS files
 .DS_Store
 **/.DS_Store
