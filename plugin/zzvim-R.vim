@@ -751,16 +751,31 @@ function! s:SendToR(selection_type, ...) abort
         return
     endif
     
-    " Phase 2: Intelligent Cursor Movement Based on Submission Type
-    call s:MoveCursorAfterSubmission(a:selection_type, len(text_lines))
-    
-    " Phase 3: Reliable Code Transmission via Temporary File
+    " Phase 2: Reliable Code Transmission via Temporary File
     " Write to temp file and send source() command directly
     let temp_file = tempname()
     call writefile(text_lines, temp_file)
     call s:Send_to_r("source('" . temp_file . "', echo=T)\n", 0)
     
-    " Phase 4: Silent execution - no command line prompts
+    " Phase 3: Determine actual submission type for cursor movement
+    let actual_type = a:selection_type
+    if empty(a:selection_type) && exists('s:last_block_end_line')
+        " Smart detection found a block - treat as function for cursor movement
+        let actual_type = 'function'
+    endif
+    
+    " Phase 4: Intelligent Cursor Movement Based on Actual Submission Type
+    call s:MoveCursorAfterSubmission(actual_type, len(text_lines))
+endfunction
+
+" Helper function to move cursor to next non-comment line
+" Used when submitting comment lines to skip to executable code
+function! s:MoveToNextNonComment() abort
+    let next_line = line('.') + 1
+    while next_line <= line('$') && getline(next_line) =~# '^\s*\(#\|$\)'
+        let next_line += 1
+    endwhile
+    call cursor(min([next_line, line('$')]), 1)
 endfunction
 
 " Intelligent Cursor Movement After Code Submission
@@ -777,20 +792,20 @@ function! s:MoveCursorAfterSubmission(selection_type, line_count) abort
         " R Markdown chunk - cursor should move to after the chunk
         " This is handled by the chunk navigation functions
         return
-    elseif a:selection_type ==# 'function' || (empty(a:selection_type) && exists('s:last_block_end_line'))
+    elseif a:selection_type ==# 'function'
         " Code block submission - move to line after the block
         if exists('s:last_block_end_line')
-            if s:last_block_end_line < line('$')
-                call cursor(s:last_block_end_line + 1, 1)
-            else
-                call cursor(s:last_block_end_line, 1)
-            endif
+            call cursor(min([s:last_block_end_line + 1, line('$')]), 1)
             unlet s:last_block_end_line
         endif
     else
-        " Single line or inside function - move to next line
-        if line('.') < line('$')
-            call cursor(line('.') + 1, 1)
+        " Single line submission - move cursor appropriately
+        if getline('.') =~# '^\s*#'
+            " Comment line - move to next non-comment line
+            call s:MoveToNextNonComment()
+        else
+            " Regular line - move to next line
+            call cursor(min([line('.') + 1, line('$')]), 1)
         endif
     endif
 endfunction
@@ -878,6 +893,19 @@ function! s:IsIncompleteStatement() abort
             if prev_line =~# '[\(,]\s*$'
                 return 1
             endif
+        endif
+    endif
+    
+    " Check for arithmetic continuation lines
+    if line('.') > 1
+        let prev_line = getline(line('.') - 1)
+        " Previous line ends with arithmetic operator
+        if prev_line =~# '[+\-*/^%]\s*$'
+            return 1
+        endif
+        " Previous line ends with pipe operator
+        if prev_line =~# '%>%\s*$'
+            return 1
         endif
     endif
     
@@ -983,6 +1011,11 @@ function! s:IsBlockStart(line) abort
         endif
     endif
     
+    " Multi-line expressions - lines ending with infix operators
+    if a:line =~# '[+\-*/^&|<>=!]\s*$' || a:line =~# '%[^%]*%\s*$' || a:line =~# '<-\s*$'
+        return 1
+    endif
+    
     return 0
 endfunction
 
@@ -998,7 +1031,26 @@ function! s:GetCodeBlock() abort
     let current_line_num = line('.')  " Starting line number
     let current_line = getline('.')   " Current line content
     
-    " Phase 1: Detect Block Type Based on Current Line First
+    " Phase 1: Check for arithmetic expressions first (no balanced delimiters)
+    if current_line =~# '[+\-*/^%]\s*$' || current_line =~# '%>%\s*$'
+        " Multi-line arithmetic expression - read until we find the continuation value
+        let end_line = current_line_num
+        while end_line < line('$')
+            let end_line += 1
+            let next_line = getline(end_line)
+            if next_line =~# '^\s*$' || next_line =~# '^\s*#'
+                " Skip empty lines and comments, continue searching
+                continue
+            else
+                " Found non-empty, non-comment line - this is the continuation
+                break
+            endif
+        endwhile
+        let s:last_block_end_line = end_line
+        return getline(current_line_num, end_line)
+    endif
+    
+    " Phase 2: Detect Block Type Based on Current Line for balanced delimiters
     " This ensures we respect the context of where the cursor is positioned
     let block_type = ''  " Will be 'brace' or 'paren'
     let block_line = current_line_num
