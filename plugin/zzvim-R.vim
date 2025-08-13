@@ -778,6 +778,14 @@ function! s:GetTextByType(selection_type) abort
             return [getline('.')]
         endif
         
+        " Check if we're in the middle of an incomplete statement
+        if s:IsIncompleteStatement()
+            " Don't send anything - this line is part of a multi-line statement
+            " that was likely already sent when the first line was executed
+            call s:Error("This appears to be a continuation line. Use the first line of the statement instead.")
+            return []
+        endif
+        
         " Check if current line starts a code block
         if s:IsBlockStart(getline('.'))
             " Current line starts a code block - extract complete block
@@ -814,6 +822,29 @@ endfunction
 " =============================================================================
 " These functions implement the core intelligence for recognizing R language
 " constructs and determining optimal code submission boundaries
+
+" Check if current line is part of an incomplete multi-line statement
+" Detects continuation lines that shouldn't be executed independently
+" Returns: 1 if this is a continuation line, 0 otherwise  
+function! s:IsIncompleteStatement() abort
+    let current_line = getline('.')
+    
+    " Lines that clearly look like continuation/closing lines
+    if current_line =~# '^\s*[)}\],]' 
+        return 1
+    endif
+    
+    " Lines that are just parameter names or values (common in multi-line calls)
+    if current_line =~# '^\s*[a-zA-Z_][a-zA-Z0-9_.]*\s*[,)]?\s*$'
+        " Check if previous line has an incomplete statement
+        let prev_line = getline(line('.') - 1)
+        if prev_line =~# '[\(,]\s*$'
+            return 1
+        endif
+    endif
+    
+    return 0
+endfunction
 
 " Check if cursor is inside a function definition
 " Looks backward to find function start and forward to find function end
@@ -1546,4 +1577,9 @@ endfunction
 " Public wrapper for testing s:IsInsideFunction()
 function! ZzvimRTestIsInsideFunction() abort
     return s:IsInsideFunction()
+endfunction
+
+" Public wrapper for testing s:IsIncompleteStatement()
+function! ZzvimRTestIsIncompleteStatement() abort
+    return s:IsIncompleteStatement()
 endfunction
