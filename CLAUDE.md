@@ -105,7 +105,14 @@ The plugin uses a simple, single-file architecture with clear functional separat
 - **`s:MovePrevChunk()`**: Navigate to previous R Markdown chunk  
 - **`s:SubmitChunk()`**: Execute current chunk (uses generalized system with buffer-specific terminal)
 
-### **6. Object Inspection**
+### **6. Enhanced Pattern Recognition and Cursor Management**
+- **`s:IsIncompleteStatement()`**: Detect continuation lines to prevent incomplete code submission
+- **`s:IsInsideFunction()`**: Optimized function boundary detection with performance limits
+- **`s:MoveCursorAfterSubmission(selection_type, line_count)`**: Intelligent cursor positioning after code submission
+- **Enhanced `s:IsBlockStart(line)`**: Improved pattern recognition with continuation line exclusion
+- **Enhanced `s:GetCodeBlock()`**: Sophisticated brace/parenthesis matching with proper state management
+
+### **7. Object Inspection**
 - **`s:RAction(action, stay_on_line)`**: Execute R functions on word under cursor in buffer-specific terminal
 - **Built-in actions**: head, str, dim, print, names, length, glimpse, etc.
 
@@ -248,12 +255,33 @@ Major architectural improvement implementing intelligent code detection:
    - Intelligent switching vs. creation logic
    - Preservation of current buffer view during terminal operations
 
+#### **Pattern Recognition & Architecture Refinement (Claude Session Enhancement 3)**
+1. **Advanced Pattern Recognition Improvements**:
+   - **`s:IsIncompleteStatement()`**: Smart detection of continuation lines to prevent syntax errors
+   - **Enhanced `s:IsBlockStart()`**: More specific patterns to avoid false positives
+   - **Performance-optimized `s:IsInsideFunction()`**: Search limits and early termination for better performance
+   - **Continuation line exclusion**: Prevents submission of lines like `       dplyr)` that cause syntax errors
+
+2. **Architecture and Cursor Management**:
+   - **`s:MoveCursorAfterSubmission()`**: Dedicated function for intelligent cursor positioning
+   - **Separation of concerns**: Text extraction functions no longer handle cursor movement
+   - **Proper cursor advancement**: After submitting code blocks, cursor moves to appropriate next position
+   - **State management**: Script-local variables for tracking block boundaries
+
+3. **Performance and Reliability Enhancements**:
+   - **Search limits**: Bounded searches prevent expensive operations on large files
+   - **Early termination**: Quick bailout conditions for edge cases and malformed code
+   - **Enhanced error handling**: Proper cursor position restoration on failures
+   - **Edge case coverage**: Comprehensive boundary checks for file start/end
+
 **Key Benefits**:
-- **Intelligent Workflow**: `<CR>` automatically detects functions, control structures, or individual lines
+- **Intelligent Workflow**: `<CR>` automatically detects functions, control structures, or individual lines with enhanced accuracy
 - **Character Limit Handling**: Temp file approach handles any code size consistently
-- **Pattern-Based Detection**: Recognizes `function()`, `if()`, `for()`, `while()`, standalone `{}` blocks
-- **Debugging Friendly**: Lines inside functions still execute individually
-- **Extensible Architecture**: Easy to add new pattern detection
+- **Advanced Pattern Recognition**: Recognizes `function()`, `if()`, `for()`, `while()`, standalone `{}` blocks, and multi-line function calls
+- **Debugging Friendly**: Lines inside functions still execute individually with proper cursor advancement
+- **Performance Optimized**: Fast pattern detection with bounded searches and early termination
+- **Error Prevention**: Smart detection prevents submission of incomplete statements
+- **Extensible Architecture**: Clean separation of concerns makes adding new features easier
 
 ### Version 1.0.1 (Educational Documentation Enhancement)
 
