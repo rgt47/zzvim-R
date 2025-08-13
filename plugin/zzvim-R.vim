@@ -775,7 +775,14 @@ function! s:GetTextByType(selection_type) abort
         " First check if we're inside a function definition
         if s:IsInsideFunction()
             " Inside function - send current line only for debugging
-            return [getline('.')]
+            let current_line_content = getline('.')
+            
+            " Move cursor to next line for continued debugging (unless at end of file)
+            if line('.') < line('$')
+                call cursor(line('.') + 1, 1)
+            endif
+            
+            return [current_line_content]
         endif
         
         " Check if we're in the middle of an incomplete statement
@@ -812,7 +819,14 @@ function! s:GetTextByType(selection_type) abort
         " Default Fallback: Single Line or Smart Detection
         " Return current line as single-element list
         " This handles simple assignments, function calls, and individual statements
-        return [getline('.')]
+        let current_line_content = getline('.')
+        
+        " Move cursor to next line for continued editing (unless at end of file)
+        if line('.') < line('$')
+            call cursor(line('.') + 1, 1)
+        endif
+        
+        return [current_line_content]
     endif
 endfunction
 
@@ -835,11 +849,14 @@ function! s:IsIncompleteStatement() abort
     endif
     
     " Lines that are just parameter names or values (common in multi-line calls)
-    if current_line =~# '^\s*[a-zA-Z_][a-zA-Z0-9_.]*\s*[,)]?\s*$'
+    " More specific pattern to avoid false positives
+    if current_line =~# '^\s*[a-zA-Z_][a-zA-Z0-9_.]*\s*[,)]\s*$'
         " Check if previous line has an incomplete statement
-        let prev_line = getline(line('.') - 1)
-        if prev_line =~# '[\(,]\s*$'
-            return 1
+        if line('.') > 1
+            let prev_line = getline(line('.') - 1)
+            if prev_line =~# '[\(,]\s*$'
+                return 1
+            endif
         endif
     endif
     
@@ -853,30 +870,35 @@ function! s:IsInsideFunction() abort
     let save_pos = getpos('.')
     let current_line = line('.')
     
-    " Search backward for function definition
-    let function_start = search('function\s*(', 'bcnW')
-    
-    if function_start == 0
-        " No function definition found above
+    " Quick check: if we're in the first few lines, unlikely to be inside a function
+    if current_line < 3
         return 0
     endif
     
-    " Check if there's a function end (closing brace) after current position
-    call cursor(function_start, 1)
+    " Search backward for function definition (limit search to avoid performance issues)
+    let search_limit = max([1, current_line - 50])
+    let function_start = search('function\s*(', 'bcnW', search_limit)
     
-    " Find the opening brace of the function
-    let brace_line = search('{', 'W', function_start + 10)
+    if function_start == 0
+        " No function definition found above within reasonable range
+        return 0
+    endif
+    
+    " Quick validation: look for opening brace near function definition
+    call cursor(function_start, 1)
+    let brace_line = search('{', 'W', function_start + 5)
     
     if brace_line == 0
         call setpos('.', save_pos)
         return 0
     endif
     
-    " Count braces to find function end
+    " Fast brace counting with early termination
     let brace_count = 0
     let end_line = -1
+    let search_end = min([line('$'), brace_line + 100])  " Limit search range
     
-    for line_num in range(brace_line, line('$'))
+    for line_num in range(brace_line, search_end)
         let line_content = getline(line_num)
         let open_braces = len(substitute(line_content, '[^{]', '', 'g'))
         let close_braces = len(substitute(line_content, '[^}]', '', 'g'))
@@ -884,6 +906,11 @@ function! s:IsInsideFunction() abort
         
         if brace_count == 0 && (open_braces > 0 || close_braces > 0)
             let end_line = line_num
+            break
+        endif
+        
+        " Early termination if we've gone too far
+        if line_num > current_line + 20
             break
         endif
     endfor
@@ -1053,16 +1080,24 @@ function! s:GetCodeBlock() abort
         endif
     endfor
     
-    " Restore Original Cursor Position
-    " Always restore position regardless of success/failure
-    call setpos('.', save_pos)
-    
     " Validate Algorithm Success
     if end_line == -1
         " No matching character found - malformed code or infinite loop
         let error_msg = block_type == 'brace' ? "No matching closing brace found." : "No matching closing parenthesis found."
         call s:Error(error_msg)
+        " Restore position on failure
+        call setpos('.', save_pos)
         return []  " Return empty list to indicate failure
+    endif
+    
+    " Position cursor after the block for continued editing
+    " Move to the line after the closing character
+    if end_line < line('$')
+        " Move to next line after the block
+        call cursor(end_line + 1, 1)
+    else
+        " If at end of file, stay on the closing line
+        call cursor(end_line, 1)
     endif
     
     " Extract Complete Code Block
