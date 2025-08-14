@@ -1,8 +1,15 @@
 " Comprehensive test suite for zzvim-R plugin
 " This script tests all major functionality
 
-" Load the plugin
-source plugin/zzvim-R.vim
+" Load the plugin (handle relative path)
+if filereadable('plugin/zzvim-R.vim')
+    source plugin/zzvim-R.vim
+elseif filereadable('../plugin/zzvim-R.vim')
+    source ../plugin/zzvim-R.vim
+else
+    echo "Error: Cannot find plugin/zzvim-R.vim"
+    cquit!
+endif
 
 " Test pattern matching function
 function! TestPatternMatching()

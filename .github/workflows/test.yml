@@ -50,25 +50,25 @@ jobs:
     - name: Test plugin syntax
       run: |
         if [ "${{ matrix.vim }}" = "vim" ]; then
-          vim -es -c "source plugin/zzvim-R.vim" -c "qa!"
+          cd "$GITHUB_WORKSPACE" && vim -es -c "source plugin/zzvim-R.vim" -c "qa!"
         else
-          nvim --headless -c "source plugin/zzvim-R.vim" -c "qa!"
+          cd "$GITHUB_WORKSPACE" && nvim --headless -c "source plugin/zzvim-R.vim" -c "qa!"
         fi
     
     - name: Run comprehensive tests
       run: |
         if [ "${{ matrix.vim }}" = "vim" ]; then
-          vim -es -c "source test_files/comprehensive_test.vim" -c "call TestAll()" -c "qa!"
+          cd "$GITHUB_WORKSPACE" && vim -es -c "source test_files/comprehensive_test.vim" -c "qa!"
         else
-          nvim --headless -c "source test_files/comprehensive_test.vim" -c "call TestAll()" -c "qa!"
+          cd "$GITHUB_WORKSPACE" && nvim --headless -c "source test_files/comprehensive_test.vim" -c "qa!"
         fi
     
     - name: Validate help documentation
       run: |
         if [ "${{ matrix.vim }}" = "vim" ]; then
-          vim -es -c "helptags doc/" -c "qa!"
+          cd "$GITHUB_WORKSPACE" && vim -es -c "helptags doc/" -c "qa!"
         else
-          nvim --headless -c "helptags doc/" -c "qa!"
+          cd "$GITHUB_WORKSPACE" && nvim --headless -c "helptags doc/" -c "qa!"
         fi
 
   lint:
@@ -89,9 +89,8 @@ jobs:
     
     - name: Test minimum Vim version (8.0)
       run: |
-        # Install Vim 8.0 for compatibility testing
-        sudo add-apt-repository ppa:jonathonf/vim
+        # Test with default Ubuntu Vim (should be 8.0+)
         sudo apt-get update
-        sudo apt-get install vim=2:8.0*
+        sudo apt-get install -y vim
         vim --version | head -5
         vim -es -c "source plugin/zzvim-R.vim" -c "qa!"
