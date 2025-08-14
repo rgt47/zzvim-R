@@ -1,5 +1,7 @@
 # zzvim-R: An Advanced Integrated Development Environment for R Programming in Vim
 
+<!-- Test PR to check CI requirements -->
+
 ## Abstract
 
 The zzvim-R plugin represents a comprehensive solution for statistical computing and data science workflows within the Vim text editor ecosystem. This sophisticated integration tool facilitates seamless bidirectional communication between Vim's editing environment and R's computational engine, thereby establishing a unified platform for literate programming, exploratory data analysis, and reproducible research methodologies.
