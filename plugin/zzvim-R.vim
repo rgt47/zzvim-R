@@ -1013,6 +1013,12 @@ function! s:IsBlockStart(line) abort
         endif
     endif
     
+    " Assignment statements with function calls (like var <- c(...) or var = c(...))
+    " Pattern: variable_name <- function_name( or variable_name = function_name(
+    if a:line =~# '\(<-\|=\).*[a-zA-Z_][a-zA-Z0-9_.]*\s*('
+        return 1
+    endif
+    
     " Multi-line expressions - lines ending with infix operators
     if a:line =~# '[+\-*/^&|<>=!]\s*$' || a:line =~# '%[^%]*%\s*$' || a:line =~# '<-\s*$' || a:line =~# '|>\s*$'
         return 1
