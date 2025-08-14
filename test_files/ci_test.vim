@@ -83,9 +83,11 @@ echo "=========================================="
 if failed_tests == 0
     echo "🎉 ALL CI TESTS PASSED! (" . (7 + len(config_vars) + len(test_functions)) . " tests)"
     echo "Plugin is ready for production use."
-    qall!
+    " Force immediate exit with success code
+    execute 'qall!'
 else
     echo "❌ " . failed_tests . " TEST(S) FAILED!"
     echo "Plugin needs fixes before deployment."
-    cquit!
+    " Force immediate exit with error code
+    execute 'cquit!'
 endif

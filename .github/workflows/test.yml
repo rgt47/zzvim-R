@@ -48,27 +48,30 @@ jobs:
       run: R --version
     
     - name: Test plugin syntax
+      timeout-minutes: 2
       run: |
         if [ "${{ matrix.vim }}" = "vim" ]; then
-          cd "$GITHUB_WORKSPACE" && vim -es -c "source plugin/zzvim-R.vim" -c "qa!"
+          cd "$GITHUB_WORKSPACE" && timeout 30 vim -es -c "source plugin/zzvim-R.vim" -c "qa!"
         else
-          cd "$GITHUB_WORKSPACE" && nvim --headless -c "source plugin/zzvim-R.vim" -c "qa!"
+          cd "$GITHUB_WORKSPACE" && timeout 30 nvim --headless -c "source plugin/zzvim-R.vim" -c "qa!"
         fi
     
     - name: Run CI tests
+      timeout-minutes: 5
       run: |
         if [ "${{ matrix.vim }}" = "vim" ]; then
-          cd "$GITHUB_WORKSPACE" && vim -es -c "source test_files/ci_test.vim"
+          cd "$GITHUB_WORKSPACE" && timeout 60 vim -es -c "source test_files/ci_test.vim"
         else
-          cd "$GITHUB_WORKSPACE" && nvim --headless -c "source test_files/ci_test.vim"
+          cd "$GITHUB_WORKSPACE" && timeout 60 nvim --headless -c "source test_files/ci_test.vim"
         fi
     
     - name: Validate help documentation
+      timeout-minutes: 2
       run: |
         if [ "${{ matrix.vim }}" = "vim" ]; then
-          cd "$GITHUB_WORKSPACE" && vim -es -c "helptags doc/" -c "qa!"
+          cd "$GITHUB_WORKSPACE" && timeout 30 vim -es -c "helptags doc/" -c "qa!"
         else
-          cd "$GITHUB_WORKSPACE" && nvim --headless -c "helptags doc/" -c "qa!"
+          cd "$GITHUB_WORKSPACE" && timeout 30 nvim --headless -c "helptags doc/" -c "qa!"
         fi
 
   lint:
