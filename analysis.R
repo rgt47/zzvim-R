@@ -1,1 +1,1 @@
-rnorm(20)
+rnorm(10)
