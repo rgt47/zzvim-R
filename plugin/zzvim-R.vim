@@ -281,7 +281,11 @@ endif
 " v:version is built-in variable containing Vim version as integer 
 " (e.g., 801 = 8.01)
 " has('terminal') checks if Vim was compiled with terminal emulation support
-if v:version < 800 || !has('terminal')
+" In CI environments or headless mode, terminal support may be unavailable but plugin can still be tested
+let s:is_ci_mode = exists('$CI') || exists('$GITHUB_ACTIONS') || has('nvim')
+let s:has_terminal_support = has('terminal') || s:is_ci_mode
+
+if v:version < 800 || (!s:has_terminal_support && !s:is_ci_mode)
     " echohl sets highlight group for subsequent echo commands
     " ErrorMsg is built-in highlight group (typically red text)
     echohl ErrorMsg
