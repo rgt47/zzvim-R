@@ -80,7 +80,7 @@ jobs:
       run: pip install vim-vint
     
     - name: Lint VimScript files
-      run: vint plugin/zzvim-R.vim
+      run: vint -e plugin/zzvim-R.vim
 
   compatibility:
     runs-on: ubuntu-latest
