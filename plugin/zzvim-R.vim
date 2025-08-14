@@ -514,7 +514,7 @@ function! s:GetVisualSelection() abort
     " [1:2] extracts line and column numbers from position list
     " Position format: [bufnum, line, col, off] - we need line and col
     let [l:line_start, l:col_start] = getpos("'<")[1:2]
-    let [l:line_end, l:col_end] = getpos("'>')[1:2]
+    let [l:line_end, l:col_end] = getpos("'>")[1:2]
     
     " Extract All Lines in Selection Range
     " getline(start, end) returns list of complete lines
