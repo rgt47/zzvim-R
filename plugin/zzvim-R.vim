@@ -761,7 +761,7 @@ function! s:SendToR(selection_type, ...) abort
     " Write to temp file and send source() command directly
     let temp_file = tempname()
     call writefile(text_lines, temp_file)
-    call s:Send_to_r("source('" . temp_file . "', echo=T)\n", 0)
+    call s:Send_to_r("source('" . temp_file . "', echo=T)\n", 1)
     
     " Phase 3: Determine actual submission type for cursor movement
     let actual_type = a:selection_type
@@ -1376,6 +1376,14 @@ function! s:RCommandWithArg(action, arg, ...) abort
     let stay_on_line = a:0 > 0 ? a:1 : 1
     call s:Send_to_r(a:action . '(' . target . ')', stay_on_line)
     echom "Executed " . a:action . "(" . target . ")"
+endfunction
+
+" Object inspection wrapper function - maintains backward compatibility
+" Parameters:
+"   a:action (string) - R function name (dim, head, str, etc.)  
+"   a:stay_on_line (boolean) - whether to keep cursor on current line
+function! s:RAction(action, stay_on_line) abort
+    call s:RCommandWithArg(a:action, '', a:stay_on_line)
 endfunction
 
 " Helper for simple R commands with validation
