@@ -360,15 +360,12 @@ function! s:GetBufferTerminal() abort
         unlet b:r_terminal_id
     endif
     
-    " No valid terminal - create new one
-    let old_terminal_count = len(term_list())
-    call s:OpenRTerminal()
+    " No valid terminal - create new one and associate it with this buffer
+    let terminal_id = s:OpenRTerminal()
     
-    " Find the newly created terminal
-    let new_terminals = term_list()
-    if len(new_terminals) > old_terminal_count
+    if terminal_id != -1
         " Associate new terminal with this buffer
-        let b:r_terminal_id = new_terminals[-1]  " Last in list = newly created
+        let b:r_terminal_id = terminal_id
         return b:r_terminal_id
     endif
     
@@ -405,7 +402,7 @@ endfunction
 
 " Create and Configure R Terminal Session
 " This function creates a persistent R terminal in a vertical split
-" Returns: Nothing (void function)
+" Returns: number - terminal buffer number or -1 if failed
 function! s:OpenRTerminal(...) abort
     " Generate unique terminal name for this buffer
     let terminal_name = a:0 > 0 ? a:1 : s:GetTerminalName()
@@ -415,7 +412,7 @@ function! s:OpenRTerminal(...) abort
     if !executable('R')
         call s:Error('R is not installed or not in PATH')
         " Early return pattern - exit function if prerequisite not met
-        return
+        return -1
     endif
 
     " Create vertical terminal split and execute R startup command
@@ -448,6 +445,9 @@ function! s:OpenRTerminal(...) abort
     " wincmd p = window command 'previous' (Ctrl-W p equivalent)
     " Allows immediate code editing without manual window switching
     wincmd p
+    
+    " Return the terminal buffer number for proper association
+    return current_terminal
 endfunction
 
 " Send Commands to Buffer-Specific R Terminal with Auto-Recovery
