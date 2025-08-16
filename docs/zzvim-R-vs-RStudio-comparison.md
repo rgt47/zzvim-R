@@ -37,6 +37,7 @@ RStudio follows a comprehensive IDE approach with integrated graphical interface
 |------------------|---------|---------|----------|
 | **Editor Capabilities** | Full Vim editing power | Basic text editor with GUI enhancements | zzvim-R offers superior text manipulation |
 | **Code Execution** | Terminal-based with smart detection | Integrated console with GUI controls | RStudio provides visual feedback |
+| **Code Completion** | Advanced (CoC/Copilot optional) | Built-in with object awareness | Comparable with optional enhancement |
 | **Project Management** | File-system based with Git integration | Built-in project system with GUI | RStudio offers structured organization |
 | **Workspace Browser** | R commands + basic terminal display | Visual environment panel with sorting | RStudio provides comprehensive visualization |
 | **Plot Visualization** | External viewer or R terminal graphics | Integrated plot panel with zoom/export | RStudio excels in visualization workflow |

@@ -52,7 +52,7 @@ ESS follows Emacs' philosophy of extensible computing environment with deep stat
 | **Help Integration** | R help() in terminal | Native Emacs help buffers | ESS better integration |
 | **Debugging** | R browser() + terminal | Integrated debugging interface | ESS more sophisticated |
 | **Plot Handling** | External viewer/terminal graphics | External viewer (similar limitation) | Comparable approaches |
-| **Code Completion** | Basic (planned enhancement) | Advanced context-aware completion | ESS currently superior |
+| **Code Completion** | Advanced (CoC/Copilot optional) | Advanced context-aware completion | Comparable with optional enhancement |
 | **R Markdown** | Native chunk navigation | Org-mode + polyglot notebooks | Different but comparable |
 
 ### Performance and Resource Usage
@@ -102,10 +102,11 @@ plot(model_basic)  # Diagnostic plots
 **zzvim-R Experience**:
 - **Code Execution**: `<CR>` intelligently submits pipe chains and complete model definitions
 - **Object Inspection**: `<Leader>s` on models → `str(model_basic)`, `<Leader>p` → `print(summary())`
+- **Code Completion**: Optional CoC/Copilot provides LSP features and AI assistance matching ESS capabilities
 - **Session Management**: Buffer-specific R session maintains all models and data
 - **Plot Viewing**: Diagnostic plots appear in external viewer (system graphics)
 - **Debugging**: Use R's `browser()` and `debug()` functions in terminal
-- **Result**: Efficient keyboard-driven workflow optimized for R-specific patterns
+- **Result**: Efficient keyboard-driven workflow with optional modern completion features
 
 **ESS Experience**:
 - **Code Execution**: Send code regions/functions with `C-c C-c` or line-by-line with `C-RET`

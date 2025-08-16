@@ -47,6 +47,7 @@ vim-slime follows a minimalist, language-agnostic approach to REPL communication
 | **Error Prevention** | Smart continuation detection | User responsible for completeness | zzvim-R |
 | **R Markdown** | Native chunk navigation | Manual chunk handling | zzvim-R |
 | **Object Inspection** | Built-in shortcuts (`<Leader>h/s/d`) | Manual command typing | zzvim-R |
+| **Code Completion** | Advanced (CoC/Copilot optional) | None (language-agnostic) | zzvim-R |
 | **Modern R Patterns** | Tidyverse-optimized | Generic text processing | zzvim-R |
 
 ### Flexibility and Extensibility
