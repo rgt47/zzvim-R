@@ -1046,7 +1046,7 @@ function! s:GetCodeBlock() abort
     
     " Phase 1: Check for infix expressions first (no balanced delimiters)
     if current_line =~# '[+\-*/^&|<>=!]\s*$' || current_line =~# '%[^%]*%\s*$' || current_line =~# '<-\s*$' || current_line =~# '|>\s*$'
-        " Multi-line arithmetic expression - read until we find the continuation value
+        " Multi-line infix expression - read until we find a line that doesn't end with an operator
         let end_line = current_line_num
         while end_line < line('$')
             let end_line += 1
@@ -1055,8 +1055,15 @@ function! s:GetCodeBlock() abort
                 " Skip empty lines and comments, continue searching
                 continue
             else
-                " Found non-empty, non-comment line - this is the continuation
-                break
+                " Found non-empty, non-comment line
+                " Check if this line also ends with an operator (pipe chain continues)
+                if next_line =~# '[+\-*/^&|<>=!]\s*$' || next_line =~# '%[^%]*%\s*$' || next_line =~# '<-\s*$' || next_line =~# '|>\s*$'
+                    " This line also ends with an operator, continue the chain
+                    continue
+                else
+                    " This line doesn't end with an operator, this is the end of the chain
+                    break
+                endif
             endif
         endwhile
         let s:last_block_end_line = end_line
