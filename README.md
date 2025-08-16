@@ -90,6 +90,17 @@ Check compatibility:
 :echo executable('R')     " Should return 1
 ```
 
+### R Language Server Setup (for LSP features)
+
+If you plan to use any LSP-based completion option, install the R language server:
+
+```r
+# Run in R console
+install.packages("languageserver")
+```
+
+This enables advanced features like completion, diagnostics, and go-to-definition.
+
 ## Configuration
 
 Basic configuration in your `~/.vimrc` or `~/.config/nvim/init.vim`:
@@ -108,12 +119,14 @@ let g:zzvim_r_disable_mappings = 0
 
 ## Optional Enhancements
 
-### Modern IDE Features (CoC Integration)
+Choose your preferred completion framework - zzvim-R works with multiple options:
 
-For advanced code completion, LSP features, and error diagnostics:
+### Option 1: CoC Integration (Vim + Neovim)
+
+For users who prefer CoC or need Vim compatibility:
 
 ```vim
-" Add to your .vimrc
+" Add to your .vimrc or init.vim
 Plug 'neoclide/coc.nvim', {'branch': 'release'}
 
 " Install R language server
@@ -123,12 +136,68 @@ Plug 'neoclide/coc.nvim', {'branch': 'release'}
 :CocInstall coc-snippets coc-pairs
 ```
 
-**Features unlocked:**
+### Option 2: nvim-cmp (Neovim Only)
+
+For Neovim users who prefer the native completion framework:
+
+```lua
+-- Add to your init.lua
+{
+  "hrsh7th/nvim-cmp",
+  dependencies = {
+    "neovim/nvim-lspconfig",
+    "hrsh7th/cmp-nvim-lsp",
+    "hrsh7th/cmp-buffer", 
+    "hrsh7th/cmp-path",
+    "L3MON4D3/LuaSnip",  -- Optional: snippet support
+    "saadparwaiz1/cmp_luasnip",
+  },
+  config = function()
+    local cmp = require('cmp')
+    cmp.setup({
+      snippet = {
+        expand = function(args)
+          require('luasnip').lsp_expand(args.body)
+        end,
+      },
+      sources = cmp.config.sources({
+        { name = 'nvim_lsp' },
+        { name = 'luasnip' },
+        { name = 'buffer' },
+        { name = 'path' },
+      })
+    })
+    
+    -- Setup R Language Server
+    require('lspconfig').r_language_server.setup{
+      capabilities = require('cmp_nvim_lsp').default_capabilities()
+    }
+  end,
+}
+```
+
+### Option 3: Native LSP Only (Neovim Only)
+
+For minimal setup with just LSP features:
+
+```lua
+-- Add to your init.lua
+require('lspconfig').r_language_server.setup{}
+```
+
+### Completion Framework Comparison
+
+| Framework | Editor Support | Setup | Memory | Features |
+|-----------|---------------|-------|---------|----------|
+| **CoC** | Vim + Neovim | Medium | ~15MB | Full LSP + extensions |
+| **nvim-cmp** | Neovim only | Medium | ~10MB | Native LSP + advanced completion |
+| **Native LSP** | Neovim only | Minimal | ~5MB | Basic LSP features |
+
+**All options provide:**
 - Real-time code completion for R objects and functions
 - Function signatures and parameter hints
 - Go-to-definition and find references
 - Real-time error diagnostics and syntax checking
-- Snippet support for common R patterns
 
 ### AI-Assisted Development (Copilot Integration)
 
@@ -156,8 +225,10 @@ let g:copilot_filetypes = {'r': v:true, 'rmd': v:true, 'qmd': v:true}
 | Configuration | Memory Usage | Features | Best For |
 |---------------|-------------|----------|----------|
 | Base zzvim-R | ~2MB | Smart patterns, terminal integration | Performance-critical, simple setups |
-| + CoC | ~15MB | LSP features, completion, diagnostics | Modern IDE experience |
-| + CoC + Copilot | ~20MB | Full IDE + AI assistance | Maximum productivity |
+| + CoC | ~15MB | LSP features, completion, diagnostics | Cross-editor compatibility |
+| + nvim-cmp | ~10MB | Native LSP + advanced completion | Modern Neovim users |
+| + Native LSP | ~5MB | Basic LSP features | Minimal Neovim setup |
+| + Any option + Copilot | +5MB | Full IDE + AI assistance | Maximum productivity |
 
 *Compare to: RStudio (200-500MB), VS Code (100-300MB), R.nvim (50-100MB)*
 
@@ -166,7 +237,9 @@ let g:copilot_filetypes = {'r': v:true, 'rmd': v:true, 'qmd': v:true}
 - **Smart & Fast**: Intelligent R code detection with instant execution
 - **Lightweight**: Minimal memory footprint compared to heavy IDEs
 - **Terminal-Native**: Works seamlessly in SSH environments and containers
-- **Modern IDE Features**: Optional CoC/Copilot integration for advanced completion
+- **Framework Flexibility**: Choose from CoC, nvim-cmp, or native LSP
+- **Editor Agnostic**: Works with both Vim and Neovim (unlike R.nvim)
+- **Standard Protocols**: LSP-based completion (vs. R.nvim's custom TCP)
 - **Progressive Enhancement**: Start simple, add features as needed
 - **Educational**: Learn VimScript while using a practical tool
 - **Modern R**: Optimized for tidyverse, pipes, and contemporary workflows
