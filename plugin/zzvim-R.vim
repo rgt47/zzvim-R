@@ -156,6 +156,9 @@ scriptencoding utf-8
 "   <LocalLeader>g    - glimpse() - Modern tibble structure view (dplyr)
 "   <LocalLeader>b    - dt() - data.table print method
 "   <LocalLeader>y    - help() - Open R help documentation
+"   <LocalLeader>"    - Object Browser - vim-peekaboo style R workspace browser
+"                      Opens right-side panel showing all R objects with types
+"                      Number keys 1-9: quick inspect, ESC/q: close browser
 "
 " EX COMMANDS REFERENCE:
 " =====================
@@ -260,6 +263,12 @@ scriptencoding utf-8
 "                               R buffer
 "     :ROpenSplit              - Open buffer-specific R terminal in new split 
 "                               window (horizontal or vertical)
+"
+" Object Browser:
+" --------------
+"     :RObjectBrowser          - Open vim-peekaboo style R object browser
+"                               Right panel showing workspace objects with types
+"                               Navigation: 1-9 keys inspect, ESC/q close
 "
 " =============================================================================
 " PLUGIN IMPLEMENTATION BEGINS
@@ -1337,6 +1346,8 @@ if !g:zzvim_r_disable_mappings
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>sl :call <SID>SendToR('line')<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>sa :call <SID>SendToR('')<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>sp :call <SID>SendToR('previous_chunks')<CR>
+        " Object Browser (vim-peekaboo style)
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>" :call <SID>RObjectBrowser()<CR>
     augroup END
 endif
 
@@ -1393,6 +1404,9 @@ command! -bar RShowTerminal call s:RShowTerminalCommand()
 command! -bar RListTerminals call s:RListTerminalsCommand()
 command! -bar RSwitchToTerminal call s:RSwitchToTerminalCommand()
 command! -bar -nargs=? ROpenSplit call s:ROpenSplitCommand(<q-args>)
+
+" Object Browser Commands
+command! -bar RObjectBrowser call s:RObjectBrowser()
 
 "------------------------------------------------------------------------------
 " Helper Functions for Commands
@@ -1707,6 +1721,225 @@ function! s:ROpenSplitCommand(split_type) abort
 endfunction
 
 "------------------------------------------------------------------------------
+" Object Browser (vim-peekaboo style R object inspection)
+"------------------------------------------------------------------------------
+
+" Main object browser function - opens browser window showing R objects
+" Similar to vim-peekaboo's register viewer but for R workspace objects
+function! s:RObjectBrowser() abort
+    " Only works in R files with active terminal
+    if &filetype != 'r' && &filetype != 'rmd' && &filetype != 'quarto'
+        call s:Error("Object browser only works in R/Rmd/Quarto files")
+        return
+    endif
+    
+    " Check if we have an active terminal
+    let terminal_id = s:GetBufferTerminal()
+    if terminal_id == -1
+        call s:Error("No R terminal found. Use <LocalLeader>r to create one.")
+        return
+    endif
+    
+    " Save current window to return to
+    let current_winnr = winnr()
+    
+    try
+        " Create vertical split on the right (like vim-peekaboo)
+        botright vertical 40new
+        
+        " Configure buffer as temporary/scratch
+        setlocal buftype=nofile
+        setlocal bufhidden=wipe  
+        setlocal noswapfile
+        setlocal nowrap
+        setlocal number
+        setlocal nobuflisted
+        setlocal winfixwidth
+        setlocal nonumber
+        setlocal norelativenumber
+        setlocal cursorline
+        
+        " Set buffer name for identification
+        silent! file [R Objects]
+        
+        " Key mappings for browser window
+        nnoremap <buffer><silent> <ESC> :close<CR>
+        nnoremap <buffer><silent> q :close<CR>
+        nnoremap <buffer><silent> <CR> :call <SID>InspectObjectAtCursor()<CR>
+        
+        " Number key mappings for quick object selection (1-9)
+        for i in range(1, 9)
+            execute 'nnoremap <buffer><silent> ' . i . ' :call <SID>InspectObjectByNumber(' . i . ')<CR>'
+        endfor
+        
+        " Populate with R objects list
+        call s:PopulateObjectList()
+        
+        " Position cursor on first object
+        normal! gg
+        
+        " Show helpful status message
+        echohl MoreMsg
+        echo "R Object Browser | Numbers 1-9: inspect | <CR>: inspect at cursor | ESC/q: close"
+        echohl None
+        
+    catch /^Vim\%((\a\+)\)\=:E/
+        call s:Error("Failed to open object browser: " . v:exception)
+        " Return to original window if something went wrong
+        execute current_winnr . 'wincmd w'
+    endtry
+endfunction
+
+" Populate the browser window with list of R objects
+function! s:PopulateObjectList() abort
+    " Clear the buffer
+    silent! %delete _
+    
+    " Get R objects using ls() with details
+    " We'll use a temporary file approach to capture the output
+    let temp_file = tempname()
+    
+    " R command to get object information
+    let r_cmd = printf("capture.output({
+    \   objs <- ls(envir=.GlobalEnv)
+    \   if(length(objs) == 0) {
+    \     cat('No objects in workspace\\n')
+    \   } else {
+    \     for(i in seq_along(objs)) {
+    \       obj <- objs[i]
+    \       cls <- paste(class(get(obj, envir=.GlobalEnv)), collapse=', ')
+    \       if(is.data.frame(get(obj, envir=.GlobalEnv))) {
+    \         dims <- dim(get(obj, envir=.GlobalEnv))
+    \         cat(sprintf('%%2d. %%s (%%s %%dx%%d)\\n', i, obj, cls, dims[1], dims[2]))
+    \       } else if(is.vector(get(obj, envir=.GlobalEnv)) || is.list(get(obj, envir=.GlobalEnv))) {
+    \         len <- length(get(obj, envir=.GlobalEnv))
+    \         cat(sprintf('%%2d. %%s (%%s length=%%d)\\n', i, obj, cls, len))
+    \       } else {
+    \         cat(sprintf('%%2d. %%s (%%s)\\n', i, obj, cls))
+    \       }
+    \     }
+    \   }
+    \ }, file='%s')", temp_file)
+    
+    " Send command to R and wait briefly for execution
+    call s:Send_to_r(r_cmd, 1)
+    
+    " Small delay to let R execute
+    sleep 100m
+    
+    " Read the captured output
+    if filereadable(temp_file)
+        let lines = readfile(temp_file)
+        call delete(temp_file)
+        
+        if empty(lines)
+            call setline(1, "Waiting for R objects...")
+        else
+            call setline(1, lines)
+        endif
+    else
+        call setline(1, ["Error: Could not retrieve R objects", 
+                       \ "Make sure R terminal is active"])
+    endif
+    
+    " Add footer with instructions
+    call append(line('$'), ["", 
+                          \ "─────────────────────────────────",
+                          \ "Usage:",
+                          \ "• Numbers 1-9: Quick inspect",
+                          \ "• <CR>: Inspect object at cursor", 
+                          \ "• ESC or q: Close browser"])
+endfunction
+
+" Inspect object by line number (for number key shortcuts)
+function! s:InspectObjectByNumber(num) abort
+    " Go to the specified line number
+    execute 'normal! ' . a:num . 'G'
+    call s:InspectObjectAtCursor()
+endfunction
+
+" Inspect the object at the current cursor line
+function! s:InspectObjectAtCursor() abort
+    let line = getline('.')
+    
+    " Extract object name from the line (pattern: "1. object_name (type)")
+    let match = matchlist(line, '^\s*\d\+\.\s\+\(\w\+\)\s\+(.*)')
+    
+    if empty(match)
+        echohl WarningMsg
+        echo "No valid object found on this line"
+        echohl None
+        return
+    endif
+    
+    let object_name = match[1]
+    
+    " Clear the browser window and show object details
+    silent! %delete _
+    
+    " Create comprehensive inspection command
+    let temp_file = tempname()
+    let r_cmd = printf("capture.output({
+    \   cat('Object: %s\\n')
+    \   cat('======================================\\n')
+    \   cat('Class:', paste(class(%s), collapse=', '), '\\n')
+    \   cat('======================================\\n\\n')
+    \   if(is.data.frame(%s)) {
+    \     cat('Structure:\\n')
+    \     str(%s)
+    \     cat('\\nFirst few rows:\\n')
+    \     print(head(%s))
+    \   } else if(is.vector(%s) && length(%s) > 10) {
+    \     cat('First 10 elements:\\n')
+    \     print(head(%s, 10))
+    \     cat('\\nLast 10 elements:\\n') 
+    \     print(tail(%s, 10))
+    \   } else {
+    \     print(%s)
+    \   }
+    \ }, file='%s')", 
+    \ object_name, object_name, object_name, object_name, object_name, 
+    \ object_name, object_name, object_name, object_name, object_name, temp_file)
+    
+    " Send inspection command
+    call s:Send_to_r(r_cmd, 1)
+    
+    " Wait for execution
+    sleep 150m
+    
+    " Read and display results
+    if filereadable(temp_file)
+        let lines = readfile(temp_file)
+        call delete(temp_file)
+        
+        if !empty(lines)
+            call setline(1, lines)
+        else
+            call setline(1, "No output from R inspection")
+        endif
+    else
+        call setline(1, ["Error inspecting object: " . object_name,
+                       \ "Make sure R terminal is active"])
+    endif
+    
+    " Add navigation footer
+    call append(line('$'), ["", 
+                          \ "─────────────────────────────────",
+                          \ "• <ESC>: Back to object list",
+                          \ "• q: Close browser"])
+    
+    " Add mapping to go back to object list
+    nnoremap <buffer><silent> <ESC> :call <SID>PopulateObjectList()<CR>
+    
+    " Position at top
+    normal! gg
+    
+    echohl MoreMsg
+    echo "Inspecting: " . object_name . " | ESC: back to list | q: close"
+    echohl None
+endfunction
+
+"------------------------------------------------------------------------------
 " Testing Functions (Public wrappers for script-local functions)
 "------------------------------------------------------------------------------
 
@@ -1748,4 +1981,14 @@ endfunction
 " Public wrapper for testing s:MoveCursorAfterSubmission()
 function! ZzvimRTestMoveCursorAfterSubmission(selection_type, line_count) abort
     return s:MoveCursorAfterSubmission(a:selection_type, a:line_count)
+endfunction
+
+" Public wrapper for testing object browser (non-invasive test)
+function! ZzvimRTestObjectBrowser() abort
+    " Just test if the function exists and is callable
+    if exists('*s:RObjectBrowser')
+        return "Object browser function exists"
+    else
+        return "Object browser function missing"
+    endif
 endfunction
