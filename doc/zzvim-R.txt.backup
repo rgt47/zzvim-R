@@ -1,0 +1,143 @@
+*zzvim-r.txt*  R development plugin for Vim
+
+Author:  [Your Name] <email>
+License: VIM License
+Version: 1.0
+
+CONTENTS                                                        *zzvim-r-contents*
+
+    1. Introduction ........................... |zzvim-r-introduction|
+    2. Requirements ........................... |zzvim-r-requirements|
+    3. Configuration .......................... |zzvim-r-configuration|
+    4. Commands ............................... |zzvim-r-commands|
+    5. Mappings .............................. |zzvim-r-mappings|
+    6. Functions ............................. |zzvim-r-functions|
+    7. Troubleshooting ....................... |zzvim-r-troubleshooting|
+
+==============================================================================
+1. INTRODUCTION                                              *zzvim-r-introduction*
+
+zzvim-R is a Vim plugin that provides integration between Vim and R, allowing
+users to send commands to an R terminal, navigate R Markdown chunks, and perform
+common R operations directly from Vim.
+
+The plugin supports R script files (.R) as well as R Markdown (.rmd) and Quarto
+(.qmd) documents.
+
+==============================================================================
+2. REQUIREMENTS                                            *zzvim-r-requirements*
+
+The plugin requires:
+    * Vim 8.0 or newer with the +terminal feature
+    * R installed and available in your PATH
+
+==============================================================================
+3. CONFIGURATION                                          *zzvim-r-configuration*
+
+The following variables can be set in your vimrc to customize the plugin:
+
+                                                    *g:zzvim_r_default_terminal*
+g:zzvim_r_default_terminal    Sets the default terminal name for R sessions.
+                             Default: 'R'
+                             Example: >
+                             let g:zzvim_r_default_terminal = 'R-4.1'
+<
+                                                    *g:zzvim_r_disable_mappings*
+g:zzvim_r_disable_mappings    If set to 1, disables all default key mappings.
+                             Default: 0
+                             Example: >
+                             let g:zzvim_r_disable_mappings = 1
+<
+                                                    *g:zzvim_r_map_submit*
+g:zzvim_r_map_submit         Sets the key mapping for submitting lines to R.
+                             Default: '<CR>' (Enter key)
+                             Example: >
+                             let g:zzvim_r_map_submit = '<Leader>s'
+<
+==============================================================================
+4. COMMANDS                                                    *zzvim-r-commands*
+
+The plugin provides the following commands:
+
+:RSubmitLine                                                      *:RSubmitLine*
+    Submit the current line to R terminal.
+
+:RNextChunk                                                        *:RNextChunk*
+    Move cursor to the next R Markdown chunk.
+
+:RPrevChunk                                                        *:RPrevChunk*
+    Move cursor to the previous R Markdown chunk.
+
+:RSelectChunk                                                    *:RSelectChunk*
+    Select the current R Markdown chunk.
+
+:RSubmitChunks                                                  *:RSubmitChunks*
+    Submit all previous chunks to R terminal.
+
+==============================================================================
+5. MAPPINGS                                                    *zzvim-r-mappings*
+
+The following mappings are available when g:zzvim_r_disable_mappings is 0:
+
+Normal Mode:
+    <CR>              Submit current line to R
+    <localleader>o    Add pipe operator and new line
+    <localleader>j    Move to next chunk
+    <localleader>k    Move to previous chunk
+    <localleader>l    Select and submit current chunk
+    <localleader>'    Submit all previous chunks
+    <localleader>q    Send 'Q' to R terminal
+    <localleader>c    Send Ctrl-C to R terminal
+
+R Function Shortcuts:
+    <localleader>d    Run dim() on word under cursor
+    <localleader>h    Run head() on word under cursor
+    <localleader>s    Run str() on word under cursor
+    <localleader>p    Run print() on word under cursor
+    <localleader>n    Run names() on word under cursor
+    <localleader>f    Run length() on word under cursor
+    <localleader>g    Run glimpse() on word under cursor
+    <localleader>b    Run dt() on word under cursor
+
+Visual Mode:
+    <localleader>z    Submit visual selection
+
+==============================================================================
+6. FUNCTIONS                                                  *zzvim-r-functions*
+
+The plugin provides several script-local functions that can be used to build
+custom functionality:
+
+s:SubmitLine()                                            *zzvim-r-SubmitLine()*
+    Submit current line to R terminal and move cursor down.
+
+s:Raction({action})                                         *zzvim-r-Raction()*
+    Execute R function on word under cursor.
+    {action} is the R function name to execute.
+
+s:SelectChunk()                                          *zzvim-r-SelectChunk()*
+    Select the current R Markdown chunk.
+
+s:CollectPreviousChunks()                      *zzvim-r-CollectPreviousChunks()*
+    Collect all chunks above current position.
+
+==============================================================================
+7. TROUBLESHOOTING                                      *zzvim-r-troubleshooting*
+
+Common issues and solutions:
+
+No R terminal available~
+Make sure you have started an R terminal session before trying to send commands.
+
+Commands not being sent to R~
+Verify that:
+    * Vim was compiled with terminal support
+    * R is properly installed and in your PATH
+    * There is an active R terminal session
+
+Multiple terminals~
+If multiple terminal sessions are open, the plugin will prompt you to choose
+which terminal to send commands to.
+
+==============================================================================
+vim:ft=help:tw=78:ts=8:noet:fen:fdl=0:fdm=marker:

@@ -1021,8 +1021,8 @@ function! s:IsBlockStart(line) abort
         return 1
     endif
     
-    " Multi-line expressions - lines ending with infix operators
-    if a:line =~# '[+\-*/^&|<>=!]\s*$' || a:line =~# '%[^%]*%\s*$' || a:line =~# '<-\s*$' || a:line =~# '|>\s*$'
+    " Multi-line expressions - lines ending with infix operators or commas
+    if a:line =~# '[+\-*/^&|<>=!,]\s*$' || a:line =~# '%[^%]*%\s*$' || a:line =~# '<-\s*$' || a:line =~# '|>\s*$'
         return 1
     endif
     
@@ -1047,7 +1047,7 @@ function! s:GetCodeBlock() abort
     let current_line = getline('.')   " Current line content
     
     " Phase 1: Check for infix expressions first (no balanced delimiters)
-    if current_line =~# '[+\-*/^&|<>=!]\s*$' || current_line =~# '%[^%]*%\s*$' || current_line =~# '<-\s*$' || current_line =~# '|>\s*$'
+    if current_line =~# '[+\-*/^&|<>=!,]\s*$' || current_line =~# '%[^%]*%\s*$' || current_line =~# '<-\s*$' || current_line =~# '|>\s*$'
         " Multi-line infix expression - read until we find a line that doesn't end with an operator
         let end_line = current_line_num
         while end_line < line('$')
@@ -1058,12 +1058,31 @@ function! s:GetCodeBlock() abort
                 continue
             else
                 " Found non-empty, non-comment line
-                " Check if this line also ends with an operator (pipe chain continues)
-                if next_line =~# '[+\-*/^&|<>=!]\s*$' || next_line =~# '%[^%]*%\s*$' || next_line =~# '<-\s*$' || next_line =~# '|>\s*$'
+                " Check if this line also ends with an operator or comma (pipe chain continues)
+                if next_line =~# '[+\-*/^&|<>=!,]\s*$' || next_line =~# '%[^%]*%\s*$' || next_line =~# '<-\s*$' || next_line =~# '|>\s*$'
                     " This line also ends with an operator, continue the chain
                     continue
                 else
-                    " This line doesn't end with an operator, this is the end of the chain
+                    " This line doesn't end with an operator
+                    " But check if the NEXT line continues the pipe chain (for multi-line function calls)
+                    if end_line < line('$')
+                        let peek_line = getline(end_line + 1)
+                        " If next line is empty/comment, keep looking ahead
+                        let peek_line_num = end_line + 1
+                        while peek_line_num <= line('$') && (peek_line =~# '^\s*$' || peek_line =~# '^\s*#')
+                            let peek_line_num += 1
+                            if peek_line_num <= line('$')
+                                let peek_line = getline(peek_line_num)
+                            endif
+                        endwhile
+                        
+                        " If the next non-empty line ends with an operator or comma, continue the chain
+                        if peek_line_num <= line('$') && (peek_line =~# '[+\-*/^&|<>=!,]\s*$' || peek_line =~# '%[^%]*%\s*$' || peek_line =~# '<-\s*$' || peek_line =~# '|>\s*$')
+                            " Continue the chain - this was a multi-line function call
+                            continue
+                        endif
+                    endif
+                    " No continuation found, this is the end of the chain
                     break
                 endif
             endif
