@@ -792,7 +792,9 @@ endfunction
 function! s:MoveCursorAfterSubmission(selection_type, line_count) abort
     " Handle different submission types with appropriate cursor movement
     if a:selection_type ==# 'selection'
-        " Visual selection - don't move cursor, user controls position
+        " Visual selection - move cursor to line after the selection
+        let [l:line_end, l:col_end] = getpos("'>")[1:2]
+        call cursor(min([l:line_end + 1, line('$')]), 1)
         return
     elseif a:selection_type ==# 'chunk'
         " R Markdown chunk - cursor should move to after the chunk
