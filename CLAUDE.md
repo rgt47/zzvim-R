@@ -4,12 +4,13 @@ This document provides comprehensive information about the zzvim-R plugin, its c
 
 ## Document Status
 
-**Last Updated**: August 13, 2025  
+**Last Updated**: August 16, 2025  
 **Plugin Version**: 1.0.2  
 **Documentation Status**: Comprehensive inline documentation added for educational purposes  
 **Test Coverage**: Full test suite with 24/24 Ex commands verified + GitHub CI workflows  
 **Release Readiness**: Production ready with automated testing and multi-file workflow documentation  
 **Repository Status**: Clean, professional structure with duplicate files removed
+**Competitive Analysis**: Comprehensive comparison document with R.nvim completed
 
 ## Plugin Overview
 
@@ -52,6 +53,8 @@ zzvim-R/
 ├── README.md               # User documentation
 ├── MULTI_FILE_WORKFLOW.md  # Multi-file R analysis workflow guide
 ├── CONTRIBUTING.md         # Contribution guidelines
+├── docs/                    # Documentation and analysis
+│   └── zzvim-R-vs-R.nvim-comparison.md  # Competitive analysis with R.nvim
 ├── improvements.md         # Development improvements (dev only)
 ├── code_quality_report.md  # Code quality assessment (dev only)
 └── CLAUDE.md               # This file - development guide
@@ -777,3 +780,32 @@ This plugin has reached production maturity through systematic development:
 - Professional vim plugin standards compliance
 
 The codebase serves dual purposes as both a functional R development tool and an educational resource for VimScript programming. All major functionality is implemented, tested, and documented to professional standards with automated CI/CD ensuring ongoing quality.
+
+## Recent Session Work (August 16, 2025)
+
+### **Documentation Restructuring and Competitive Analysis**
+
+#### **Latest Improvements**:
+1. **Documentation Reorganization**: Moved comprehensive README content to help file (`doc/zzvim-R.txt`) while creating concise user-focused README for better onboarding
+2. **R.nvim Research**: Conducted thorough analysis of competing R integration solution including user feedback, pain points, and technical architecture
+3. **Comprehensive Comparison Document**: Created detailed competitive analysis in `docs/zzvim-R-vs-R.nvim-comparison.md` covering:
+   - Technical architecture comparison (terminal-based vs. TCP-based)
+   - User pain point analysis from community feedback
+   - Strategic positioning recommendations
+   - Feature enhancement roadmap
+   - Implementation priorities
+
+#### **Bug Fixes in Current Session**:
+1. **Cursor Movement Issue**: Fixed double cursor advancement where `<CR>` was jumping +2 lines instead of +1 due to both `MoveCursorAfterSubmission()` and `Send_to_r()` moving cursor
+2. **Missing RAction Function**: Added wrapper function to fix "Unknown function" error for object inspection mappings
+3. **Multi-line Pipe Detection**: Enhanced continuation logic to handle comma-separated function arguments
+4. **Visual Selection Cursor**: Fixed cursor positioning after visual selection submission
+
+#### **Key Insights from Competitive Analysis**:
+- **zzvim-R Strengths**: Simplicity, reliability, lightweight architecture, modern R pattern support
+- **R.nvim Pain Points**: Setup complexity, resource consumption, stability issues, feature bloat
+- **Strategic Position**: "Goldilocks solution" - more capable than vim-slime, less complex than R.nvim
+- **Enhancement Priorities**: Code completion, object browser, help integration, session management
+
+#### **Documentation Quality**: 
+Academic tone maintained across all documentation for consistency with existing help system and educational value.
