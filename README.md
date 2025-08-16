@@ -11,6 +11,9 @@ Advanced R integration for Vim and Neovim with smart code execution and multi-te
 - **Object Inspection**: Quick data analysis with `<LocalLeader>h/s/d/p` shortcuts
 - **Visual Selection**: Send any selected code block to R
 - **Pattern Recognition**: Handles complex R constructs including nested braces and pipes
+- **Optional Modern IDE Features**: CoC integration for LSP completion and diagnostics
+- **AI-Assisted Development**: GitHub Copilot support for intelligent code suggestions
+- **Progressive Enhancement**: Start simple, add advanced features as needed
 
 ## Quick Start
 
@@ -102,6 +105,72 @@ let g:zzvim_r_terminal_height = 15   " Horizontal split height
 " Optional: Disable default mappings (define your own)
 let g:zzvim_r_disable_mappings = 0
 ```
+
+## Optional Enhancements
+
+### Modern IDE Features (CoC Integration)
+
+For advanced code completion, LSP features, and error diagnostics:
+
+```vim
+" Add to your .vimrc
+Plug 'neoclide/coc.nvim', {'branch': 'release'}
+
+" Install R language server
+:CocInstall coc-r-lsp
+
+" Optional: Additional useful extensions
+:CocInstall coc-snippets coc-pairs
+```
+
+**Features unlocked:**
+- Real-time code completion for R objects and functions
+- Function signatures and parameter hints
+- Go-to-definition and find references
+- Real-time error diagnostics and syntax checking
+- Snippet support for common R patterns
+
+### AI-Assisted Development (Copilot Integration)
+
+For AI-powered code suggestions and generation:
+
+```vim
+" Add to your .vimrc
+Plug 'github/copilot.vim'
+
+" After installation, authenticate
+:Copilot setup
+
+" Enable for R files (add to .vimrc)
+let g:copilot_filetypes = {'r': v:true, 'rmd': v:true, 'qmd': v:true}
+```
+
+**AI capabilities:**
+- Intelligent code completion and suggestions
+- Statistical analysis pattern recognition
+- Automatic documentation generation
+- Data manipulation workflow assistance
+
+### Performance Comparison
+
+| Configuration | Memory Usage | Features | Best For |
+|---------------|-------------|----------|----------|
+| Base zzvim-R | ~2MB | Smart patterns, terminal integration | Performance-critical, simple setups |
+| + CoC | ~15MB | LSP features, completion, diagnostics | Modern IDE experience |
+| + CoC + Copilot | ~20MB | Full IDE + AI assistance | Maximum productivity |
+
+*Compare to: RStudio (200-500MB), VS Code (100-300MB), R.nvim (50-100MB)*
+
+## Why zzvim-R?
+
+- **Smart & Fast**: Intelligent R code detection with instant execution
+- **Lightweight**: Minimal memory footprint compared to heavy IDEs
+- **Terminal-Native**: Works seamlessly in SSH environments and containers
+- **Modern IDE Features**: Optional CoC/Copilot integration for advanced completion
+- **Progressive Enhancement**: Start simple, add features as needed
+- **Educational**: Learn VimScript while using a practical tool
+- **Modern R**: Optimized for tidyverse, pipes, and contemporary workflows
+- **Best of Both Worlds**: Vim efficiency with optional modern IDE capabilities
 
 ## Usage Examples
 
