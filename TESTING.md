@@ -177,6 +177,7 @@ complex <- list(
 ### Success Criteria
 
 ✅ **Feature is ready for merge when:**
+
 - Browser opens instantly with `<LocalLeader>"`
 - Shows all workspace objects with correct types
 - Number key navigation works smoothly
