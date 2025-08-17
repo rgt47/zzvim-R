@@ -1807,8 +1807,10 @@ function! s:PopulateObjectList() abort
     " Use a fixed temp file for easier debugging
     let simple_temp = '/tmp/zzvim_r_objects_debug'
     
-    " Use writeLines with explicit newline termination and longer delay
-    let r_cmd = printf("writeLines(paste(seq_along(ls()), ls(), sep='. '), '%s'); flush.console()", simple_temp)
+    " Store ls() result first to avoid timing issues
+    call s:Send_to_r("obj_names <- ls()", 1)
+    sleep 200m
+    let r_cmd = printf("writeLines(paste(seq_along(obj_names), obj_names, sep='. '), '%s'); flush.console()", simple_temp)
     call s:Send_to_r(r_cmd, 1)
     sleep 1000m
     
