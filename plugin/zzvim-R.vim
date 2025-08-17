@@ -1767,7 +1767,7 @@ function! s:RObjectBrowser() abort
     
     try
         " Create vertical split on the right (like vim-peekaboo)
-        botright vertical 40new
+        botright vertical 60new
         
         " Configure buffer as temporary/scratch
         setlocal buftype=nofile
@@ -1821,33 +1821,14 @@ function! s:PopulateObjectList() abort
     " We'll use a temporary file approach to capture the output
     let temp_file = tempname()
     
-    " R command to get object information
-    let r_cmd = printf("capture.output({
-    \   objs <- ls(envir=.GlobalEnv)
-    \   if(length(objs) == 0) {
-    \     cat('No objects in workspace\\n')
-    \   } else {
-    \     for(i in seq_along(objs)) {
-    \       obj <- objs[i]
-    \       cls <- paste(class(get(obj, envir=.GlobalEnv)), collapse=', ')
-    \       if(is.data.frame(get(obj, envir=.GlobalEnv))) {
-    \         dims <- dim(get(obj, envir=.GlobalEnv))
-    \         cat(sprintf('%%2d. %%s (%%s %%dx%%d)\\n', i, obj, cls, dims[1], dims[2]))
-    \       } else if(is.vector(get(obj, envir=.GlobalEnv)) || is.list(get(obj, envir=.GlobalEnv))) {
-    \         len <- length(get(obj, envir=.GlobalEnv))
-    \         cat(sprintf('%%2d. %%s (%%s length=%%d)\\n', i, obj, cls, len))
-    \       } else {
-    \         cat(sprintf('%%2d. %%s (%%s)\\n', i, obj, cls))
-    \       }
-    \     }
-    \   }
-    \ }, file='%s')", temp_file)
+    " R command to get object information (single line to avoid syntax errors)
+    let r_cmd = printf("capture.output({ objs <- ls(envir=.GlobalEnv); if(length(objs) == 0) { cat('No objects in workspace\\n') } else { for(i in seq_along(objs)) { obj <- objs[i]; cls <- paste(class(get(obj, envir=.GlobalEnv)), collapse=', '); if(is.data.frame(get(obj, envir=.GlobalEnv))) { dims <- dim(get(obj, envir=.GlobalEnv)); cat(sprintf('%%2d. %%s (%%s %%dx%%d)\\n', i, obj, cls, dims[1], dims[2])) } else if(is.vector(get(obj, envir=.GlobalEnv)) || is.list(get(obj, envir=.GlobalEnv))) { len <- length(get(obj, envir=.GlobalEnv)); cat(sprintf('%%2d. %%s (%%s length=%%d)\\n', i, obj, cls, len)) } else { cat(sprintf('%%2d. %%s (%%s)\\n', i, obj, cls)) } } } }, file='%s')", temp_file)
     
     " Send command to R and wait briefly for execution
     call s:Send_to_r(r_cmd, 1)
     
-    " Small delay to let R execute
-    sleep 100m
+    " Longer delay to let R execute and write file
+    sleep 300m
     
     " Read the captured output
     if filereadable(temp_file)
