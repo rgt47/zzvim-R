@@ -1807,8 +1807,9 @@ function! s:PopulateObjectList() abort
     " Use a simpler, more persistent temp file approach
     let simple_temp = '/tmp/zzvim_r_objects_' . getpid()
     
-    " Send object listing command without braces to avoid scope issues
-    call s:Send_to_r(printf("writeLines(paste(seq_along(ls()), ls(), sep='. '), '%s')", simple_temp), 1)
+    " Simple approach: just write the objects one by one
+    let r_cmd = printf("cat(paste(seq_along(ls()), ls(), sep='. ', collapse='\\n'), file='%s')", simple_temp)
+    call s:Send_to_r(r_cmd, 1)
     sleep 500m
     
     " Read the captured output with debugging
@@ -1819,7 +1820,8 @@ function! s:PopulateObjectList() abort
         if empty(lines)
             call setline(1, ["Waiting for R objects...", 
                            \ "Debug: File was readable but empty",
-                           \ "Temp file: " . simple_temp])
+                           \ "Temp file: " . simple_temp,
+                           \ "R command: " . r_cmd])
         else
             call setline(1, lines)
         endif
