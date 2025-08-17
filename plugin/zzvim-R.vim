@@ -1400,6 +1400,7 @@ command! -bar -nargs=? ROpenSplit call s:ROpenSplitCommand(<q-args>)
 " Enhanced Object Inspection Commands (modular implementation)
 command! -bar RGlimpseAll call zzvim_r#object_browser#glimpse_all()
 command! -bar -nargs=? RInspect call zzvim_r#object_browser#inspect_smart(<q-args>)
+command! -bar RInstallDplyr call s:Send_to_r('install.packages("dplyr")', 1)
 
 "------------------------------------------------------------------------------
 " Helper Functions for Commands
