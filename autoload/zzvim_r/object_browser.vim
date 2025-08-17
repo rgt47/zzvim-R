@@ -26,10 +26,10 @@ function! zzvim_r#object_browser#glimpse_all() abort
         return
     endif
     
-    " Send very simple workspace overview
+    " Send clean workspace overview
     call s:Send_to_r('cat("\n=== Workspace Overview ===\n")', 1)
-    call s:Send_to_r('sapply(ls(), function(x) paste(x, ":", class(get(x))[1]))', 1)
-    call s:Send_to_r('cat("\n========================\n")', 1)
+    call s:Send_to_r('for(obj in ls()) cat(obj, ":", class(get(obj))[1], "\n")', 1)
+    call s:Send_to_r('cat("========================\n")', 1)
     
     echom "Workspace overview sent to R terminal"
 endfunction
