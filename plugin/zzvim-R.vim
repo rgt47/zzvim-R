@@ -1717,15 +1717,7 @@ endfunction
 " Public API Functions for Modular Components
 "------------------------------------------------------------------------------
 
-" Public wrapper for s:GetBufferTerminal() - used by object browser module
-function! zzvim_r#GetBufferTerminal() abort
-    return s:GetBufferTerminal()
-endfunction
-
-" Public wrapper for s:Send_to_r() - used by object browser module  
-function! zzvim_r#Send_to_r(cmd, stay_on_line) abort
-    return s:Send_to_r(a:cmd, a:stay_on_line)
-endfunction
+" Note: Public API functions moved to autoload/ for proper namespace handling
 
 "------------------------------------------------------------------------------
 " Testing Functions (Public wrappers for script-local functions)
