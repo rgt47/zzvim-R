@@ -1830,19 +1830,24 @@ function! s:PopulateObjectList() abort
     " Longer delay to let R execute and write file
     sleep 300m
     
-    " Read the captured output
+    " Read the captured output with debugging
     if filereadable(temp_file)
         let lines = readfile(temp_file)
         call delete(temp_file)
         
         if empty(lines)
-            call setline(1, "Waiting for R objects...")
+            call setline(1, ["Waiting for R objects...", 
+                           \ "Debug: File was readable but empty",
+                           \ "Temp file: " . temp_file])
         else
             call setline(1, lines)
         endif
     else
         call setline(1, ["Error: Could not retrieve R objects", 
-                       \ "Make sure R terminal is active"])
+                       \ "Make sure R terminal is active",
+                       \ "Debug: File not readable",
+                       \ "Temp file: " . temp_file,
+                       \ "R command sent: " . r_cmd])
     endif
     
     " Add footer with instructions
