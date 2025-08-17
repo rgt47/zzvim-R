@@ -416,6 +416,28 @@ function! s:OpenRTerminal(...) abort
     " Generate unique terminal name for this buffer
     let terminal_name = a:0 > 0 ? a:1 : s:GetTerminalName()
     
+    " Check if a terminal with this name already exists
+    let existing_terminal = -1
+    for term_buf in term_list()
+        if bufname(term_buf) == terminal_name
+            " Found existing terminal with same name
+            if term_getstatus(term_buf) =~# 'running'
+                " Terminal is still running, reuse it
+                let existing_terminal = term_buf
+                break
+            else
+                " Terminal exists but not running, clean it up
+                execute 'bwipeout! ' . term_buf
+            endif
+        endif
+    endfor
+    
+    " If we found a running terminal, return it
+    if existing_terminal != -1
+        wincmd p  " Return to previous window
+        return existing_terminal
+    endif
+    
     " executable('R') checks if R command is available in system PATH
     " Returns 1 if found, 0 if not found
     if !executable('R')
@@ -444,7 +466,7 @@ function! s:OpenRTerminal(...) abort
     " Get the terminal buffer number that was just created
     let current_terminal = bufnr('%')
     
-    " Set terminal name for identification
+    " Set terminal name for identification (only if no existing terminal found)
     execute 'file ' . terminal_name
     
     " Set legacy tab-local variable for backward compatibility
