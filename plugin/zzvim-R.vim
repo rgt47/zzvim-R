@@ -1766,33 +1766,18 @@ function! s:RObjectBrowser() abort
     let current_winnr = winnr()
     
     try
-        " Create vertical split on the right (like vim-peekaboo)
-        botright vertical 60new
-        
-        " Configure buffer as temporary/scratch
-        setlocal buftype=nofile
-        setlocal bufhidden=wipe  
-        setlocal noswapfile
-        setlocal nowrap
-        setlocal number
-        setlocal nobuflisted
-        setlocal winfixwidth
-        setlocal nonumber
-        setlocal norelativenumber
-        setlocal cursorline
+        " Open as a regular new buffer for easier debugging
+        enew
         
         " Set buffer name for identification
-        silent! file [R Objects]
+        silent! file [R-Objects-Debug]
         
-        " Key mappings for browser window
-        nnoremap <buffer><silent> <ESC> :close<CR>
-        nnoremap <buffer><silent> q :close<CR>
-        nnoremap <buffer><silent> <CR> :call <SID>InspectObjectAtCursor()<CR>
+        " Basic buffer settings for debugging
+        setlocal buftype=nofile
+        setlocal noswapfile
         
-        " Number key mappings for quick object selection (1-9)
-        for i in range(1, 9)
-            execute 'nnoremap <buffer><silent> ' . i . ' :call <SID>InspectObjectByNumber(' . i . ')<CR>'
-        endfor
+        " Simple key mappings for debugging
+        nnoremap <buffer><silent> q :q<CR>
         
         " Populate with R objects list
         call s:PopulateObjectList()
@@ -1800,10 +1785,8 @@ function! s:RObjectBrowser() abort
         " Position cursor on first object
         normal! gg
         
-        " Show helpful status message
-        echohl MoreMsg
-        echo "R Object Browser | Numbers 1-9: inspect | <CR>: inspect at cursor | ESC/q: close"
-        echohl None
+        " Silent status message in buffer instead of command line
+        call append(line('$'), ["", "=== R Object Browser ===", "Press 'q' to close"])
         
     catch /^Vim\%((\a\+)\)\=:E/
         call s:Error("Failed to open object browser: " . v:exception)
@@ -1949,10 +1932,6 @@ function! s:InspectObjectAtCursor() abort
     
     " Position at top
     normal! gg
-    
-    echohl MoreMsg
-    echo "Inspecting: " . object_name . " | ESC: back to list | q: close"
-    echohl None
 endfunction
 
 "------------------------------------------------------------------------------
