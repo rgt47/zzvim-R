@@ -27,9 +27,9 @@ function! zzvim_r#object_browser#glimpse_all() abort
     endif
     
     " Send very simple workspace overview
-    call s:Send_to_r('cat("\\n=== Workspace Overview ===\\n")', 1)
+    call s:Send_to_r('cat("\n=== Workspace Overview ===\n")', 1)
     call s:Send_to_r('sapply(ls(), function(x) paste(x, ":", class(get(x))[1]))', 1)
-    call s:Send_to_r('cat("\\n========================\\n")', 1)
+    call s:Send_to_r('cat("\n========================\n")', 1)
     
     echom "Workspace overview sent to R terminal"
 endfunction
@@ -57,8 +57,8 @@ function! zzvim_r#object_browser#inspect_smart(...) abort
     endif
     
     " Send simple inspection commands
-    call s:Send_to_r(printf('cat("\\n=== %s ===\\n")', obj_name), 1)
-    call s:Send_to_r(printf('if(exists("%s")) { class(%s); if(is.data.frame(%s)) glimpse(%s) else str(%s) } else cat("Not found\\n")', obj_name, obj_name, obj_name, obj_name, obj_name), 1)
+    call s:Send_to_r(printf('cat("\n=== %s ===\n")', obj_name), 1)
+    call s:Send_to_r(printf('if(exists("%s")) { class(%s); if(is.data.frame(%s)) glimpse(%s) else str(%s) } else cat("Not found\n")', obj_name, obj_name, obj_name, obj_name, obj_name), 1)
     echom "Inspection of '" . obj_name . "' sent to R terminal"
 endfunction
 
