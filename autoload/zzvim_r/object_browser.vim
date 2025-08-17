@@ -56,9 +56,11 @@ function! zzvim_r#object_browser#inspect_smart(...) abort
         return
     endif
     
-    " Send simple inspection commands with graceful dplyr fallback
+    " Send simple inspection commands - split into shorter commands
     call s:Send_to_r(printf('cat("\n=== %s ===\n")', obj_name), 1)
-    call s:Send_to_r(printf('if(exists("%s")) { cat("Class:", class(%s)[1], "\n"); if(is.data.frame(%s)) { if(require(dplyr, quietly=TRUE)) glimpse(%s) else { cat("(using str - install dplyr for glimpse)\n"); str(%s) } } else str(%s) } else cat("Not found\n")', obj_name, obj_name, obj_name, obj_name, obj_name, obj_name), 1)
+    call s:Send_to_r(printf('if(!exists("%s")) { cat("Not found\n"); stop() }', obj_name), 1)
+    call s:Send_to_r(printf('cat("Class:", class(%s)[1], "\n")', obj_name), 1)
+    call s:Send_to_r(printf('if(is.data.frame(%s) && require(dplyr, quietly=TRUE)) glimpse(%s) else str(%s)', obj_name, obj_name, obj_name), 1)
     echom "Inspection of '" . obj_name . "' sent to R terminal"
 endfunction
 
