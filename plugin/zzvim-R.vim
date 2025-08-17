@@ -1770,12 +1770,15 @@ endfunction
 
 " Show workspace overview - replaces complex object browser
 function! s:RWorkspaceOverview() abort
-    call s:Send_to_r('cat("\\n=== Workspace ===\\n"); for(obj in ls()) cat(obj, ":", class(get(obj))[1], "\\n"); cat("=================\\n")', 1)
+    call s:Send_to_r('cat("\n=== Workspace ===\n")', 1)
+    call s:Send_to_r('for(obj in ls()) cat(obj, ":", class(get(obj))[1], "\n")', 1)
+    call s:Send_to_r('cat("=================\n")', 1)
 endfunction
 
 " Inspect object at cursor or by name - replaces complex smart inspection  
 function! s:RInspectObject(...) abort
     let obj = a:0 > 0 ? a:1 : expand('<cword>')
     if empty(obj) | echom "No object specified" | return | endif
-    call s:Send_to_r(printf('if(exists("%s")) { cat("\\n=== %s ===\\n"); if(is.data.frame(%s) && require(dplyr, quietly=TRUE)) glimpse(%s) else str(%s) } else cat("Not found: %s\\n")', obj, obj, obj, obj, obj, obj), 1)
+    call s:Send_to_r(printf('cat("\n=== %s ===\n")', obj), 1)
+    call s:Send_to_r(printf('if(exists("%s")) { if(is.data.frame(%s) && require(dplyr, quietly=TRUE)) glimpse(%s) else str(%s) } else cat("Not found: %s\n")', obj, obj, obj, obj, obj), 1)
 endfunction

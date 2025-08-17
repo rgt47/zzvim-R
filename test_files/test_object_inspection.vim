@@ -6,20 +6,20 @@
 
 echo "Starting Object Inspection Tests..."
 
-" Test 1: Basic function existence
-echo "Test 1: Function existence..."
+" Test 1: Basic command functionality
+echo "Test 1: Command functionality..."
 try
-    call s:RWorkspaceOverview()
-    echo "✅ s:RWorkspaceOverview() exists"
+    RWorkspace
+    echo "✅ RWorkspace command works"
 catch
-    echo "❌ s:RWorkspaceOverview() missing: " . v:exception
+    echo "❌ RWorkspace command failed: " . v:exception
 endtry
 
 try 
-    call s:RInspectObject("test")
-    echo "✅ s:RInspectObject() exists"
+    RInspect
+    echo "✅ RInspect command works"
 catch
-    echo "❌ s:RInspectObject() missing: " . v:exception
+    echo "❌ RInspect command failed: " . v:exception
 endtry
 
 " Test 2: Command existence  
@@ -39,26 +39,34 @@ catch
 endtry
 
 " Test 3: Key mapping existence (requires R file)
-echo "Test 3: Key mapping tests (open an R file first)..."
+echo "Test 3: Key mapping tests..."
+echo "Current filetype: " . &filetype
 if &filetype == 'r' || &filetype == 'rmd' || &filetype == 'quarto'
+    " Check if LocalLeader is set
+    if exists('g:maplocalleader')
+        echo "LocalLeader set to: " . g:maplocalleader
+    else
+        echo "LocalLeader not set (using default backslash)"
+    endif
+    
+    " Test mappings exist
+    let has_workspace_map = 0
+    let has_inspect_map = 0
+    
     try
-        " Test if mappings exist by checking map output
-        redir => mapping_output
-        silent nmap <LocalLeader>'
-        redir END
-        
-        if mapping_output =~ 'RWorkspaceOverview'
-            echo "✅ <LocalLeader>' mapping exists"
+        " Use mapcheck to see if mappings exist
+        let workspace_map = mapcheck("<LocalLeader>'", 'n')
+        if !empty(workspace_map)
+            echo "✅ <LocalLeader>' mapping exists: " . workspace_map
+            let has_workspace_map = 1
         else
             echo "❌ <LocalLeader>' mapping not found"
         endif
         
-        redir => mapping_output  
-        silent nmap <LocalLeader>i
-        redir END
-        
-        if mapping_output =~ 'RInspectObject'
-            echo "✅ <LocalLeader>i mapping exists"
+        let inspect_map = mapcheck("<LocalLeader>i", 'n')
+        if !empty(inspect_map)
+            echo "✅ <LocalLeader>i mapping exists: " . inspect_map
+            let has_inspect_map = 1
         else
             echo "❌ <LocalLeader>i mapping not found"
         endif
