@@ -4,9 +4,17 @@ This directory contains test files and code examples to verify the functionality
 
 ## Contents
 
+### Core Testing Files
 - `test.R`: Simple R file for testing basic functionality
 - `test.Rmd`: R Markdown file for testing chunk navigation and execution
 - `test_error_handling.vim`: Script to test error handling when plugin functions are unavailable
+
+### Object Inspection Testing
+- **`test_object_inspection.vim`** - Automated test suite for object browser functionality
+- **`test_object_inspection.R`** - Test data creation script with various R object types  
+- **`object_inspection_checklist.md`** - Comprehensive manual testing checklist
+
+### Code Examples
 - `code_examples/`: Directory containing explanations of key improvements:
   - `chunk_navigation.txt`: Details on the improved chunk navigation logic
   - `delegation_pattern.txt`: Explanation of the improved delegation pattern
@@ -31,6 +39,27 @@ A comprehensive test plan is available in the main repository directory: `../tes
 A detailed code quality report documenting the architectural improvements is available at `../code_quality_report.md`.
 
 ## How to Run Tests
+
+### Object Inspection Tests
+
+#### Automated Tests
+```vim
+:source test_files/test_object_inspection.vim
+```
+
+#### Manual Testing
+```vim
+" 1. Create test objects  
+:edit test_files/test_object_inspection.R
+<LocalLeader>r
+" Execute the R file contents
+
+" 2. Test object browser functionality
+<LocalLeader>'              " Workspace overview
+<LocalLeader>i              " Object inspection at cursor
+:RWorkspace                 " Command version of workspace overview
+:RInspect mtcars           " Command version of object inspection
+```
 
 ### Interactive Testing
 
