@@ -156,7 +156,7 @@ scriptencoding utf-8
 "   <LocalLeader>g    - glimpse() - Modern tibble structure view (dplyr)
 "   <LocalLeader>b    - dt() - data.table print method
 "   <LocalLeader>y    - help() - Open R help documentation
-"   <LocalLeader>"    - Object Browser - vim-peekaboo style R workspace browser
+"   <LocalLeader>'    - Object Browser - vim-peekaboo style R workspace browser
 "                      Opens right-side panel showing all R objects with types
 "                      Number keys 1-9: quick inspect, ESC/q: close browser
 "
@@ -1369,7 +1369,7 @@ if !g:zzvim_r_disable_mappings
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>sa :call <SID>SendToR('')<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>sp :call <SID>SendToR('previous_chunks')<CR>
         " Object Browser (vim-peekaboo style)
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>" :call <SID>RObjectBrowser()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>' :call <SID>RObjectBrowser()<CR>
     augroup END
 endif
 

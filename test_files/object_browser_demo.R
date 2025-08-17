@@ -93,5 +93,5 @@ cat("   • Browser opens instantly on right side\n")
 cat("   • No 'Press ENTER' prompts\n") 
 cat("   • Smooth navigation between objects\n")
 cat("   • Detailed inspection shows appropriate info\n\n")
-
+  
 cat("Happy testing! 🎯\n")
