@@ -26,22 +26,11 @@ function! zzvim_r#object_browser#glimpse_all() abort
         return
     endif
     
-    " Send enhanced workspace overview command directly to R
-    " This uses the reliable pattern - output goes to R terminal
-    let r_cmd = 'cat("\\n=== R Workspace Overview ===\\n"); '
-    let r_cmd .= 'objs <- ls(); '
-    let r_cmd .= 'if(length(objs) == 0) { cat("No objects in workspace\\n") } else { '
-    let r_cmd .= 'for(obj in objs) { '
-    let r_cmd .= 'cat("\\n", obj, " (", class(get(obj))[1], "):\\n", sep=""); '
-    let r_cmd .= 'if(inherits(get(obj), "data.frame")) { '
-    let r_cmd .= 'if(require(dplyr, quietly=TRUE)) glimpse(get(obj)) else str(get(obj)); '
-    let r_cmd .= '} else if(is.vector(get(obj)) && length(get(obj)) > 10) { '
-    let r_cmd .= 'cat("  Length:", length(get(obj)), "\\n  First 5: "); print(head(get(obj), 5)); '
-    let r_cmd .= '} else { str(get(obj)) } }; '
-    let r_cmd .= 'cat("\\n=== End Overview ===\\n") }'
+    " Send very simple workspace overview
+    call s:Send_to_r('cat("\\n=== Workspace Overview ===\\n")', 1)
+    call s:Send_to_r('sapply(ls(), function(x) paste(x, ":", class(get(x))[1]))', 1)
+    call s:Send_to_r('cat("\\n========================\\n")', 1)
     
-    " Send to R terminal - user sees results immediately
-    call s:Send_to_r(r_cmd, 1)
     echom "Workspace overview sent to R terminal"
 endfunction
 
@@ -67,24 +56,9 @@ function! zzvim_r#object_browser#inspect_smart(...) abort
         return
     endif
     
-    " Send smart inspection command
-    let r_cmd = printf('cat("\\n=== Inspecting: %s ===\\n"); ', obj_name)
-    let r_cmd .= printf('if(!exists("%s")) { cat("Object does not exist\\n") } else { ', obj_name)
-    let r_cmd .= printf('obj <- %s; cat("Class:", class(obj)[1], "\\n"); ', obj_name)
-    let r_cmd .= 'if(inherits(obj, "data.frame")) { '
-    let r_cmd .= 'cat("Dimensions:", nrow(obj), "x", ncol(obj), "\\n"); '
-    let r_cmd .= 'if(require(dplyr, quietly=TRUE)) glimpse(obj) else { str(obj); head(obj) }; '
-    let r_cmd .= '} else if(inherits(obj, c("lm", "glm"))) { '
-    let r_cmd .= 'summary(obj); '
-    let r_cmd .= '} else if(is.function(obj)) { '
-    let r_cmd .= 'cat("Arguments:\\n"); print(args(obj)); '
-    let r_cmd .= '} else if(is.vector(obj) && length(obj) > 20) { '
-    let r_cmd .= 'cat("Length:", length(obj), "\\n"); cat("Summary:\\n"); summary(obj); '
-    let r_cmd .= '} else { str(obj); if(length(obj) <= 100) print(obj) }; '
-    let r_cmd .= 'cat("\\n=== End Inspection ===\\n") }'
-    
-    " Send to R terminal
-    call s:Send_to_r(r_cmd, 1)
+    " Send simple inspection commands
+    call s:Send_to_r(printf('cat("\\n=== %s ===\\n")', obj_name), 1)
+    call s:Send_to_r(printf('if(exists("%s")) { class(%s); if(is.data.frame(%s)) glimpse(%s) else str(%s) } else cat("Not found\\n")', obj_name, obj_name, obj_name, obj_name, obj_name), 1)
     echom "Inspection of '" . obj_name . "' sent to R terminal"
 endfunction
 
