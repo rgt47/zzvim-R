@@ -1804,32 +1804,22 @@ function! s:PopulateObjectList() abort
     " We'll use a temporary file approach to capture the output
     let temp_file = tempname()
     
-    " Test basic file writing first, then try object listing
-    call s:Send_to_r(printf("writeLines('test', '%s')", temp_file), 1)
-    sleep 100m
+    " Use a simpler, more persistent temp file approach
+    let simple_temp = '/tmp/zzvim_r_objects_' . getpid()
     
-    " Check if basic write worked
-    if filereadable(temp_file)
-        " Basic write worked, now try object listing
-        call s:Send_to_r(printf("{ objs <- ls(); writeLines(paste(seq_along(objs), objs, sep='. '), '%s') }", temp_file), 1)
-        sleep 300m
-    else
-        " Basic write failed, show this in debug
-        call setline(1, ["Debug: Basic file write test failed", 
-                       \ "Temp file: " . temp_file,
-                       \ "Check R terminal connection"])
-        return
-    endif
+    " Send object listing command without braces to avoid scope issues
+    call s:Send_to_r(printf("writeLines(paste(seq_along(ls()), ls(), sep='. '), '%s')", simple_temp), 1)
+    sleep 500m
     
     " Read the captured output with debugging
-    if filereadable(temp_file)
-        let lines = readfile(temp_file)
-        call delete(temp_file)
+    if filereadable(simple_temp)
+        let lines = readfile(simple_temp)
+        call delete(simple_temp)
         
         if empty(lines)
             call setline(1, ["Waiting for R objects...", 
                            \ "Debug: File was readable but empty",
-                           \ "Temp file: " . temp_file])
+                           \ "Temp file: " . simple_temp])
         else
             call setline(1, lines)
         endif
@@ -1837,7 +1827,7 @@ function! s:PopulateObjectList() abort
         call setline(1, ["Error: Could not retrieve R objects", 
                        \ "Make sure R terminal is active",
                        \ "Debug: File not readable",
-                       \ "Temp file: " . temp_file,
+                       \ "Temp file: " . simple_temp,
                        \ "R command sent: " . r_cmd])
     endif
     
