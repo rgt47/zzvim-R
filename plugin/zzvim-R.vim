@@ -1821,14 +1821,22 @@ function! s:PopulateObjectList() abort
     " We'll use a temporary file approach to capture the output
     let temp_file = tempname()
     
-    " Use writeLines approach instead of capture.output for reliability
-    let r_cmd = printf("writeLines(capture.output(for(i in seq_along(ls())) { obj <- ls()[i]; cls <- paste(class(get(obj)), collapse=', '); if(is.data.frame(get(obj))) { dims <- dim(get(obj)); cat(sprintf('%%2d. %%s (%%s %%dx%%d)', i, obj, cls, dims[1], dims[2])) } else if(is.vector(get(obj)) || is.list(get(obj))) { len <- length(get(obj)); cat(sprintf('%%2d. %%s (%%s length=%%d)', i, obj, cls, len)) } else { cat(sprintf('%%2d. %%s (%%s)', i, obj, cls)) }; cat('\\n') }), '%s')", temp_file)
+    " Test basic file writing first, then try object listing
+    call s:Send_to_r(printf("writeLines('test', '%s')", temp_file), 1)
+    sleep 100m
     
-    " Send command to R and wait briefly for execution
-    call s:Send_to_r(r_cmd, 1)
-    
-    " Longer delay to let R execute and write file
-    sleep 300m
+    " Check if basic write worked
+    if filereadable(temp_file)
+        " Basic write worked, now try object listing
+        call s:Send_to_r(printf("{ objs <- ls(); writeLines(paste(seq_along(objs), objs, sep='. '), '%s') }", temp_file), 1)
+        sleep 300m
+    else
+        " Basic write failed, show this in debug
+        call setline(1, ["Debug: Basic file write test failed", 
+                       \ "Temp file: " . temp_file,
+                       \ "Check R terminal connection"])
+        return
+    endif
     
     " Read the captured output with debugging
     if filereadable(temp_file)
