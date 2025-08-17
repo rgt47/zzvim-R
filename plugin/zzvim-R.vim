@@ -1337,6 +1337,8 @@ if !g:zzvim_r_disable_mappings
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>sl :call <SID>SendToR('line')<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>sa :call <SID>SendToR('')<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>sp :call <SID>SendToR('previous_chunks')<CR>
+        " Object Browser (modular implementation)
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>' :call zzvim_r#object_browser#open()<CR>
     augroup END
 endif
 
@@ -1393,6 +1395,9 @@ command! -bar RShowTerminal call s:RShowTerminalCommand()
 command! -bar RListTerminals call s:RListTerminalsCommand()
 command! -bar RSwitchToTerminal call s:RSwitchToTerminalCommand()
 command! -bar -nargs=? ROpenSplit call s:ROpenSplitCommand(<q-args>)
+
+" Object Browser Commands (modular implementation)
+command! -bar RObjectBrowser call zzvim_r#object_browser#open()
 
 "------------------------------------------------------------------------------
 " Helper Functions for Commands
@@ -1704,6 +1709,20 @@ function! s:ROpenSplitCommand(split_type) abort
         call s:Error("Failed to open terminal in split: " . v:exception)
         return
     endtry
+endfunction
+
+"------------------------------------------------------------------------------
+" Public API Functions for Modular Components
+"------------------------------------------------------------------------------
+
+" Public wrapper for s:GetBufferTerminal() - used by object browser module
+function! zzvim_r#GetBufferTerminal() abort
+    return s:GetBufferTerminal()
+endfunction
+
+" Public wrapper for s:Send_to_r() - used by object browser module  
+function! zzvim_r#Send_to_r(cmd, stay_on_line) abort
+    return s:Send_to_r(a:cmd, a:stay_on_line)
 endfunction
 
 "------------------------------------------------------------------------------
