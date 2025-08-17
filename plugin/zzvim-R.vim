@@ -1337,8 +1337,9 @@ if !g:zzvim_r_disable_mappings
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>sl :call <SID>SendToR('line')<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>sa :call <SID>SendToR('')<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>sp :call <SID>SendToR('previous_chunks')<CR>
-        " Object Browser (modular implementation)
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>' :call zzvim_r#object_browser#open()<CR>
+        " Enhanced Object Inspection (modular implementation)
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>' :call zzvim_r#object_browser#glimpse_all()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>i :call zzvim_r#object_browser#inspect_smart()<CR>
     augroup END
 endif
 
@@ -1396,8 +1397,9 @@ command! -bar RListTerminals call s:RListTerminalsCommand()
 command! -bar RSwitchToTerminal call s:RSwitchToTerminalCommand()
 command! -bar -nargs=? ROpenSplit call s:ROpenSplitCommand(<q-args>)
 
-" Object Browser Commands (modular implementation)
-command! -bar RObjectBrowser call zzvim_r#object_browser#open()
+" Enhanced Object Inspection Commands (modular implementation)
+command! -bar RGlimpseAll call zzvim_r#object_browser#glimpse_all()
+command! -bar -nargs=? RInspect call zzvim_r#object_browser#inspect_smart(<q-args>)
 
 "------------------------------------------------------------------------------
 " Helper Functions for Commands

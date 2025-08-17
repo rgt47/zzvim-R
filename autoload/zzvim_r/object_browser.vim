@@ -1,8 +1,8 @@
 " =============================================================================
-" Object Browser Module for zzvim-R
+" Enhanced Object Inspection Module for zzvim-R  
 " =============================================================================
-" This module provides a vim-peekaboo style object browser for R workspace
-" inspection. It can be loaded independently and tested in isolation.
+" This module provides enhanced R workspace inspection based on the glimpse
+" function pattern. Much more reliable than complex browser approaches.
 "
 " Author: zzvim-R project
 " License: GPL3
@@ -11,12 +11,11 @@
 " PUBLIC API FUNCTIONS
 " =============================================================================
 
-" Main object browser function - opens browser window showing R objects
-" Similar to vim-peekaboo's register viewer but for R workspace objects
-function! zzvim_r#object_browser#open() abort
+" Show glimpse of all objects in workspace
+function! zzvim_r#object_browser#glimpse_all() abort
     " Only works in R files with active terminal
     if &filetype != 'r' && &filetype != 'rmd' && &filetype != 'quarto'
-        call s:Error("Object browser only works in R/Rmd/Quarto files")
+        call s:Error("Enhanced inspection only works in R/Rmd/Quarto files")
         return
     endif
     
@@ -27,86 +26,71 @@ function! zzvim_r#object_browser#open() abort
         return
     endif
     
-    " Save current window to return to
-    let current_winnr = winnr()
+    " Send enhanced workspace overview command directly to R
+    " This uses the reliable pattern - output goes to R terminal
+    let r_cmd = 'cat("\\n=== R Workspace Overview ===\\n"); '
+    let r_cmd .= 'objs <- ls(); '
+    let r_cmd .= 'if(length(objs) == 0) { cat("No objects in workspace\\n") } else { '
+    let r_cmd .= 'for(obj in objs) { '
+    let r_cmd .= 'cat("\\n", obj, " (", class(get(obj))[1], "):\\n", sep=""); '
+    let r_cmd .= 'if(inherits(get(obj), "data.frame")) { '
+    let r_cmd .= 'if(require(dplyr, quietly=TRUE)) glimpse(get(obj)) else str(get(obj)); '
+    let r_cmd .= '} else if(is.vector(get(obj)) && length(get(obj)) > 10) { '
+    let r_cmd .= 'cat("  Length:", length(get(obj)), "\\n  First 5: "); print(head(get(obj), 5)); '
+    let r_cmd .= '} else { str(get(obj)) } }; '
+    let r_cmd .= 'cat("\\n=== End Overview ===\\n") }'
     
-    try
-        " Open as a regular new buffer for easier debugging
-        enew
-        
-        " Set buffer name for identification
-        silent! file [R-Objects-Debug]
-        
-        " Basic buffer settings for debugging
-        setlocal buftype=nofile
-        setlocal noswapfile
-        
-        " Simple key mappings for debugging
-        nnoremap <buffer><silent> q :q<CR>
-        
-        " Populate with R objects list
-        call s:PopulateObjectList()
-        
-        " Position cursor on first object
-        normal! gg
-        
-        " Silent status message in buffer instead of command line
-        call append(line('$'), ["", "=== R Object Browser ===", "Press 'q' to close"])
-        
-    catch /^Vim\%((\a\+)\)\=:E/
-        call s:Error("Failed to open object browser: " . v:exception)
-        " Return to original window if something went wrong
-        execute current_winnr . 'wincmd w'
-    endtry
+    " Send to R terminal - user sees results immediately
+    call s:Send_to_r(r_cmd, 1)
+    echom "Workspace overview sent to R terminal"
+endfunction
+
+" Smart inspection of specific object or word under cursor
+function! zzvim_r#object_browser#inspect_smart(...) abort
+    " Only works in R files with active terminal
+    if &filetype != 'r' && &filetype != 'rmd' && &filetype != 'quarto'
+        call s:Error("Enhanced inspection only works in R/Rmd/Quarto files")
+        return
+    endif
+    
+    " Get object name from argument or word under cursor
+    let obj_name = a:0 > 0 ? a:1 : expand('<cword>')
+    if empty(obj_name)
+        call s:Error("No object specified and no word under cursor")
+        return
+    endif
+    
+    " Check if we have an active terminal
+    let terminal_id = s:GetBufferTerminal()
+    if terminal_id == -1
+        call s:Error("No R terminal found. Use <LocalLeader>r to create one.")
+        return
+    endif
+    
+    " Send smart inspection command
+    let r_cmd = printf('cat("\\n=== Inspecting: %s ===\\n"); ', obj_name)
+    let r_cmd .= printf('if(!exists("%s")) { cat("Object does not exist\\n") } else { ', obj_name)
+    let r_cmd .= printf('obj <- %s; cat("Class:", class(obj)[1], "\\n"); ', obj_name)
+    let r_cmd .= 'if(inherits(obj, "data.frame")) { '
+    let r_cmd .= 'cat("Dimensions:", nrow(obj), "x", ncol(obj), "\\n"); '
+    let r_cmd .= 'if(require(dplyr, quietly=TRUE)) glimpse(obj) else { str(obj); head(obj) }; '
+    let r_cmd .= '} else if(inherits(obj, c("lm", "glm"))) { '
+    let r_cmd .= 'summary(obj); '
+    let r_cmd .= '} else if(is.function(obj)) { '
+    let r_cmd .= 'cat("Arguments:\\n"); print(args(obj)); '
+    let r_cmd .= '} else if(is.vector(obj) && length(obj) > 20) { '
+    let r_cmd .= 'cat("Length:", length(obj), "\\n"); cat("Summary:\\n"); summary(obj); '
+    let r_cmd .= '} else { str(obj); if(length(obj) <= 100) print(obj) }; '
+    let r_cmd .= 'cat("\\n=== End Inspection ===\\n") }'
+    
+    " Send to R terminal
+    call s:Send_to_r(r_cmd, 1)
+    echom "Inspection of '" . obj_name . "' sent to R terminal"
 endfunction
 
 " =============================================================================
 " PRIVATE HELPER FUNCTIONS
 " =============================================================================
-
-" Populate the browser window with list of R objects
-function! s:PopulateObjectList() abort
-    " Clear the buffer
-    silent! %delete _
-    
-    " Use a fixed temp file for easier debugging
-    let simple_temp = '/tmp/zzvim_r_objects_debug'
-    
-    " Store ls() result first to avoid timing issues
-    call s:Send_to_r("obj_names <- ls()", 1)
-    sleep 200m
-    let r_cmd = printf("writeLines(paste(seq_along(obj_names), obj_names, sep='. '), '%s'); flush.console()", simple_temp)
-    call s:Send_to_r(r_cmd, 1)
-    sleep 1000m
-    
-    " Read the captured output with debugging - don't delete file yet
-    if filereadable(simple_temp)
-        let lines = readfile(simple_temp)
-        " Don't delete file for debugging
-        " call delete(simple_temp)
-        
-        if empty(lines)
-            call setline(1, ["Waiting for R objects...", 
-                           \ "Debug: File was readable but empty",
-                           \ "Temp file: " . simple_temp,
-                           \ "R command: " . r_cmd])
-        else
-            call setline(1, lines)
-        endif
-    else
-        call setline(1, ["Error: Could not retrieve R objects", 
-                       \ "Make sure R terminal is active",
-                       \ "Debug: File not readable",
-                       \ "Temp file: " . simple_temp,
-                       \ "R command sent: " . r_cmd])
-    endif
-    
-    " Add footer with instructions
-    call append(line('$'), ["", 
-                          \ "─────────────────────────────────",
-                          \ "Usage:",
-                          \ "• q: Close browser"])
-endfunction
 
 " Get buffer-specific R terminal (uses core plugin functions)
 function! s:GetBufferTerminal() abort
