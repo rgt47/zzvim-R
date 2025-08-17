@@ -1804,18 +1804,19 @@ function! s:PopulateObjectList() abort
     " We'll use a temporary file approach to capture the output
     let temp_file = tempname()
     
-    " Use a simpler, more persistent temp file approach
-    let simple_temp = '/tmp/zzvim_r_objects_' . getpid()
+    " Use a fixed temp file for easier debugging
+    let simple_temp = '/tmp/zzvim_r_objects_debug'
     
-    " Simple approach: just write the objects one by one
-    let r_cmd = printf("cat(paste(seq_along(ls()), ls(), sep='. ', collapse='\\n'), file='%s')", simple_temp)
+    " Use writeLines with explicit newline termination and longer delay
+    let r_cmd = printf("writeLines(paste(seq_along(ls()), ls(), sep='. '), '%s'); flush.console()", simple_temp)
     call s:Send_to_r(r_cmd, 1)
-    sleep 500m
+    sleep 1000m
     
-    " Read the captured output with debugging
+    " Read the captured output with debugging - don't delete file yet
     if filereadable(simple_temp)
         let lines = readfile(simple_temp)
-        call delete(simple_temp)
+        " Don't delete file for debugging
+        " call delete(simple_temp)
         
         if empty(lines)
             call setline(1, ["Waiting for R objects...", 
