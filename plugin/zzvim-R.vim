@@ -1337,9 +1337,9 @@ if !g:zzvim_r_disable_mappings
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>sl :call <SID>SendToR('line')<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>sa :call <SID>SendToR('')<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>sp :call <SID>SendToR('previous_chunks')<CR>
-        " Enhanced Object Inspection (modular implementation)
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>' :call zzvim_r#object_browser#glimpse_all()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>i :call zzvim_r#object_browser#inspect_smart()<CR>
+        " Simple Object Inspection  
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>' :call <SID>RWorkspaceOverview()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>i :call <SID>RInspectObject()<CR>
     augroup END
 endif
 
@@ -1397,9 +1397,9 @@ command! -bar RListTerminals call s:RListTerminalsCommand()
 command! -bar RSwitchToTerminal call s:RSwitchToTerminalCommand()
 command! -bar -nargs=? ROpenSplit call s:ROpenSplitCommand(<q-args>)
 
-" Enhanced Object Inspection Commands (modular implementation)
-command! -bar RGlimpseAll call zzvim_r#object_browser#glimpse_all()
-command! -bar -nargs=? RInspect call zzvim_r#object_browser#inspect_smart(<q-args>)
+" Simple Object Inspection Commands
+command! -bar RWorkspace call s:RWorkspaceOverview()  
+command! -bar -nargs=? RInspect call s:RInspectObject(<q-args>)
 command! -bar RInstallDplyr call s:Send_to_r('install.packages("dplyr")', 1)
 
 "------------------------------------------------------------------------------
@@ -1762,4 +1762,20 @@ endfunction
 " Public wrapper for testing s:MoveCursorAfterSubmission()
 function! ZzvimRTestMoveCursorAfterSubmission(selection_type, line_count) abort
     return s:MoveCursorAfterSubmission(a:selection_type, a:line_count)
+endfunction
+
+"------------------------------------------------------------------------------
+" Simple Object Inspection Functions
+"------------------------------------------------------------------------------
+
+" Show workspace overview - replaces complex object browser
+function! s:RWorkspaceOverview() abort
+    call s:Send_to_r('cat("\\n=== Workspace ===\\n"); for(obj in ls()) cat(obj, ":", class(get(obj))[1], "\\n"); cat("=================\\n")', 1)
+endfunction
+
+" Inspect object at cursor or by name - replaces complex smart inspection  
+function! s:RInspectObject(...) abort
+    let obj = a:0 > 0 ? a:1 : expand('<cword>')
+    if empty(obj) | echom "No object specified" | return | endif
+    call s:Send_to_r(printf('if(exists("%s")) { cat("\\n=== %s ===\\n"); if(is.data.frame(%s) && require(dplyr, quietly=TRUE)) glimpse(%s) else str(%s) } else cat("Not found: %s\\n")', obj, obj, obj, obj, obj, obj), 1)
 endfunction
