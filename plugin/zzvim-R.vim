@@ -760,8 +760,9 @@ function! s:SendToR(selection_type, ...) abort
         return
     endif
     
-    " Phase 2: Consistent Code Transmission with Suppressed Source Echo
-    " Use temp file approach for all code blocks for consistency
+    " Phase 2: Consistent Code Transmission via Temp Files
+    " Use temp file approach for all code (including single lines) for reliability
+    " and to handle R terminal character limits
     let temp_file = tempname()
     call writefile(text_lines, temp_file)
     
