@@ -1778,33 +1778,18 @@ endfunction
 
 " Show workspace overview - replaces complex object browser
 function! s:RWorkspaceOverview() abort
-    let temp_file = tempname() . '.R'
-    let r_code = [
-        \ 'cat("\n=== Workspace ===\n")',
-        \ 'for(obj in ls()) cat(obj, ":", class(get(obj))[1], "\n")',
-        \ 'cat("=================\n")'
-    \ ]
-    call writefile(r_code, temp_file)
-    call s:Send_to_r('source("' . temp_file . '", echo=FALSE)', 1)
+    call s:Send_to_r('{cat("\n=== Workspace ===\n");' .
+                \ 'for(o in ls())cat(o,":",class(get(o))[1],"\n");' .
+                \ 'cat("=================\n")}', 1)
 endfunction
 
 " Inspect object at cursor or by name - replaces complex smart inspection  
 function! s:RInspectObject(...) abort
     let obj = a:0 > 0 ? a:1 : expand('<cword>')
     if empty(obj) | echom "No object specified" | return | endif
-    let temp_file = tempname() . '.R'
-    let r_code = [
-        \ 'cat("\n=== ' . obj . ' ===\n")',
-        \ 'if(exists("' . obj . '")) {',
-        \ '  if(is.data.frame(' . obj . ') && require(dplyr, quietly=TRUE)) {',
-        \ '    glimpse(' . obj . ')',
-        \ '  } else {',
-        \ '    str(' . obj . ')',
-        \ '  }',
-        \ '} else {',
-        \ '  cat("Not found: ' . obj . '\n")',
-        \ '}'
-    \ ]
-    call writefile(r_code, temp_file)
-    call s:Send_to_r('source("' . temp_file . '", echo=FALSE)', 1)
+    call s:Send_to_r('{cat("\n=== ' . obj . ' ===\n");' .
+                \ 'if(exists("' . obj . '")){' .
+                \ 'if(is.data.frame(' . obj . ')&&require(dplyr,quietly=T))' .
+                \ 'glimpse(' . obj . ') else str(' . obj . ')}' .
+                \ 'else cat("Not found: ' . obj . '\n")}', 1)
 endfunction
