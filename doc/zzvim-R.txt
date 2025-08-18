@@ -21,18 +21,20 @@ CONTENTS                                                        *zzvim-r-content
    13. Contributing ........................... |zzvim-r-contributing|
    14. License ................................ |zzvim-r-license|
 
-==============================================================================
-1. INTRODUCTION                                              *zzvim-r-introduction*
+============================================================================
+1. INTRODUCTION                                            *zzvim-r-introduction*
 
 zzvim-R is an advanced integrated development environment for R programming
 in Vim, providing seamless bidirectional communication between Vim's editing
-environment and R's computational engine. This sophisticated integration tool
-facilitates literate programming, exploratory data analysis, and reproducible
+environment and R's computational engine. This sophisticated integration
+tool facilitates literate programming, exploratory data analysis, and
+reproducible
 research methodologies.
 
 The plugin provides integration between Vim and R, allowing users to send
 commands to an R terminal, navigate R Markdown chunks, and perform common R
-operations directly from Vim. The plugin supports R script files (.R) as well
+operations directly from Vim. The plugin supports R script files (.R) as
+well
 as R Markdown (.rmd) and Quarto (.qmd) documents.
 
 Key capabilities include:
@@ -43,14 +45,15 @@ Key capabilities include:
 - Context-aware submission mechanisms with silent execution
 - Enhanced pattern recognition for complex R constructs
 
-==============================================================================
-2. ABSTRACT                                                    *zzvim-r-abstract*
+============================================================================
+2. ABSTRACT                                                  *zzvim-r-abstract*
 
 The zzvim-R plugin represents a comprehensive solution for statistical
 computing and data science workflows within the Vim text editor ecosystem.
 This sophisticated integration tool facilitates seamless bidirectional
-communication between Vim's editing environment and R's computational engine,
-thereby establishing a unified platform for literate programming, exploratory
+communication between Vim's editing environment and R's computational
+engine, thereby establishing a unified platform for literate programming,
+exploratory
 data analysis, and reproducible research methodologies.
 
 Contemporary data science and statistical computing increasingly demand
@@ -300,6 +303,23 @@ Object Analysis and Inspection Commands          *zzvim-r-commands-inspection*
 :RSummary [object]                                                *:RSummary*
     Statistical summary generation.
 
+Workspace Inspection Commands                    *zzvim-r-commands-workspace*
+
+:RWorkspace                                                       *:RWorkspace*
+    Display workspace overview with object types.
+    Shows all objects in current R session with their class information.
+    
+:RInspect [object]                                                 *:RInspect*
+    Intelligent object inspection with adaptive display.
+    Usage: :RInspect [object_name]
+    If no object specified, uses word under cursor.
+    Provides context-aware examination:
+    - Data frames: structure preview using glimpse() if available
+    - Vectors: structural information via str()  
+    - Lists: nested structure display
+    - Models: summary statistics
+    - Functions: definition preview
+
 Advanced Workflow Commands                          *zzvim-r-commands-advanced*
 
 :RSend {code}                                                          *:RSend*
@@ -377,7 +397,7 @@ Normal Mode:
     <localleader>k    Move to previous chunk (backward chunk traversal)
     <localleader>l    Select and submit current chunk (execute chunk)
     <localleader>t    Submit all previous chunks (cumulative execution)
-    <localleader>'    Submit all previous chunks
+    <localleader>'    Show workspace overview (object browser)
     <localleader>q    Send 'Q' to R terminal (graceful session termination)
     <localleader>c    Send Ctrl-C to R terminal (interrupt signal)
 
@@ -386,6 +406,7 @@ Object Inspection Layer (Analytical Functions)   *zzvim-r-mappings-inspection*
 R Function Shortcuts:
     <localleader>d    Run dim() on word under cursor (dimensional analysis)
     <localleader>h    Run head() on word under cursor (data preview)
+    <localleader>i    Intelligent object inspection (adaptive display)
     <localleader>u    Run tail() on word under cursor (terminal preview)
     <localleader>s    Run str() on word under cursor (structural analysis)
     <localleader>p    Run print() on word under cursor (content display)

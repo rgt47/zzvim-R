@@ -1,7 +1,7 @@
 scriptencoding utf-8
-" =============================================================================
+" ===========================================================================
 " zzvim-R - Advanced R Development Plugin for Vim
-" =============================================================================
+" ==========================================================================="
 " Maintainer:  RG Thomas rgthomas@ucsd.edu
 " Version:     1.0
 " License:     GPL3 License
@@ -112,9 +112,11 @@ scriptencoding utf-8
 " -------------------------------------
 "   <CR> (Enter)      - Intelligent code submission based on cursor position
 "                      * On function definition: sends entire function
-"                      * On control structure (if/for/while): sends entire block
+"                      * On control structure (if/for/while): sends entire
+"                        block
 "                      * On regular line: sends current line only
-"                      * Inside function: sends individual line for debugging
+"                      * Inside function: sends individual line for
+"                        debugging
 "
 " Multi-Terminal Management:
 " -------------------------
