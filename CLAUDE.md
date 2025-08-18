@@ -889,3 +889,77 @@ Academic tone maintained across all documentation for consistency with existing 
 - Comprehensive manual testing checklist for all execution types
 
 **Strategic Outcome**: Transformed zzvim-R from a functional but cluttered terminal experience into a **professional, clean development environment** that competes directly with commercial R IDEs in terms of presentation quality while maintaining its lightweight, fast architecture.
+
+## Consistent Source Command Implementation (August 18, 2025 - Final)
+
+### **System Refinement and Consistency Enhancement**
+
+#### **Final Problem Resolution**
+- **Issue Identified**: After implementing variable code execution methods, chunk execution still showed inconsistent source command formats
+- **User Feedback**: Request for unified approach across all execution methods (lines, blocks, chunks)
+- **Root Cause**: Mixed execution strategies created unpredictable terminal output
+
+#### **Final Solution: Unified Temp File Approach**
+
+**Technical Decision**: Revert to consistent temp file method for ALL code execution with optimized command format.
+
+**Implementation Details:**
+```vim
+" Phase 2: Consistent Code Transmission with Suppressed Source Echo
+" Use temp file approach for all code blocks for consistency
+let temp_file = tempname()
+call writefile(text_lines, temp_file)
+
+" Use minimal source command format
+call s:Send_to_r('source("' . temp_file . '")', 1)
+```
+
+#### **Terminal Output Transformation**:
+
+**Before (inconsistent and verbose):**
+```bash
+> source('/var/folders/.../temp123', echo=T)    # Old verbose format
+> source('/var/folders/.../temp456',F)          # Mixed parameters
+> library(dplyr)                               # Direct transmission
+```
+
+**After (consistent and minimal):**
+```bash
+> source("/var/folders/.../temp123")            # Unified minimal format
+> source("/var/folders/.../temp456")            # Consistent across all
+```
+
+#### **Consistency Benefits Achieved**:
+
+1. **Predictable Behavior**: All execution methods use identical approach
+2. **Simplified Maintenance**: Single code path eliminates edge cases  
+3. **Professional Appearance**: Consistent, minimal source command format
+4. **Reliable Transmission**: Temp file approach handles all code complexity
+5. **User Expectation**: Unified experience across all workflows
+
+#### **Universal Application Verified**:
+- ✅ **Single Lines**: `x <- 5` → `source("temp")` format
+- ✅ **Function Blocks**: Multi-line functions → `source("temp")` format  
+- ✅ **R Markdown Chunks**: `<LocalLeader>l` → `source("temp")` format
+- ✅ **Visual Selections**: Custom selections → `source("temp")` format
+- ✅ **All Ex Commands**: Consistent format across all commands
+
+#### **Key Design Principles Applied**:
+- **Consistency over Optimization**: Unified approach preferred over varied methods
+- **Predictability over Cleverness**: Simple, reliable behavior for all cases
+- **Professional Presentation**: Clean terminal output matching commercial tools
+- **Maintainability**: Single execution path reduces complexity
+
+#### **Final User Experience**:
+When executing the first chunk in `ex.Rmd`:
+```bash
+> source("/var/folders/c2/7xx2n4d92k7_4btgk8gt3gs00000gn/T/vOhrbuT/1")
+[conflicted] Will prefer dplyr::filter over any other package.
+[conflicted] Will prefer dplyr::select over any other package.
+[conflicted] Will prefer dplyr::summarize over any other package.
+[conflicted] Will prefer data::penguins over any other package.
+```
+
+**Result**: Clean, professional terminal output with minimal command visibility and reliable code execution across all zzvim-R workflows.
+
+**Final Assessment**: Successfully achieved **IDE-quality terminal presentation** while maintaining zzvim-R's core philosophy of lightweight, reliable R development tools.
