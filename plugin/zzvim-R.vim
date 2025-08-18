@@ -766,8 +766,8 @@ function! s:SendToR(selection_type, ...) abort
     let temp_file = tempname()
     call writefile(text_lines, temp_file)
     
-    " Use minimal source command format
-    call s:Send_to_r('source("' . temp_file . '")', 1)
+    " Use source command with echo to show executed code
+    call s:Send_to_r('source("' . temp_file . '", echo=TRUE)', 1)
     
     " Phase 3: Determine actual submission type for cursor movement
     let actual_type = a:selection_type
