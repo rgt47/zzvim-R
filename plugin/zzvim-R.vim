@@ -760,22 +760,13 @@ function! s:SendToR(selection_type, ...) abort
         return
     endif
     
-    " Phase 2: Clean Code Transmission without source() commands
-    if len(text_lines) == 1
-        " Single line - send directly  
-        call s:Send_to_r(text_lines[0], 1)
-    elseif len(text_lines) <= 5
-        " Small block - send line by line with brief delay
-        for line in text_lines
-            call s:Send_to_r(line, 1)
-            sleep 100m  " Brief pause between lines
-        endfor
-    else
-        " Larger block - use temp file but with minimal visibility
-        let temp_file = tempname()
-        call writefile(text_lines, temp_file)
-        call s:Send_to_r('source("' . temp_file . '",F)', 1)
-    endif
+    " Phase 2: Consistent Code Transmission with Suppressed Source Echo
+    " Use temp file approach for all code blocks for consistency
+    let temp_file = tempname()
+    call writefile(text_lines, temp_file)
+    
+    " Use minimal source command format
+    call s:Send_to_r('source("' . temp_file . '")', 1)
     
     " Phase 3: Determine actual submission type for cursor movement
     let actual_type = a:selection_type
