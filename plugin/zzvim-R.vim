@@ -667,33 +667,8 @@ function! s:SubmitChunk() abort
     " Use the generalized function for chunk submission
     call s:SendToR('chunk')
     
-    " Navigate to next chunk after submission (preserve original behavior)
-    let save_pos = getpos('.')
-    let chunk_end_pattern = get(g:, 'zzvim_r_chunk_end', '^```$')
-    let chunk_start_pattern = get(g:, 'zzvim_r_chunk_start', '^```{')
-    
-    let chunk_end = search(chunk_end_pattern, 'W')
-    if chunk_end > 0
-        call setpos('.', [0, chunk_end, 1, 0])
-        let next_chunk_start = search(chunk_start_pattern, 'W')
-        if next_chunk_start > 0
-            let line_num = next_chunk_start
-            let line_count = line('$')
-            while line_num <= line_count
-                let current_line = getline(line_num)
-                if current_line !~# '^\s*$' && current_line !~# chunk_start_pattern 
-                    \ && current_line !~# chunk_end_pattern
-                    break
-                endif
-                let line_num += 1
-            endwhile
-            if line_num <= line_count
-                call setpos('.', [0, line_num, 1, 0])
-            endif
-        endif
-    else
-        call setpos('.', save_pos)
-    endif
+    " Navigate to next chunk after submission - simplified approach
+    call s:MoveNextChunk()
 endfunction
 
 "------------------------------------------------------------------------------
@@ -767,7 +742,7 @@ function! s:SendToR(selection_type, ...) abort
     call writefile(text_lines, temp_file)
     
     " Use source command with echo to show executed code
-    call s:Send_to_r('source("' . temp_file . '", echo=TRUE)', 1)
+    call s:Send_to_r('source("' . temp_file . '", echo=T)', 1)
     
     " Phase 3: Determine actual submission type for cursor movement
     let actual_type = a:selection_type
