@@ -157,7 +157,8 @@ g:zzvim_r_terminal_width     Terminal window width in columns for vertical split
                              let g:zzvim_r_terminal_width = 120
 <
                                                      *g:zzvim_r_terminal_height*
-g:zzvim_r_terminal_height    Terminal window height in lines for horizontal splits.
+g:zzvim_r_terminal_height    Terminal window height in lines for horizontal
+                             splits.
                              Default: 15
                              Example: >
                              let g:zzvim_r_terminal_height = 20
@@ -233,9 +234,6 @@ Core Operational Commands                            *zzvim-r-commands-core*
 
 :RSendLine                                                        *:RSendLine*
     Submit current line with context awareness (silent execution).
-    
-:RSubmitLine                                                      *:RSubmitLine*
-    Submit the current line to R terminal.
 
 :RSendFunction                                                *:RSendFunction*
     Submit complete function definition with enhanced pattern recognition.
@@ -259,9 +257,6 @@ Core Operational Commands                            *zzvim-r-commands-core*
 
 :RSendChunk                                                      *:RSendChunk*
     Execute current chunk with dependencies (buffer-specific terminal).
-
-:RSubmitChunks                                                  *:RSubmitChunks*
-    Submit all previous chunks to R terminal.
 
 :RSendPreviousChunks                                    *:RSendPreviousChunks*
     Execute all preceding chunks sequentially (buffer-specific terminal).
@@ -334,6 +329,9 @@ Advanced Workflow Commands                          *zzvim-r-commands-advanced*
 
 :RInstall {package}                                                *:RInstall*
     Package installation for environment preparation.
+
+:RInstallDplyr                                                  *:RInstallDplyr*
+    Install dplyr package for enhanced data manipulation.
 
 :RLoad {file}                                                          *:RLoad*
     Load R data files (.RData, .rds).

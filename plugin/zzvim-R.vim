@@ -283,7 +283,8 @@ endif
 " v:version is built-in variable containing Vim version as integer 
 " (e.g., 801 = 8.01)
 " has('terminal') checks if Vim was compiled with terminal emulation support
-" In CI environments or headless mode, terminal support may be unavailable but plugin can still be tested
+" In CI environments or headless mode, terminal support may be unavailable
+" but plugin can still be tested
 let s:is_ci_mode = exists('$CI') || exists('$GITHUB_ACTIONS') || has('nvim')
 let s:has_terminal_support = has('terminal') || s:is_ci_mode
 
@@ -842,7 +843,8 @@ function! s:GetTextByType(selection_type) abort
         if s:IsIncompleteStatement()
             " Don't send anything - this line is part of a multi-line statement
             " that was likely already sent when the first line was executed
-            call s:Error("This appears to be a continuation line. Use the first line of the statement instead.")
+            call s:Error("This appears to be a continuation line. Use the " .
+                        \ "first line of the statement instead.")
             return []
         endif
         
@@ -910,7 +912,8 @@ function! s:IsIncompleteStatement() abort
     if line('.') > 1
         let prev_line = getline(line('.') - 1)
         " Previous line ends with any infix operator
-        if prev_line =~# '[+\-*/^&|<>=!]\s*$' || prev_line =~# '%[^%]*%\s*$' || prev_line =~# '<-\s*$' || prev_line =~# '|>\s*$'
+        if prev_line =~# '[+\-*/^&|<>=!]\s*$' || prev_line =~# '%[^%]*%\s*$' || 
+                    \ prev_line =~# '<-\s*$' || prev_line =~# '|>\s*$'
             return 1
         endif
     endif
@@ -1024,7 +1027,8 @@ function! s:IsBlockStart(line) abort
     endif
     
     " Multi-line expressions - lines ending with infix operators or commas
-    if a:line =~# '[+\-*/^&|<>=!,]\s*$' || a:line =~# '%[^%]*%\s*$' || a:line =~# '<-\s*$' || a:line =~# '|>\s*$'
+    if a:line =~# '[+\-*/^&|<>=!,]\s*$' || a:line =~# '%[^%]*%\s*$' ||
+                \ a:line =~# '<-\s*$' || a:line =~# '|>\s*$'
         return 1
     endif
     
@@ -1313,15 +1317,17 @@ if !g:zzvim_r_disable_mappings
     augroup zzvim_RMarkdown
         autocmd!
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>r  :call <SID>OpenRTerminal()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>w  :call <SID>ROpenSplitCommand('vertical')<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>W  :call <SID>ROpenSplitCommand('horizontal')<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>w
+                    \ :call <SID>ROpenSplitCommand('vertical')<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>W
+                    \ :call <SID>ROpenSplitCommand('horizontal')<CR>
         autocmd FileType r,rmd,qmd xnoremap <buffer> <silent> <CR>    :<C-u>call <SID>SendToR('selection')<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <CR>  :call <SID>SendToR('')<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>o   :call <SID>AddPipeAndNewLine()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>j   :call <SID>MoveNextChunk()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>k :call <SID>MovePrevChunk()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>l :call <SID>SubmitChunk()<CR>zz
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>t :call <SID>CollectAndSubmitPreviousChunks()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>l :call <SID>SendToR('chunk')<CR>zz
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>t :call <SID>SendToR('previous_chunks')<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>q :call <SID>SendControlKeys("Q")<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>c :call <SID>SendControlKeys("\<C-c>")<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>d :call <SID>RAction("dim", 1)<CR>
@@ -1772,15 +1778,33 @@ endfunction
 
 " Show workspace overview - replaces complex object browser
 function! s:RWorkspaceOverview() abort
-    call s:Send_to_r('cat("\n=== Workspace ===\n")', 1)
-    call s:Send_to_r('for(obj in ls()) cat(obj, ":", class(get(obj))[1], "\n")', 1)
-    call s:Send_to_r('cat("=================\n")', 1)
+    let temp_file = tempname() . '.R'
+    let r_code = [
+        \ 'cat("\n=== Workspace ===\n")',
+        \ 'for(obj in ls()) cat(obj, ":", class(get(obj))[1], "\n")',
+        \ 'cat("=================\n")'
+    \ ]
+    call writefile(r_code, temp_file)
+    call s:Send_to_r('source("' . temp_file . '", echo=FALSE)', 1)
 endfunction
 
 " Inspect object at cursor or by name - replaces complex smart inspection  
 function! s:RInspectObject(...) abort
     let obj = a:0 > 0 ? a:1 : expand('<cword>')
     if empty(obj) | echom "No object specified" | return | endif
-    call s:Send_to_r(printf('cat("\n=== %s ===\n")', obj), 1)
-    call s:Send_to_r(printf('if(exists("%s")) { if(is.data.frame(%s) && require(dplyr, quietly=TRUE)) glimpse(%s) else str(%s) } else cat("Not found: %s\n")', obj, obj, obj, obj, obj), 1)
+    let temp_file = tempname() . '.R'
+    let r_code = [
+        \ 'cat("\n=== ' . obj . ' ===\n")',
+        \ 'if(exists("' . obj . '")) {',
+        \ '  if(is.data.frame(' . obj . ') && require(dplyr, quietly=TRUE)) {',
+        \ '    glimpse(' . obj . ')',
+        \ '  } else {',
+        \ '    str(' . obj . ')',
+        \ '  }',
+        \ '} else {',
+        \ '  cat("Not found: ' . obj . '\n")',
+        \ '}'
+    \ ]
+    call writefile(r_code, temp_file)
+    call s:Send_to_r('source("' . temp_file . '", echo=FALSE)', 1)
 endfunction
