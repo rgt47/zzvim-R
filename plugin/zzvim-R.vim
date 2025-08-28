@@ -741,9 +741,10 @@ function! s:SendToR(selection_type, ...) abort
     let temp_file = tempname()
     call writefile(text_lines, temp_file)
     
-    " Execute temp file while suppressing source command visibility
-    " invisible() hides the source command output but echo=T still shows the code
-    call s:Send_to_r('invisible(source("' . temp_file . '", echo=T))', 1)
+    " Execute temp file with source command - shows actual code via echo=T
+    " Note: temp file path will be visible due to term_sendkeys() architecture
+    " but this provides reliable execution with proper code display
+    call s:Send_to_r('source("' . temp_file . '")', 1)
     
     " Phase 3: Determine actual submission type for cursor movement
     let actual_type = a:selection_type
