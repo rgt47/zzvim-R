@@ -32,53 +32,53 @@
 \textbf{Key Mappings}
 
 \textbf{Terminal}\\
-\begin{tabular}{@{}L{0.6cm}L{1.8cm}@{}}
-\texttt{SPC r} & Create terminal \\
-\texttt{SPC w} & Vertical split \\
-\texttt{SPC W} & Horizontal split \\
-\texttt{SPC q} & Quit session \\
-\texttt{SPC c} & Interrupt \\
+\begin{tabular}{@{}L{2.44cm}L{3.51cm}@{}}
+\texttt{<localleader> r} & Create terminal \\
+\texttt{<localleader> w} & Vertical split \\
+\texttt{<localleader> W} & Horizontal split \\
+\texttt{<localleader> q} & Quit session \\
+\texttt{<localleader> c} & Interrupt \\
 \end{tabular}
 
 \vspace{3pt}
 \textbf{Code}\\
-\begin{tabular}{@{}L{0.6cm}L{1.8cm}@{}}
+\begin{tabular}{@{}L{2.44cm}L{3.51cm}@{}}
 \texttt{CR} & Smart submit \\
-\texttt{SPC sf} & Force function \\
-\texttt{SPC sl} & Force line \\
-\texttt{SPC sa} & Smart auto \\
+\texttt{<localleader> sf} & Force function \\
+\texttt{<localleader> sl} & Force line \\
+\texttt{<localleader> sa} & Smart auto \\
 \end{tabular}
 
 \vspace{3pt}
 \textbf{R Markdown}\\
-\begin{tabular}{@{}L{0.6cm}L{1.8cm}@{}}
-\texttt{SPC j} & Next chunk \\
-\texttt{SPC k} & Previous chunk \\
-\texttt{SPC l} & Execute chunk \\
-\texttt{SPC t} & All previous \\
+\begin{tabular}{@{}L{2.44cm}L{3.51cm}@{}}
+\texttt{<localleader> j} & Next chunk \\
+\texttt{<localleader> k} & Previous chunk \\
+\texttt{<localleader> l} & Execute chunk \\
+\texttt{<localleader> t} & All previous \\
 \end{tabular}
 
 \vspace{3pt}
 \textbf{Inspect}\\
-\begin{tabular}{@{}L{0.6cm}L{1.8cm}@{}}
-\texttt{SPC h} & head() \\
-\texttt{SPC u} & tail() \\
-\texttt{SPC s} & str() \\
-\texttt{SPC d} & dim() \\
-\texttt{SPC p} & print() \\
-\texttt{SPC n} & names() \\
-\texttt{SPC f} & length() \\
-\texttt{SPC g} & glimpse() \\
-\texttt{SPC b} & dt() \\
-\texttt{SPC y} & help() \\
+\begin{tabular}{@{}L{2.44cm}L{3.51cm}@{}}
+\texttt{<localleader> h} & head() \\
+\texttt{<localleader> u} & tail() \\
+\texttt{<localleader> s} & str() \\
+\texttt{<localleader> d} & dim() \\
+\texttt{<localleader> p} & print() \\
+\texttt{<localleader> n} & names() \\
+\texttt{<localleader> f} & length() \\
+\texttt{<localleader> g} & glimpse() \\
+\texttt{<localleader> b} & dt() \\
+\texttt{<localleader> y} & help() \\
 \end{tabular}
 
 \vspace{3pt}
 \textbf{Workspace}\\
-\begin{tabular}{@{}L{0.6cm}L{1.8cm}@{}}
-\texttt{SPC '} & Overview \\
-\texttt{SPC i} & Inspect obj \\
-\texttt{SPC o} & Insert pipe \\
+\begin{tabular}{@{}L{2.44cm}L{3.51cm}@{}}
+\texttt{<localleader> '} & Overview \\
+\texttt{<localleader> i} & Inspect obj \\
+\texttt{<localleader> o} & Insert pipe \\
 \end{tabular}
 
 \columnbreak
@@ -86,7 +86,7 @@
 \textbf{Ex Commands}
 
 \textbf{Core}\\
-\begin{tabular}{@{}L{1.5cm}L{1.3cm}@{}}
+\begin{tabular}{@{}L{2.93cm}L{2.54cm}@{}}
 \texttt{:ROpenTerminal} & Create term \\
 \texttt{:RSendLine} & Send line \\
 \texttt{:RSendSelection} & Send select \\
@@ -97,7 +97,7 @@
 
 \vspace{3pt}
 \textbf{Chunks}\\
-\begin{tabular}{@{}L{1.5cm}L{1.3cm}@{}}
+\begin{tabular}{@{}L{2.93cm}L{2.54cm}@{}}
 \texttt{:RNextChunk} & Next \\
 \texttt{:RPrevChunk} & Previous \\
 \texttt{:RSendChunk} & Execute \\
@@ -106,7 +106,7 @@
 
 \vspace{3pt}
 \textbf{Analysis}\\
-\begin{tabular}{@{}L{1.5cm}L{1.3cm}@{}}
+\begin{tabular}{@{}L{2.93cm}L{2.54cm}@{}}
 \texttt{:RHead [obj]} & head() \\
 \texttt{:RTail [obj]} & tail() \\
 \texttt{:RStr [obj]} & str() \\
@@ -121,7 +121,7 @@
 
 \vspace{3pt}
 \textbf{Session}\\
-\begin{tabular}{@{}L{1.5cm}L{1.3cm}@{}}
+\begin{tabular}{@{}L{2.93cm}L{2.54cm}@{}}
 \texttt{:RQuit} & Quit R \\
 \texttt{:RInterrupt} & Interrupt \\
 \texttt{:RGetwd} & Show dir \\
@@ -132,7 +132,7 @@
 
 \vspace{3pt}
 \textbf{Packages}\\
-\begin{tabular}{@{}L{1.5cm}L{1.3cm}@{}}
+\begin{tabular}{@{}L{2.93cm}L{2.54cm}@{}}
 \texttt{:RLibrary \{pkg\}} & Load pkg \\
 \texttt{:RInstall \{pkg\}} & Install \\
 \texttt{:RSource \{file\}} & Source \\
@@ -140,7 +140,7 @@
 \end{tabular}
 
 \textbf{Data/Terminal}\\
-\begin{tabular}{@{}L{1.5cm}L{1.3cm}@{}}
+\begin{tabular}{@{}L{2.93cm}L{2.54cm}@{}}
 \texttt{:RLoad \{file\}} & Load RDS \\
 \texttt{:RSave \{obj\} \{file\}} & Save RDS \\
 \texttt{:RShowTerminal} & Show term \\
@@ -153,7 +153,7 @@
 
 \vspace{4pt}
 \textbf{Config Variables}\\
-\begin{tabular}{@{}L{2.0cm}L{0.8cm}@{}}
+\begin{tabular}{@{}L{3.9cm}L{1.56cm}@{}}
 \texttt{g:zzvim\_r\_disable\_mappings} & 0 \\
 \texttt{g:zzvim\_r\_terminal\_width} & 100 \\
 \texttt{g:zzvim\_r\_terminal\_height} & 15 \\
@@ -177,7 +177,7 @@
 \vspace{4pt}
 \textbf{Tips}
 \begin{itemize}
-\item LocalLeader = \texttt{SPC}, Leader = \texttt{,}
+\item LocalLeader = space key (shown as \texttt{<localleader>}), Leader = \texttt{,}
 \item Each buffer = isolated R session
 \item Uses \texttt{.zzvim\_r\_temp.R} for clean output
 \item Visual mode: \texttt{CR} sends selection

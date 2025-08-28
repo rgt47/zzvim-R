@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.141592653-2.6-0.999996 (TeX Live 2024) (preloaded format=xelatex 2024.5.23)  27 AUG 2025 19:29
+This is XeTeX, Version 3.141592653-2.6-0.999996 (TeX Live 2024) (preloaded format=xelatex 2024.5.23)  27 AUG 2025 19:39
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -266,121 +266,21 @@ LaTeX Font Info:    Trying to load font information for T1+lmtt on input line 3
 (/usr/local/texlive/2024/texmf-dist/tex/latex/lm/t1lmtt.fd
 File: t1lmtt.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
-Overfull \hbox (16.82088pt too wide) in paragraph at lines 90--90
-[]|\T1/lmtt/m/n/8 :ROpenTerminal|  
- []
-
-
-Overfull \hbox (21.07088pt too wide) in paragraph at lines 92--92
-[]|\T1/lmtt/m/n/8 :RSendSelection|  
- []
-
-
-Overfull \hbox (16.82088pt too wide) in paragraph at lines 93--93
-[]|\T1/lmtt/m/n/8 :RSendFunction|  
- []
-
-
-Overfull \hbox (4.07088pt too wide) in paragraph at lines 94--94
-[]|\T1/lmtt/m/n/8 :RSendSmart|  
- []
-
-
-Overfull \hbox (4.07088pt too wide) in paragraph at lines 101--101
-[]|\T1/lmtt/m/n/8 :RNextChunk|  
- []
-
-
-Overfull \hbox (4.07088pt too wide) in paragraph at lines 102--102
-[]|\T1/lmtt/m/n/8 :RPrevChunk|  
- []
-
-
-Overfull \hbox (4.07088pt too wide) in paragraph at lines 103--103
-[]|\T1/lmtt/m/n/8 :RSendChunk|  
- []
-
-
-Overfull \hbox (42.32088pt too wide) in paragraph at lines 104--104
+Overfull \hbox (1.63364pt too wide) in paragraph at lines 104--104
 []|\T1/lmtt/m/n/8 :RSendPreviousChunks|  
  []
 
-
-Overfull \hbox (3.91348pt too wide) in paragraph at lines 118--119
-[]|\T1/lmr/m/n/8 summary()|  
- []
-
-
-Overfull \hbox (4.07088pt too wide) in paragraph at lines 126--126
-[]|\T1/lmtt/m/n/8 :RInterrupt|  
- []
-
-
-Overfull \hbox (16.82088pt too wide) in paragraph at lines 139--139
-[]|\T1/lmtt/m/n/8 :RInstallDplyr|  
- []
-
-
-Overfull \hbox (16.82088pt too wide) in paragraph at lines 146--146
-[]|\T1/lmtt/m/n/8 :RShowTerminal|  
- []
-
-
-Overfull \hbox (21.07088pt too wide) in paragraph at lines 147--147
-[]|\T1/lmtt/m/n/8 :RListTerminals|  
- []
-
-
-Overfull \hbox (33.82088pt too wide) in paragraph at lines 148--148
-[]|\T1/lmtt/m/n/8 :RSwitchToTerminal|  
- []
-
-
-Overfull \hbox (4.07088pt too wide) in paragraph at lines 149--149
-[]|\T1/lmtt/m/n/8 :ROpenSplit 
- []
-
-
-Overfull \hbox (4.07088pt too wide) in paragraph at lines 150--150
-[]|\T1/lmtt/m/n/8 :RWorkspace|  
- []
-
-
-Overfull \hbox (53.5945pt too wide) in paragraph at lines 157--157
-[]|\T1/lmtt/m/n/8 g:zzvim_r_disable_mappings|  
- []
-
-
-Overfull \hbox (45.0945pt too wide) in paragraph at lines 158--158
-[]|\T1/lmtt/m/n/8 g:zzvim_r_terminal_width|  
- []
-
-
-Overfull \hbox (49.3445pt too wide) in paragraph at lines 159--159
-[]|\T1/lmtt/m/n/8 g:zzvim_r_terminal_height|  
- []
-
-
-Overfull \hbox (15.3445pt too wide) in paragraph at lines 160--160
-[]|\T1/lmtt/m/n/8 g:zzvim_r_command|  
- []
-
-
-Overfull \hbox (32.3445pt too wide) in paragraph at lines 161--161
-[]|\T1/lmtt/m/n/8 g:zzvim_r_chunk_start|  
- []
-
-
-Overfull \hbox (23.8445pt too wide) in paragraph at lines 162--162
-[]|\T1/lmtt/m/n/8 g:zzvim_r_chunk_end|  
- []
-
 Missing character: There is no → ("2192) in font ec-lmr8!
 Missing character: There is no → ("2192) in font ec-lmr8!
 Missing character: There is no → ("2192) in font ec-lmr8!
 Missing character: There is no → ("2192) in font ec-lmr8!
 Missing character: There is no → ("2192) in font ec-lmr8!
 Missing character: There is no → ("2192) in font ec-lmr8!
+
+Underfull \hbox (badness 10000) in paragraph at lines 180--181
+[]\T1/lmr/m/n/8 LocalLeader = space key (shown as
+ []
+
 [1
 
 ] (./CHEAT_SHEET.aux)
@@ -392,7 +292,7 @@ L3 programming layer <2024-02-20>
 Here is how much of TeX's memory you used:
  2205 strings out of 474773
  35914 string characters out of 5757724
- 1961839 words of memory out of 5000000
+ 1959839 words of memory out of 5000000
  24378 multiletter control sequences out of 15000+600000
  575563 words of font info for 50 fonts, out of 8000000 for 9000
  1348 hyphenation exceptions out of 8191
