@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.141592653-2.6-0.999996 (TeX Live 2024) (preloaded format=xelatex 2024.5.23)  27 AUG 2025 19:39
+This is XeTeX, Version 3.141592653-2.6-0.999996 (TeX Live 2024) (preloaded format=xelatex 2024.5.23)  27 AUG 2025 19:48
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -266,7 +266,7 @@ LaTeX Font Info:    Trying to load font information for T1+lmtt on input line 3
 (/usr/local/texlive/2024/texmf-dist/tex/latex/lm/t1lmtt.fd
 File: t1lmtt.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
-Overfull \hbox (1.63364pt too wide) in paragraph at lines 104--104
+Overfull \hbox (1.63364pt too wide) in paragraph at lines 105--105
 []|\T1/lmtt/m/n/8 :RSendPreviousChunks|  
  []
 
@@ -277,7 +277,7 @@ Missing character: There is no → ("2192) in font ec-lmr8!
 Missing character: There is no → ("2192) in font ec-lmr8!
 Missing character: There is no → ("2192) in font ec-lmr8!
 
-Underfull \hbox (badness 10000) in paragraph at lines 180--181
+Underfull \hbox (badness 10000) in paragraph at lines 181--182
 []\T1/lmr/m/n/8 LocalLeader = space key (shown as
  []
 
@@ -292,7 +292,7 @@ L3 programming layer <2024-02-20>
 Here is how much of TeX's memory you used:
  2205 strings out of 474773
  35914 string characters out of 5757724
- 1959839 words of memory out of 5000000
+ 1960839 words of memory out of 5000000
  24378 multiletter control sequences out of 15000+600000
  575563 words of font info for 50 fonts, out of 8000000 for 9000
  1348 hyphenation exceptions out of 8191
