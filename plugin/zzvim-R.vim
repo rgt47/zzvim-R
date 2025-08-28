@@ -741,10 +741,11 @@ function! s:SendToR(selection_type, ...) abort
     let temp_file = tempname()
     call writefile(text_lines, temp_file)
     
-    " Use source() to execute the temp file. echo=T shows the file's content.
-    " Wrap in eval(parse(text=...)) to prevent the source() command itself
-    " from being printed in the R console, keeping the output clean.
-    call s:Send_to_r('eval(parse(text=\'source(\"' . temp_file . '\", echo=T)\'))', 1)
+    " Execute temp file using eval(parse(text=...)) wrapper for clean output
+    " - source(..., echo=T) displays the actual R code being executed
+    " - eval(parse(text=...)) prevents the source command itself from appearing
+    " - Result: users see their code but not the internal source() call
+    call s:Send_to_r('eval(parse(text="source(\"' . temp_file . '\", echo=T)"))', 1)
     
     " Phase 3: Determine actual submission type for cursor movement
     let actual_type = a:selection_type
