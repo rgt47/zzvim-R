@@ -1,0 +1,199 @@
+\documentclass[10pt,landscape,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{multicol}
+\usepackage{geometry}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{fancyhdr}
+
+% Page setup
+\geometry{top=0.5in,left=0.5in,right=0.5in,bottom=0.5in}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[C]{\textbf{zzvim-R Quick Reference}}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% Remove paragraph indentation
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{2pt}
+
+% Custom commands for compact tables
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+
+\begin{document}
+
+\begin{multicols}{3}
+\footnotesize
+
+\textbf{\large Key Mappings}
+
+\textbf{Terminal Management}\\
+\begin{tabular}{@{}L{0.8cm}L{2.2cm}@{}}
+\texttt{SPC r} & Create R terminal \\
+\texttt{SPC w} & Vertical split terminal \\
+\texttt{SPC W} & Horizontal split terminal \\
+\texttt{SPC q} & Quit R session \\
+\texttt{SPC c} & Interrupt (Ctrl-C) \\
+\end{tabular}
+
+\vspace{3pt}
+\textbf{Code Execution}\\
+\begin{tabular}{@{}L{0.8cm}L{2.2cm}@{}}
+\texttt{CR} & Smart submit \\
+\texttt{SPC sf} & Force function \\
+\texttt{SPC sl} & Force line \\
+\texttt{SPC sa} & Smart auto \\
+\end{tabular}
+
+\vspace{3pt}
+\textbf{R Markdown}\\
+\begin{tabular}{@{}L{0.8cm}L{2.2cm}@{}}
+\texttt{SPC j} & Next chunk \\
+\texttt{SPC k} & Previous chunk \\
+\texttt{SPC l} & Execute chunk \\
+\texttt{SPC t} & All previous chunks \\
+\end{tabular}
+
+\vspace{3pt}
+\textbf{Object Inspection}\\
+\begin{tabular}{@{}L{0.8cm}L{2.2cm}@{}}
+\texttt{SPC h} & head() \\
+\texttt{SPC u} & tail() \\
+\texttt{SPC s} & str() \\
+\texttt{SPC d} & dim() \\
+\texttt{SPC p} & print() \\
+\texttt{SPC n} & names() \\
+\texttt{SPC f} & length() \\
+\texttt{SPC g} & glimpse() \\
+\texttt{SPC b} & dt() \\
+\texttt{SPC y} & help() \\
+\end{tabular}
+
+\vspace{3pt}
+\textbf{Workspace}\\
+\begin{tabular}{@{}L{0.8cm}L{2.2cm}@{}}
+\texttt{SPC '} & Workspace overview \\
+\texttt{SPC i} & Inspect object \\
+\texttt{SPC o} & Insert pipe \\
+\end{tabular}
+
+\columnbreak
+
+\textbf{\large Ex Commands}
+
+\textbf{Core Operations}\\
+\begin{tabular}{@{}L{1.8cm}L{1.4cm}@{}}
+\texttt{:ROpenTerminal} & Create terminal \\
+\texttt{:RSendLine} & Send line \\
+\texttt{:RSendSelection} & Send selection \\
+\texttt{:RSendFunction} & Send function \\
+\texttt{:RSendSmart} & Smart detect \\
+\texttt{:RSend \{code\}} & Execute code \\
+\end{tabular}
+
+\vspace{3pt}
+\textbf{Chunks}\\
+\begin{tabular}{@{}L{1.8cm}L{1.4cm}@{}}
+\texttt{:RNextChunk} & Next chunk \\
+\texttt{:RPrevChunk} & Previous chunk \\
+\texttt{:RSendChunk} & Execute chunk \\
+\texttt{:RSendPreviousChunks} & All previous \\
+\end{tabular}
+
+\vspace{3pt}
+\textbf{Analysis}\\
+\begin{tabular}{@{}L{1.8cm}L{1.4cm}@{}}
+\texttt{:RHead [obj]} & head() \\
+\texttt{:RTail [obj]} & tail() \\
+\texttt{:RStr [obj]} & str() \\
+\texttt{:RDim [obj]} & dim() \\
+\texttt{:RPrint [obj]} & print() \\
+\texttt{:RNames [obj]} & names() \\
+\texttt{:RLength [obj]} & length() \\
+\texttt{:RGlimpse [obj]} & glimpse() \\
+\texttt{:RSummary [obj]} & summary() \\
+\texttt{:RHelp [topic]} & help() \\
+\end{tabular}
+
+\vspace{3pt}
+\textbf{Session Control}\\
+\begin{tabular}{@{}L{1.8cm}L{1.4cm}@{}}
+\texttt{:RQuit} & Quit R \\
+\texttt{:RInterrupt} & Interrupt \\
+\texttt{:RGetwd} & Show directory \\
+\texttt{:RSetwd [dir]} & Set directory \\
+\texttt{:RLs} & List objects \\
+\texttt{:RRm} & Clear workspace \\
+\end{tabular}
+
+\vspace{3pt}
+\textbf{Packages}\\
+\begin{tabular}{@{}L{1.8cm}L{1.4cm}@{}}
+\texttt{:RLibrary \{pkg\}} & Load package \\
+\texttt{:RInstall \{pkg\}} & Install package \\
+\texttt{:RSource \{file\}} & Source file \\
+\texttt{:RInstallDplyr} & Install dplyr \\
+\end{tabular}
+
+\columnbreak
+
+\textbf{Data Management}\\
+\begin{tabular}{@{}L{1.8cm}L{1.4cm}@{}}
+\texttt{:RLoad \{file\}} & Load RDS \\
+\texttt{:RSave \{obj\} \{file\}} & Save RDS \\
+\end{tabular}
+
+\vspace{3pt}
+\textbf{Terminal Association}\\
+\begin{tabular}{@{}L{1.8cm}L{1.4cm}@{}}
+\texttt{:RShowTerminal} & Show terminal \\
+\texttt{:RListTerminals} & List terminals \\
+\texttt{:RSwitchToTerminal} & Jump to terminal \\
+\texttt{:ROpenSplit [type]} & Split terminal \\
+\end{tabular}
+
+\vspace{3pt}
+\textbf{Workspace Tools}\\
+\begin{tabular}{@{}L{1.8cm}L{1.4cm}@{}}
+\texttt{:RWorkspace} & Overview \\
+\texttt{:RInspect [obj]} & Detailed inspect \\
+\end{tabular}
+
+\vspace{6pt}
+\textbf{\large Configuration}\\
+\begin{tabular}{@{}L{2.0cm}L{1.0cm}L{1.2cm}@{}}
+\texttt{g:zzvim\_r\_disable\_mappings} & 0 & Disable mappings \\
+\texttt{g:zzvim\_r\_terminal\_width} & 100 & Vertical width \\
+\texttt{g:zzvim\_r\_terminal\_height} & 15 & Horizontal height \\
+\texttt{g:zzvim\_r\_command} & R --no-save & R startup \\
+\texttt{g:zzvim\_r\_chunk\_start} & \^{}\`{}\`{}\`{}\{ & Chunk start \\
+\texttt{g:zzvim\_r\_chunk\_end} & \^{}\`{}\`{}\`{} & Chunk end \\
+\end{tabular}
+
+\vspace{6pt}
+\textbf{\large Smart Detection}
+\begin{itemize}
+\item \textbf{Functions}: \texttt{function()} $\rightarrow$ complete function
+\item \textbf{Control}: \texttt{if/for/while} $\rightarrow$ entire block  
+\item \textbf{Multi-line}: \texttt{()} \texttt{[]} $\rightarrow$ balanced block
+\item \textbf{Pipes}: \texttt{\%>\%} \texttt{|>} $\rightarrow$ complete chain
+\item \textbf{Lines}: assignments $\rightarrow$ current line
+\item \textbf{Debug}: inside functions $\rightarrow$ single lines
+\end{itemize}
+
+\vspace{6pt}
+\textbf{\large Tips}
+\begin{itemize}
+\item LocalLeader = \texttt{SPC} (space key)
+\item Leader = \texttt{,} (comma key)
+\item Each buffer = isolated R session
+\item Uses \texttt{.zzvim\_r\_temp.R} for clean output
+\item Visual mode: \texttt{CR} sends selection
+\item Object inspection: cursor word or argument
+\item Terminal per file for workflow isolation
+\end{itemize}
+
+\end{multicols}
+
+\end{document}
