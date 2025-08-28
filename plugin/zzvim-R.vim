@@ -740,9 +740,9 @@ function! s:SendToR(selection_type, ...) abort
     let temp_file = '.zzvim_r_temp.R'
     call writefile(text_lines, temp_file)
     
-    " Execute local temp file with clean source command
-    " Shows simply: source(".zzvim_r_temp.R") instead of long system paths
-    call s:Send_to_r('source("' . temp_file . '")', 1)
+    " Execute local temp file with clean source command and code echo
+    " Shows: source(".zzvim_r_temp.R", echo=T) and displays the executed code
+    call s:Send_to_r('source("' . temp_file . '", echo=T)', 1)
     
     " Phase 3: Determine actual submission type for cursor movement
     let actual_type = a:selection_type
