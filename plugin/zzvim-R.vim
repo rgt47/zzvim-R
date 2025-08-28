@@ -735,15 +735,13 @@ function! s:SendToR(selection_type, ...) abort
         return
     endif
     
-    " Phase 2: Consistent Code Transmission via Temp Files
-    " Use temp file approach for all code (including single lines) for reliability
-    " and to handle R terminal character limits
-    let temp_file = tempname()
+    " Phase 2: Consistent Code Transmission via Local Temp File
+    " Use fixed local filename for clean source command visibility
+    let temp_file = '.zzvim_r_temp.R'
     call writefile(text_lines, temp_file)
     
-    " Execute temp file with source command - shows actual code via echo=T
-    " Note: temp file path will be visible due to term_sendkeys() architecture
-    " but this provides reliable execution with proper code display
+    " Execute local temp file with clean source command
+    " Shows simply: source(".zzvim_r_temp.R") instead of long system paths
     call s:Send_to_r('source("' . temp_file . '")', 1)
     
     " Phase 3: Determine actual submission type for cursor movement
