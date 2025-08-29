@@ -1039,11 +1039,13 @@ endfunction
 " Supports both brace {} and parenthesis () detection with configurable types
 " Returns: List of lines comprising the complete code block
 function! s:GetCodeBlock() abort
+    echom "DEBUG: GetCodeBlock called"
     " Position State Management
     " Save current cursor position for restoration if algorithm fails
     let save_pos = getpos('.')
     let current_line_num = line('.')  " Starting line number
     let current_line = getline('.')   " Current line content
+    echom "DEBUG: GetCodeBlock at line " . current_line_num . ": '" . current_line . "'"
     
     " Phase 1: Check for infix expressions first (no balanced delimiters)
     if current_line =~# '[+\-*/^&|<>=!,]\s*$' || current_line =~# '%[^%]*%\s*$' || current_line =~# '<-\s*$' || current_line =~# '|>\s*$'
