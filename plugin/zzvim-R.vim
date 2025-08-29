@@ -876,7 +876,8 @@ function! s:IsIncompleteStatement() abort
     
     " Lines that are just parameter names or values (common in multi-line calls)
     " More specific pattern to avoid false positives
-    if current_line =~# '^\s*[a-zA-Z_][a-zA-Z0-9_.]*\s*[,)]\s*$'
+    " Exclude lines that contain assignments (<- or =) as these are statement starts
+    if current_line =~# '^\s*[a-zA-Z_][a-zA-Z0-9_.]*\s*[,)]\s*$' && current_line !~# '<-\|='
         " Check if previous line has an incomplete statement
         if line('.') > 1
             let prev_line = getline(line('.') - 1)
