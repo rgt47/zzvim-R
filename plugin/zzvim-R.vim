@@ -1000,8 +1000,22 @@ function! s:IsBlockStart(line) abort
     
     " Assignment statements with function calls (like var <- c(...) or var = c(...))
     " Pattern: variable_name <- function_name( or variable_name = function_name(
+    " But only if the line appears to be incomplete (unbalanced parens, trailing comma, etc.)
     if a:line =~# '\(<-\|=\).*[a-zA-Z_][a-zA-Z0-9_.]*\s*('
-        return 1
+        " Check if line looks incomplete (needs block extraction)
+        " Skip block extraction for simple single-line assignments
+        if a:line =~# ',$' || a:line =~# '(\s*$'
+            " Line ends with comma or open paren - likely multi-line
+            return 1
+        endif
+        " Additional check: count parentheses balance
+        let open_count = len(substitute(a:line, '[^(]', '', 'g'))
+        let close_count = len(substitute(a:line, '[^)]', '', 'g'))
+        if open_count > close_count
+            " Unbalanced parentheses - likely multi-line
+            return 1
+        endif
+        " Line looks complete - don't treat as block
     endif
     
     " Multi-line expressions - lines ending with infix operators or commas
