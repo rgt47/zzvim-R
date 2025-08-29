@@ -1044,6 +1044,7 @@ function! s:GetCodeBlock() abort
     let save_pos = getpos('.')
     let current_line_num = line('.')  " Starting line number
     let current_line = getline('.')   " Current line content
+    echom "DEBUG: GetCodeBlock called with cursor at line " . current_line_num . ": '" . current_line . "'"
     
     " Phase 1: Check for infix expressions first (no balanced delimiters)
     if current_line =~# '[+\-*/^&|<>=!,]\s*$' || current_line =~# '%[^%]*%\s*$' || current_line =~# '<-\s*$' || current_line =~# '|>\s*$'
@@ -1095,6 +1096,7 @@ function! s:GetCodeBlock() abort
     let block_type = ''  " Will be 'brace', 'paren', or 'bracket'
     let block_line = current_line_num
     let found_opening = 0
+    echom "DEBUG: Starting GetCodeBlock at line " . current_line_num . " (block_line=" . block_line . ")"
     
     " Efficient Single-Pass Character Detection
     let has_paren = current_line =~ '('
