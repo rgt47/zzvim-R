@@ -1039,13 +1039,11 @@ endfunction
 " Supports both brace {} and parenthesis () detection with configurable types
 " Returns: List of lines comprising the complete code block
 function! s:GetCodeBlock() abort
-    echom "DEBUG: GetCodeBlock called"
     " Position State Management
     " Save current cursor position for restoration if algorithm fails
     let save_pos = getpos('.')
     let current_line_num = line('.')  " Starting line number
     let current_line = getline('.')   " Current line content
-    echom "DEBUG: GetCodeBlock at line " . current_line_num . ": '" . current_line . "'"
     
     " Phase 1: Check for infix expressions first (no balanced delimiters)  
     " But exclude lines with unbalanced parentheses (those should use Phase 2)
@@ -1057,10 +1055,9 @@ function! s:GetCodeBlock() abort
         let close_count = len(substitute(current_line, '[^)]', '', 'g'))
         if open_count > close_count
             " Unbalanced parentheses - this is a function call, not infix expression
-            echom "DEBUG: Line has unbalanced parens, skipping Phase 1 for Phase 2"
+            " Skip Phase 1, fall through to Phase 2 for balanced parentheses counting
         else
             " Balanced or no parentheses - treat as infix expression
-            echom "DEBUG: Taking Phase 1 infix path"
             " Multi-line infix expression - read until we find a line that doesn't end with an operator
         let end_line = current_line_num
         while end_line < line('$')
@@ -1234,7 +1231,6 @@ function! s:GetCodeBlock() abort
     " getline(start, end) returns list of lines from start to end (inclusive)
     " This is the complete, balanced code block ready for R execution
     " Note: end_line is stored in script-local variable for cursor movement
-    echom "DEBUG: Extracting lines " . start_line . " to " . end_line
     let s:last_block_end_line = end_line
     return getline(start_line, end_line)
 endfunction
