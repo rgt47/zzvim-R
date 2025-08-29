@@ -1047,10 +1047,21 @@ function! s:GetCodeBlock() abort
     let current_line = getline('.')   " Current line content
     echom "DEBUG: GetCodeBlock at line " . current_line_num . ": '" . current_line . "'"
     
-    " Phase 1: Check for infix expressions first (no balanced delimiters)
-    if current_line =~# '[+\-*/^&|<>=!,]\s*$' || current_line =~# '%[^%]*%\s*$' || current_line =~# '<-\s*$' || current_line =~# '|>\s*$'
-        echom "DEBUG: Taking Phase 1 infix path"
-        " Multi-line infix expression - read until we find a line that doesn't end with an operator
+    " Phase 1: Check for infix expressions first (no balanced delimiters)  
+    " But exclude lines with unbalanced parentheses (those should use Phase 2)
+    let has_infix_ending = (current_line =~# '[+\-*/^&|<>=!,]\s*$' || current_line =~# '%[^%]*%\s*$' || current_line =~# '<-\s*$' || current_line =~# '|>\s*$')
+    
+    if has_infix_ending
+        " Check if line has unbalanced parentheses - if so, use Phase 2 instead
+        let open_count = len(substitute(current_line, '[^(]', '', 'g'))
+        let close_count = len(substitute(current_line, '[^)]', '', 'g'))
+        if open_count > close_count
+            " Unbalanced parentheses - this is a function call, not infix expression
+            echom "DEBUG: Line has unbalanced parens, skipping Phase 1 for Phase 2"
+        else
+            " Balanced or no parentheses - treat as infix expression
+            echom "DEBUG: Taking Phase 1 infix path"
+            " Multi-line infix expression - read until we find a line that doesn't end with an operator
         let end_line = current_line_num
         while end_line < line('$')
             let end_line += 1
@@ -1089,8 +1100,9 @@ function! s:GetCodeBlock() abort
                 endif
             endif
         endwhile
-        let s:last_block_end_line = end_line
-        return getline(current_line_num, end_line)
+            let s:last_block_end_line = end_line
+            return getline(current_line_num, end_line)
+        endif
     endif
     
     " Phase 2: Detect Block Type Based on Current Line for balanced delimiters
