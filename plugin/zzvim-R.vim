@@ -1174,6 +1174,7 @@ function! s:GetCodeBlock() abort
     " Iterate Through Lines Counting Characters
     for line_num in range(block_line, line('$'))
         let line_content = getline(line_num)
+        echom "DEBUG: Processing line " . line_num . ": '" . line_content . "'"
         
         " Efficient Character Counting Using Direct Character Matching
         " Avoids creating intermediate strings via substitute()
@@ -1193,6 +1194,7 @@ function! s:GetCodeBlock() abort
         " Update Running Character Balance
         " Positive = more opens than closes, Zero = balanced
         let char_count += open_chars - close_chars
+        echom "DEBUG: Line " . line_num . " - opens:" . open_chars . " closes:" . close_chars . " balance:" . char_count
         
         " Critical Balance Detection
         " When char_count reaches 0, we've found the matching closing character
@@ -1200,6 +1202,7 @@ function! s:GetCodeBlock() abort
         " (prevents false positive on lines with no characters)
         if char_count == 0 && (open_chars > 0 || close_chars > 0)
             let end_line = line_num
+            echom "DEBUG: Found end at line " . end_line
             break  " Exit loop - block boundary found
         endif
     endfor
