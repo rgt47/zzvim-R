@@ -1219,6 +1219,7 @@ function! s:GetCodeBlock() abort
     " getline(start, end) returns list of lines from start to end (inclusive)
     " This is the complete, balanced code block ready for R execution
     " Note: end_line is stored in script-local variable for cursor movement
+    echom "DEBUG: Extracting lines " . start_line . " to " . end_line
     let s:last_block_end_line = end_line
     return getline(start_line, end_line)
 endfunction
