@@ -1049,6 +1049,7 @@ function! s:GetCodeBlock() abort
     
     " Phase 1: Check for infix expressions first (no balanced delimiters)
     if current_line =~# '[+\-*/^&|<>=!,]\s*$' || current_line =~# '%[^%]*%\s*$' || current_line =~# '<-\s*$' || current_line =~# '|>\s*$'
+        echom "DEBUG: Taking Phase 1 infix path"
         " Multi-line infix expression - read until we find a line that doesn't end with an operator
         let end_line = current_line_num
         while end_line < line('$')
