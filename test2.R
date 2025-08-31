@@ -3,5 +3,4 @@ aa <- function(y) {
   x
 }
 
-aaa
-aaaaaaaaaaaaaa
+1 + 1 + rnorm(10) + a
