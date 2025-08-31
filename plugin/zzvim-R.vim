@@ -288,6 +288,55 @@ endif
 let s:is_ci_mode = exists('$CI') || exists('$GITHUB_ACTIONS') || has('nvim')
 let s:has_terminal_support = has('terminal') || s:is_ci_mode
 
+"------------------------------------------------------------------------------
+" Terminal Compatibility Layer
+" Provides unified API for terminal functions across Vim and Neovim
+"------------------------------------------------------------------------------
+
+if has('nvim')
+    " Neovim terminal function implementations
+    function! s:compat_term_list() abort
+        " Get all terminal buffers in Neovim
+        let term_bufs = []
+        for buf in nvim_list_bufs()
+            if getbufvar(buf, '&buftype') ==# 'terminal'
+                call add(term_bufs, buf)
+            endif
+        endfor
+        return term_bufs
+    endfunction
+    
+    function! s:compat_term_getstatus(bufnr) abort
+        " Check if terminal buffer is still running
+        if !bufexists(a:bufnr) || getbufvar(a:bufnr, '&buftype') !=# 'terminal'
+            return 'finished'
+        endif
+        let chan = getbufvar(a:bufnr, '&channel')
+        return chan > 0 ? 'running' : 'finished'
+    endfunction
+    
+    function! s:compat_term_sendkeys(bufnr, keys) abort
+        " Send keys to terminal buffer via channel
+        let chan = getbufvar(a:bufnr, '&channel')
+        if chan > 0
+            call chansend(chan, a:keys)
+        endif
+    endfunction
+else
+    " Vim terminal function implementations (use native functions)
+    function! s:compat_term_list() abort
+        return term_list()
+    endfunction
+    
+    function! s:compat_term_getstatus(bufnr) abort
+        return term_getstatus(a:bufnr)
+    endfunction
+    
+    function! s:compat_term_sendkeys(bufnr, keys) abort
+        return term_sendkeys(a:bufnr, a:keys)
+    endfunction
+endif
+
 if v:version < 800 || (!s:has_terminal_support && !s:is_ci_mode)
     " echohl sets highlight group for subsequent echo commands
     " ErrorMsg is built-in highlight group (typically red text)
@@ -353,9 +402,9 @@ function! s:GetBufferTerminal() abort
     " Check if buffer already has an associated terminal
     if exists('b:r_terminal_id') && b:r_terminal_id > 0
         " Verify the terminal still exists and is running
-        let terminal_buffers = term_list()
+        let terminal_buffers = s:compat_term_list()
         if index(terminal_buffers, b:r_terminal_id) >= 0
-            if term_getstatus(b:r_terminal_id) =~# 'running'
+            if s:compat_term_getstatus(b:r_terminal_id) =~# 'running'
                 return b:r_terminal_id
             endif
         endif
@@ -477,13 +526,13 @@ function! s:Send_to_r(cmd, stay_on_line) abort
         " !empty() ensures we have actual content to send
         if !empty(trim(a:cmd))
             " Terminal Status Verification
-            " term_getstatus() returns terminal state ("running", "finished", etc.)
+            " compat_term_getstatus() returns terminal state ("running", "finished", etc.)
             " =~# is case-sensitive regex match operator
-            if term_getstatus(target_terminal) =~# 'running'
+            if s:compat_term_getstatus(target_terminal) =~# 'running'
                 " Send command with newline to execute in R
-                " term_sendkeys() simulates typing in terminal
+                " compat_term_sendkeys() simulates typing in terminal
                 " "\n" = newline character to execute command
-                call term_sendkeys(target_terminal, a:cmd . "\n")
+                call s:compat_term_sendkeys(target_terminal, a:cmd . "\n")
                 
                 " Brief delay for terminal command processing
                 " Allows R to begin processing before next command
@@ -695,7 +744,7 @@ function! s:SendControlKeys(key) abort
         endif
 
         " Use term_sendkeys to send the control key to buffer's terminal
-        call term_sendkeys(target_terminal, a:key)
+        call s:compat_term_sendkeys(target_terminal, a:key)
     catch
         call s:Error("Failed to send control key: " . a:key)
     endtry
@@ -1535,7 +1584,7 @@ function! s:RShowTerminalCommand() abort
     let terminal_name = s:GetTerminalName()
     
     if exists('b:r_terminal_id') && b:r_terminal_id > 0
-        let terminal_buffers = term_list()
+        let terminal_buffers = s:compat_term_list()
         if index(terminal_buffers, b:r_terminal_id) >= 0
             echohl Title
             echo "Terminal Association for: " . buffer_name
@@ -1563,7 +1612,7 @@ endfunction
 " List all R file-terminal associations
 function! s:RListTerminalsCommand() abort
     let associations = []
-    let terminal_buffers = term_list()
+    let terminal_buffers = s:compat_term_list()
     
     " Scan all buffers for R files with terminal associations
     for bufnr in range(1, bufnr('$'))
