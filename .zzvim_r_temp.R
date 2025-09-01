@@ -1,1 +1,4 @@
-1 + 1 + rnorm(10) + a
+aa = function(y){
+x = y + 1
+  x
+}
