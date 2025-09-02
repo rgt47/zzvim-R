@@ -6,5 +6,14 @@ aa <- function(y) {
 
 1 + 1 + rnorm(10) + a
 library(ggplot2)
-ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) +
+iris$S
+ggplotS(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) +
   geom_point()
+duplicated_code <- function() {
+  print("This is some duplicated code.")
+}
+attach(iris)
+ggplot(iris,aes(x = Sepal.Length, y = Sepal.Width)) +
+  geom_point()
+browser()
+
