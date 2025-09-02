@@ -16,4 +16,8 @@ attach(iris)
 ggplot(iris,aes(x = Sepal.Length, y = Sepal.Width)) +
   geom_point()
 browser()
-
+browser()
+detach(),u
+attach
+attach( iris)
+detach(),u
