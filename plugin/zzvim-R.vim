@@ -159,6 +159,29 @@ scriptencoding utf-8
 "   <LocalLeader>b    - dt() - data.table print method
 "   <LocalLeader>y    - help() - Open R help documentation
 "
+" HUD (Heads-Up Display) Functions:
+" =================================
+" Advanced workspace and system information viewers with tabulated output
+" All HUD functions open in split windows with search capability (press '/')
+" Close any HUD window with 'q' or <ESC>
+"
+"   <LocalLeader>m    - Memory HUD - Show memory usage of all workspace objects
+"                      Displays objects sorted by size in MB with total
+"   <LocalLeader>e    - Data Frame HUD - Quick overview of all data frames
+"                      Shows dimensions (rows × cols) for each data frame
+"   <LocalLeader>z    - Package HUD - List currently loaded R packages
+"                      Shows loaded packages with total count
+"   <LocalLeader>v    - Data Viewer - RStudio-style data frame viewer
+"                      Place cursor on data frame name, creates tabulated view
+"   <LocalLeader>x    - Environment HUD - System environment variables
+"                      Alphabetically sorted with search functionality
+"   <LocalLeader>a    - R Options HUD - Current R session options
+"                      Shows all R options() with intelligent value formatting
+"   <LocalLeader>'    - Workspace Overview - Compact object listing
+"   <LocalLeader>i    - Object Inspector - Detailed object examination
+"   <LocalLeader><CR> - SendToR with Comments - Execute code and capture output
+"                      as comments in the source file
+"
 " EX COMMANDS REFERENCE:
 " =====================
 " These commands can be executed from Vim's command line (type : to enter 
@@ -262,6 +285,24 @@ scriptencoding utf-8
 "                               R buffer
 "     :ROpenSplit              - Open buffer-specific R terminal in new split 
 "                               window (horizontal or vertical)
+"
+" HUD (Heads-Up Display) Commands:
+" --------------------------------
+"     :RMemoryHUD              - Memory usage of all workspace objects
+"                               (sorted by size in MB with totals)
+"     :RDataFrameHUD           - Quick overview of all data frames  
+"                               (shows dimensions for each data frame)
+"     :RPackageHUD             - List currently loaded R packages
+"                               (with total package count)
+"     :RDataViewer             - RStudio-style data frame viewer
+"                               (tabulated view with column alignment) 
+"     :REnvironmentHUD         - System environment variables
+"                               (alphabetically sorted, searchable)
+"     :ROptionsHUD             - Current R session options
+"                               (formatted display of options() output)
+"     :RWorkspace              - Compact workspace object listing
+"     :RInspect [object]       - Detailed object examination
+"     :RSendWithComments       - Execute code and capture output as comments
 "
 " =============================================================================
 " PLUGIN IMPLEMENTATION BEGINS
