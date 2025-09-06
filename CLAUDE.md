@@ -1814,9 +1814,9 @@ A game-changing unified HUD dashboard has been implemented, providing instant ac
 
 #### **Unified Dashboard Overview**
 
-**Single Key Access**: `<LocalLeader>H` or `:RHUDDashboard`
+**Single Key Access**: `<LocalLeader>0` or `:RHUDDashboard`
 - **Opens 5 tabs simultaneously**: Memory, Data Frames, Packages, Environment Variables, R Options
-- **Instant refresh capability**: Press `<LocalLeader>H` again to refresh all tabs with current data
+- **Instant refresh capability**: Press `<LocalLeader>0` again to refresh all tabs with current data
 - **Standard Vim navigation**: Use `gt`/`gT` to cycle through tabs, `:q` or `:tabclose` to close tabs
 - **Cross-platform compatibility**: Works identically in Vim and Neovim
 
@@ -1841,9 +1841,9 @@ Tab 5: s:GenerateOptionsHUD()    - R session options (tabulated)
 #### **User Experience Enhancement**
 
 **Workflow Integration**:
-1. **Situational Awareness**: `<LocalLeader>H` provides instant workspace overview
+1. **Situational Awareness**: `<LocalLeader>0` provides instant workspace overview
 2. **Standard Tab Navigation**: `gt`/`gT` for rapid information switching, `:q` to close tabs
-3. **Live Updates**: `<LocalLeader>H` refreshes all tabs with current state
+3. **Live Updates**: `<LocalLeader>0` refreshes all tabs with current state
 4. **Focused Inspection**: Individual HUD functions still available for single-panel viewing
 
 **Professional Benefits**:

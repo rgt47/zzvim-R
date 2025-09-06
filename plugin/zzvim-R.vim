@@ -1535,7 +1535,7 @@ if !g:zzvim_r_disable_mappings
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>x :call <SID>REnvironmentHUD()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>a :call <SID>ROptionsHUD()<CR>
         " Unified HUD Dashboard - Open all HUD displays in tabs  
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>H :call <SID>RHUDDashboard()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>0 :call <SID>RHUDDashboard()<CR>
     augroup END
 endif
 
@@ -2309,8 +2309,10 @@ endfunction
 
 " HUD Dashboard: Open all HUD displays in separate tabs for quick overview
 function! s:RHUDDashboard() abort
-    " Validate R terminal exists
-    if !s:ValidateRTerminal()
+    " Ensure R terminal exists for current buffer
+    let terminal_id = s:GetBufferTerminal()
+    if terminal_id == -1
+        call s:Error("Failed to create or access R terminal")
         return
     endif
     
@@ -2341,7 +2343,7 @@ function! s:RHUDDashboard() abort
     " Go to first HUD tab
     1tabnext
     
-    echo "HUD Dashboard: 5 tabs created. Use gt/gT to navigate, <LocalLeader>H to refresh"
+    echo "HUD Dashboard: 5 tabs created. Use gt/gT to navigate, <LocalLeader>0 to refresh"
 endfunction
 
 " Helper: Close existing HUD tabs to prevent accumulation
@@ -2384,7 +2386,7 @@ function! s:CreateHUDTab(tab_name, file_suffix, data_generator) abort
     call a:data_generator()
     
     " Set up refresh keymap
-    nnoremap <buffer> <silent> <LocalLeader>H :call <SID>RHUDDashboard()<CR>
+    nnoremap <buffer> <silent> <LocalLeader>0 :call <SID>RHUDDashboard()<CR>
     
     " Move cursor to beginning
     normal! gg
@@ -2413,7 +2415,7 @@ function! s:GenerateMemoryHUD() abort
                 \ 'cat(sprintf("%-20s %10.2f\n", objs[i], mem_mb[i]));' .
                 \ 'cat(sprintf("\n%-20s %10.2f\n", "TOTAL WORKSPACE", total_mb))' .
                 \ '} else cat("No objects in workspace\n");' .
-                \ 'cat("\nPress <LocalLeader>H to refresh all HUD tabs\n")' .
+                \ 'cat("\nPress <LocalLeader>0 to refresh all HUD tabs\n")' .
                 \ '}' . ' > writeLines(capture.output(.Last.value), "' . l:temp_file . '")'
     
     call s:Send_to_r(l:mem_cmd, 1)
@@ -2444,7 +2446,7 @@ function! s:GenerateDataFrameHUD() abort
                 \ 'dims <- dim(get(df));' .
                 \ 'cat(sprintf("%-20s %8d %8d\n", df, dims[1], dims[2]))' .
                 \ '}} else cat("No data frames found\n");' .
-                \ 'cat("\nPress <LocalLeader>H to refresh all HUD tabs\n")' .
+                \ 'cat("\nPress <LocalLeader>0 to refresh all HUD tabs\n")' .
                 \ '}' . ' > writeLines(capture.output(.Last.value), "' . l:temp_file . '")'
     
     call s:Send_to_r(l:df_cmd, 1)
@@ -2469,7 +2471,7 @@ function! s:GeneratePackageHUD() abort
                 \ 'loaded <- sub("package:", "", loaded);' .
                 \ 'cat(sprintf("Total loaded packages: %d\n\n", length(loaded)));' .
                 \ 'for(pkg in loaded) cat(sprintf("  %-30s\n", pkg));' .
-                \ 'cat("\nPress <LocalLeader>H to refresh all HUD tabs\n")' .
+                \ 'cat("\nPress <LocalLeader>0 to refresh all HUD tabs\n")' .
                 \ '}' . ' > writeLines(capture.output(.Last.value), "' . l:temp_file . '")'
     
     call s:Send_to_r(l:pkg_cmd, 1)
@@ -2504,7 +2506,7 @@ function! s:GenerateEnvironmentHUD() abort
     
     sleep 300m
     if filereadable(l:env_file)
-        let l:content = ['ENVIRONMENT VARIABLES', '====================', ''] + readfile(l:env_file) + ['', 'Press <LocalLeader>H to refresh all HUD tabs']
+        let l:content = ['ENVIRONMENT VARIABLES', '====================', ''] + readfile(l:env_file) + ['', 'Press <LocalLeader>0 to refresh all HUD tabs']
         call setline(1, l:content)
         call delete(l:env_file)
         
@@ -2543,7 +2545,7 @@ function! s:GenerateOptionsHUD() abort
     
     sleep 300m  
     if filereadable(l:options_file)
-        let l:content = ['R SESSION OPTIONS', '==================', ''] + readfile(l:options_file) + ['', 'Press <LocalLeader>H to refresh all HUD tabs']
+        let l:content = ['R SESSION OPTIONS', '==================', ''] + readfile(l:options_file) + ['', 'Press <LocalLeader>0 to refresh all HUD tabs']
         call setline(1, l:content)
         call delete(l:options_file)
         
