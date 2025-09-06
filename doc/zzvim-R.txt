@@ -376,6 +376,38 @@ Session Control Commands                            *zzvim-r-commands-session*
 :RInterrupt                                                      *:RInterrupt*
     Send Ctrl-C interrupt signal to R terminal.
 
+HUD and Workspace Analysis Commands               *zzvim-r-commands-hud*
+
+:RMemoryHUD                                                      *:RMemoryHUD*
+    Display memory usage overview of all workspace objects.
+    Shows objects sorted by memory size with total workspace consumption.
+
+:RDataFrameHUD                                                *:RDataFrameHUD*  
+    Overview of all data frames in workspace with dimensions.
+    Essential for multi-dataset analysis workflows.
+
+:RPackageHUD                                                    *:RPackageHUD*
+    Display currently loaded R packages with total count.
+    Critical for debugging package conflicts and dependencies.
+
+:REnvironmentHUD                                              *:REnvironmentHUD*
+    System environment variables inspection in tabulated format.
+    Essential for debugging R installation and path issues.
+
+:ROptionsHUD                                                    *:ROptionsHUD*
+    Current R session options display with value processing.
+    Essential for R configuration debugging and optimization.
+
+:RDataViewer                                                    *:RDataViewer*
+    RStudio-style data frame viewer for object under cursor.
+    Professional tabulated display with Tabularize plugin integration.
+    Usage: Position cursor on data frame name and execute command.
+
+:RHUDDashboard                                                *:RHUDDashboard*
+    Unified HUD Dashboard - open all 5 HUD displays in separate tabs.
+    Creates comprehensive workspace overview for situational awareness.
+    Navigation: Use gt/gT to cycle tabs, :q to close, repeat command to refresh.
+
 ==============================================================================
 7. MAPPINGS                                                    *zzvim-r-mappings*
 
@@ -413,6 +445,27 @@ R Function Shortcuts:
     <localleader>g    Run glimpse() on word under cursor (tibble inspection)
     <localleader>b    Run dt() on word under cursor (data.table display)
     <localleader>y    Run help() on word under cursor (documentation access)
+
+Enhanced Object Inspection                       *zzvim-r-mappings-enhanced*
+
+Data Viewer (Enhanced RAction):
+    <localleader>v    Open RStudio-style data viewer for object under cursor
+
+HUD Functions (Workspace Overview)               *zzvim-r-mappings-hud*
+
+Individual HUD Displays:
+    <localleader>m    Memory Usage HUD - show object memory consumption
+    <localleader>e    Data Frames HUD - overview of all data frames  
+    <localleader>z    Package Status HUD - display loaded packages
+    <localleader>x    Environment Variables HUD - system environment
+    <localleader>a    R Options HUD - current R session options
+
+Unified HUD Dashboard                            *zzvim-r-mappings-dashboard*
+
+Complete Workspace Overview:
+    <localleader>0    HUD Dashboard - open all 5 HUD displays in tabs
+                      Creates tabbed workspace overview for situational awareness
+                      Use gt/gT to navigate tabs, :q to close, <localleader>0 to refresh
 
 Explicit Send Mappings                            *zzvim-r-mappings-explicit*
 

@@ -8,7 +8,10 @@ Advanced R integration for Vim and Neovim with smart code execution and multi-te
 - **Multi-Terminal Sessions**: Buffer-specific R terminals - each R file gets its own R session  
 - **Silent Execution**: No "Press ENTER" prompts for streamlined workflows
 - **R Markdown Support**: Navigate and execute chunks with `<LocalLeader>j/k/l`
-- **Object Inspection**: Quick data analysis with `<LocalLeader>h/s/d/p` shortcuts
+- **Object Inspection**: Quick data analysis with `<LocalLeader>h/s/d/p` shortcuts  
+- **HUD Dashboard**: Unified workspace overview with `<LocalLeader>0` - 5 tabs of workspace info
+- **Professional Data Viewer**: RStudio-style data frame viewer with `<LocalLeader>v`
+- **Workspace Intelligence**: Memory usage, package status, environment variables at a glance
 - **Visual Selection**: Send any selected code block to R
 - **Pattern Recognition**: Handles complex R constructs including nested braces and pipes
 - **Optional Modern IDE Features**: CoC integration for LSP completion and diagnostics
@@ -29,9 +32,17 @@ Advanced R integration for Vim and Neovim with smart code execution and multi-te
 | `<CR>` | Smart code submission (context-aware) |
 | `<LocalLeader>r` | Open buffer-specific R terminal |
 | `<LocalLeader>w` | Open R terminal in vertical split |
+| **HUD & Workspace** |
+| `<LocalLeader>0` | **HUD Dashboard** - open all 5 workspace tabs |
+| `<LocalLeader>m` | Memory Usage HUD |
+| `<LocalLeader>e` | Data Frames HUD |  
+| `<LocalLeader>z` | Package Status HUD |
+| `<LocalLeader>v` | **RStudio-style Data Viewer** |
+| **Object Inspection** |
 | `<LocalLeader>h` | `head()` on word under cursor |
 | `<LocalLeader>s` | `str()` on word under cursor |
 | `<LocalLeader>d` | `dim()` on word under cursor |
+| **R Markdown** |
 | `<LocalLeader>j/k` | Navigate R Markdown chunks |
 | `<LocalLeader>l` | Execute current chunk |
 
@@ -278,6 +289,54 @@ data(mtcars)
 # <LocalLeader>p for print(mtcars)
 mtcars
 ```
+
+### HUD Dashboard - Workspace Intelligence
+
+The HUD (Heads-Up Display) Dashboard provides comprehensive workspace overview in a single keystroke:
+
+```r
+# Load some data and packages for demonstration  
+library(dplyr)
+library(ggplot2)
+data(iris)
+data(mtcars)
+
+# Press <LocalLeader>0 to open HUD Dashboard
+# Creates 5 tabs with workspace information:
+```
+
+**HUD Dashboard Features:**
+- **`<LocalLeader>0`** - Open all 5 HUD tabs simultaneously  
+- **Memory Tab**: Object memory usage sorted by size
+- **DataFrames Tab**: All data frames with dimensions
+- **Packages Tab**: Currently loaded packages
+- **Environment Tab**: System environment variables  
+- **Options Tab**: Current R session options
+
+**Navigation:**
+- `gt` / `gT` - Navigate between HUD tabs
+- `:q` - Close individual tabs
+- `<LocalLeader>0` - Refresh all tabs with current data
+
+**Individual HUD Functions:**
+```r
+# For focused analysis, use individual HUD displays:
+# <LocalLeader>m - Memory usage overview
+# <LocalLeader>e - Data frames inventory  
+# <LocalLeader>z - Package status
+# <LocalLeader>x - Environment variables
+# <LocalLeader>a - R options
+
+# Enhanced object inspection:
+# <LocalLeader>v - RStudio-style data viewer (position cursor on data frame name)
+```
+
+**Use Cases:**
+- **Multi-dataset analysis**: Quick data frame inventory
+- **Memory optimization**: Identify memory-heavy objects
+- **Package debugging**: Resolve package conflicts  
+- **Environment diagnostics**: System configuration validation
+- **Performance monitoring**: Track workspace state during analysis
 
 ### R Markdown
 ```markdown
