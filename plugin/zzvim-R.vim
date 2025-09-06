@@ -1490,6 +1490,9 @@ if !g:zzvim_r_disable_mappings
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>m :call <SID>RMemoryHUD()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>e :call <SID>RDataFrameHUD()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>z :call <SID>RPackageHUD()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>v :call <SID>RDataViewer()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>x :call <SID>REnvironmentHUD()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>a :call <SID>ROptionsHUD()<CR>
     augroup END
 endif
 
@@ -1554,6 +1557,9 @@ command! -bar -nargs=? RInspect call s:RInspectObject(<q-args>)
 command! -bar RMemoryHUD call s:RMemoryHUD()
 command! -bar RDataFrameHUD call s:RDataFrameHUD()  
 command! -bar RPackageHUD call s:RPackageHUD()
+command! -bar RDataViewer call s:RDataViewer()
+command! -bar REnvironmentHUD call s:REnvironmentHUD()
+command! -bar ROptionsHUD call s:ROptionsHUD()
 command! -bar RInstallDplyr call s:Send_to_r('install.packages("dplyr")', 1)
 
 "------------------------------------------------------------------------------
@@ -1976,4 +1982,279 @@ function! s:RPackageHUD() abort
                 \ 'for(pkg in loaded) cat(sprintf("  %s\n", pkg));' .
                 \ 'cat(sprintf("Total loaded: %d packages\n", length(loaded)));' .
                 \ 'cat("====================\n")}', 1)
+endfunction
+
+" HUD Function 4: Data Viewer - RStudio-style data frame viewer with tabulate
+function! s:RDataViewer() abort
+    " Get object name under cursor
+    let obj_name = expand('<cword>')
+    if empty(obj_name)
+        call s:Error("No object under cursor")
+        return
+    endif
+    
+    " Create temp space-separated file path  
+    let data_file = tempname() . '.txt'
+    let data_file_escaped = substitute(data_file, '\', '/', 'g')  " Fix Windows paths
+    
+    " Phase 1: Check if object exists and is a data frame
+    let check_cmd = 'if(exists("' . obj_name . '") && is.data.frame(' . obj_name . ')) {' .
+                \ 'write.table(' . obj_name . ', "' . data_file_escaped . '", ' .
+                \ 'sep=" ", row.names=FALSE, col.names=TRUE, quote=FALSE); ' .
+                \ 'cat("Data viewer: Exported ' . obj_name . ' with space delimiter\n")' .
+                \ '} else {' .
+                \ 'cat("Error: ' . obj_name . ' is not a data frame or does not exist\n")' .
+                \ '}'
+    
+    call s:Send_to_r(check_cmd, 1)
+    
+    " Brief delay to ensure file is written
+    sleep 200m
+    
+    " Phase 2: Check if data file was created successfully
+    if !filereadable(data_file)
+        call s:Error("Failed to export data frame: " . obj_name)
+        return
+    endif
+    
+    " Phase 3: Open data in new buffer with appropriate settings
+    " Create a unique buffer name for the data viewer
+    let viewer_buffer = obj_name . '_viewer.txt'
+    
+    try
+        " Open new split window with the space-delimited data
+        execute 'split ' . fnameescape(data_file)
+        
+        " Set buffer properties for data viewing
+        setlocal buftype=nofile
+        setlocal bufhidden=wipe
+        setlocal noswapfile
+        setlocal readonly
+        setlocal nowrap
+        
+        " Set appropriate filetype for syntax highlighting
+        setlocal filetype=
+        
+        " Rename buffer to show the data frame name
+        execute 'file ' . fnameescape(viewer_buffer)
+        
+        " Phase 4: Apply tabulate plugin if available
+        if exists(':Tabularize')
+            " Use Tabularize plugin to align space-separated columns
+            silent! %Tabularize / /
+            echom "Data viewer: Applied Tabularize space alignment for " . obj_name
+        elseif exists(':EasyAlign')
+            " Alternative: use vim-easy-align for space alignment
+            silent! %EasyAlign */ /
+            echom "Data viewer: Applied EasyAlign space alignment for " . obj_name
+        else
+            " Basic manual column alignment if no plugin available
+            echom "Data viewer: " . obj_name . " (install Tabularize plugin for better column alignment)"
+        endif
+        
+        " Set up convenient key mappings for the viewer buffer
+        nnoremap <buffer> <silent> q :bwipe<CR>
+        nnoremap <buffer> <silent> <ESC> :bwipe<CR>
+        
+        " Move to top of data (skip header)
+        normal! gg
+        if line('$') > 1
+            normal! j
+        endif
+        
+        echom "Data viewer: Press 'q' or <ESC> to close viewer for " . obj_name
+        
+    catch
+        call s:Error("Failed to open data viewer: " . v:exception)
+    finally
+        " Clean up temp file
+        if filereadable(data_file)
+            call delete(data_file)
+        endif
+    endtry
+endfunction
+
+" HUD Function 5: Environment Variables Viewer - System environment variables in tabulated format
+function! s:REnvironmentHUD() abort
+    " Create temp space-separated file for environment variables
+    let env_file = tempname() . '.txt'
+    let env_file_escaped = substitute(env_file, '\', '/', 'g')  " Fix Windows paths
+    
+    " Phase 1: Export environment variables as a data frame
+    let env_cmd = '{' .
+                \ 'env_vars <- Sys.getenv(); ' .
+                \ 'env_df <- data.frame(' .
+                \ 'Variable = names(env_vars), ' .
+                \ 'Value = as.character(env_vars), ' .
+                \ 'stringsAsFactors = FALSE); ' .
+                \ 'env_df <- env_df[order(env_df$Variable), ]; ' .
+                \ 'write.table(env_df, "' . env_file_escaped . '", ' .
+                \ 'sep=" ", row.names=FALSE, col.names=TRUE, quote=FALSE); ' .
+                \ 'cat("Environment HUD: Exported", nrow(env_df), "environment variables\n")' .
+                \ '}'
+    
+    call s:Send_to_r(env_cmd, 1)
+    
+    " Brief delay to ensure file is written
+    sleep 200m
+    
+    " Phase 2: Check if environment file was created successfully
+    if !filereadable(env_file)
+        call s:Error("Failed to export environment variables")
+        return
+    endif
+    
+    " Phase 3: Open environment data in new buffer
+    let viewer_buffer = 'environment_variables.txt'
+    
+    try
+        " Open new split window with the environment data
+        execute 'split ' . fnameescape(env_file)
+        
+        " Set buffer properties for environment viewing
+        setlocal buftype=nofile
+        setlocal bufhidden=wipe
+        setlocal noswapfile
+        setlocal readonly
+        setlocal nowrap
+        
+        " Set appropriate filetype
+        setlocal filetype=
+        
+        " Rename buffer to show it's environment variables
+        execute 'file ' . fnameescape(viewer_buffer)
+        
+        " Phase 4: Apply tabulate plugin if available
+        if exists(':Tabularize')
+            " Use Tabularize plugin to align space-separated columns
+            silent! %Tabularize / /
+            echom "Environment HUD: Applied Tabularize alignment for environment variables"
+        elseif exists(':EasyAlign')
+            " Alternative: use vim-easy-align for space alignment
+            silent! %EasyAlign */ /
+            echom "Environment HUD: Applied EasyAlign alignment for environment variables"
+        else
+            " Basic display if no plugin available
+            echom "Environment HUD: Showing environment variables (install Tabularize plugin for better alignment)"
+        endif
+        
+        " Set up convenient key mappings for the viewer buffer
+        nnoremap <buffer> <silent> q :bwipe<CR>
+        nnoremap <buffer> <silent> <ESC> :bwipe<CR>
+        
+        " Add search functionality for finding specific variables
+        nnoremap <buffer> <silent> / :call search('\c')<Left><Left><Left><Left><Left><Left><Left><Left><Left><Left><Left>
+        
+        " Move to top of data (skip header)
+        normal! gg
+        if line('$') > 1
+            normal! j
+        endif
+        
+        echom "Environment HUD: Press 'q' or <ESC> to close, '/' to search variables"
+        
+    catch
+        call s:Error("Failed to open environment variables viewer: " . v:exception)
+    finally
+        " Clean up temp file
+        if filereadable(env_file)
+            call delete(env_file)
+        endif
+    endtry
+endfunction
+
+" HUD Function 6: R Options Viewer - Current R options in tabulated format
+function! s:ROptionsHUD() abort
+    " Create temp space-separated file for R options
+    let options_file = tempname() . '.txt'
+    let options_file_escaped = substitute(options_file, '\', '/', 'g')  " Fix Windows paths
+    
+    " Phase 1: Export R options as a data frame
+    let options_cmd = '{' .
+                \ 'r_options <- options(); ' .
+                \ 'opt_df <- data.frame(' .
+                \ 'Option = names(r_options), ' .
+                \ 'Value = sapply(r_options, function(x) {' .
+                \ 'if(is.null(x)) "NULL" ' .
+                \ 'else if(length(x) > 1) paste0("[", length(x), " values]") ' .
+                \ 'else if(is.logical(x)) as.character(x) ' .
+                \ 'else if(is.numeric(x)) as.character(x) ' .
+                \ 'else if(nchar(as.character(x)) > 50) paste0(substr(as.character(x), 1, 50), "...") ' .
+                \ 'else as.character(x)' .
+                \ '}), ' .
+                \ 'stringsAsFactors = FALSE); ' .
+                \ 'opt_df <- opt_df[order(opt_df$Option), ]; ' .
+                \ 'write.table(opt_df, "' . options_file_escaped . '", ' .
+                \ 'sep=" ", row.names=FALSE, col.names=TRUE, quote=FALSE); ' .
+                \ 'cat("R Options HUD: Exported", nrow(opt_df), "R options\n")' .
+                \ '}'
+    
+    call s:Send_to_r(options_cmd, 1)
+    
+    " Brief delay to ensure file is written
+    sleep 200m
+    
+    " Phase 2: Check if options file was created successfully
+    if !filereadable(options_file)
+        call s:Error("Failed to export R options")
+        return
+    endif
+    
+    " Phase 3: Open R options data in new buffer
+    let viewer_buffer = 'r_options.txt'
+    
+    try
+        " Open new split window with the R options data
+        execute 'split ' . fnameescape(options_file)
+        
+        " Set buffer properties for options viewing
+        setlocal buftype=nofile
+        setlocal bufhidden=wipe
+        setlocal noswapfile
+        setlocal readonly
+        setlocal nowrap
+        
+        " Set appropriate filetype
+        setlocal filetype=
+        
+        " Rename buffer to show it's R options
+        execute 'file ' . fnameescape(viewer_buffer)
+        
+        " Phase 4: Apply tabulate plugin if available
+        if exists(':Tabularize')
+            " Use Tabularize plugin to align space-separated columns
+            silent! %Tabularize / /
+            echom "R Options HUD: Applied Tabularize alignment for R options"
+        elseif exists(':EasyAlign')
+            " Alternative: use vim-easy-align for space alignment
+            silent! %EasyAlign */ /
+            echom "R Options HUD: Applied EasyAlign alignment for R options"
+        else
+            " Basic display if no plugin available
+            echom "R Options HUD: Showing R options (install Tabularize plugin for better alignment)"
+        endif
+        
+        " Set up convenient key mappings for the viewer buffer
+        nnoremap <buffer> <silent> q :bwipe<CR>
+        nnoremap <buffer> <silent> <ESC> :bwipe<CR>
+        
+        " Add search functionality for finding specific options
+        nnoremap <buffer> <silent> / :call search('\c')<Left><Left><Left><Left><Left><Left><Left><Left><Left><Left><Left>
+        
+        " Move to top of data (skip header)
+        normal! gg
+        if line('$') > 1
+            normal! j
+        endif
+        
+        echom "R Options HUD: Press 'q' or <ESC> to close, '/' to search options"
+        
+    catch
+        call s:Error("Failed to open R options viewer: " . v:exception)
+    finally
+        " Clean up temp file
+        if filereadable(options_file)
+            call delete(options_file)
+        endif
+    endtry
 endfunction
