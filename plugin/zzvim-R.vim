@@ -2324,11 +2324,12 @@ function! s:RHUDDashboard() abort
     
     echo "HUD Dashboard: Opening workspace overview..."
     
-    " Capture source file name before creating tabs
+    " Capture source file name and R terminal ID before creating tabs
     let l:source_file = fnamemodify(bufname('%'), ':t:r')  " Get filename without extension
     if empty(l:source_file)
         let l:source_file = 'unnamed'
     endif
+    let l:r_terminal_id = b:r_terminal_id  " Capture the R terminal ID
     
     " Store current tab for restoration if needed
     let l:original_tab = tabpagenr()
@@ -2338,19 +2339,19 @@ function! s:RHUDDashboard() abort
     
     " Create tabs for each HUD display
     " Tab 1: Memory Usage
-    call s:CreateHUDTab('Memory', 'memory_usage', function('s:GenerateMemoryHUD'), l:source_file)
+    call s:CreateHUDTab('Memory', 'memory_usage', function('s:GenerateMemoryHUD'), l:source_file, l:r_terminal_id)
     
     " Tab 2: Data Frames  
-    call s:CreateHUDTab('DataFrames', 'data_frames', function('s:GenerateDataFrameHUD'), l:source_file)
+    call s:CreateHUDTab('DataFrames', 'data_frames', function('s:GenerateDataFrameHUD'), l:source_file, l:r_terminal_id)
     
     " Tab 3: Packages
-    call s:CreateHUDTab('Packages', 'packages', function('s:GeneratePackageHUD'), l:source_file)
+    call s:CreateHUDTab('Packages', 'packages', function('s:GeneratePackageHUD'), l:source_file, l:r_terminal_id)
     
     " Tab 4: Environment Variables
-    call s:CreateHUDTab('Environment', 'environment', function('s:GenerateEnvironmentHUD'), l:source_file)
+    call s:CreateHUDTab('Environment', 'environment', function('s:GenerateEnvironmentHUD'), l:source_file, l:r_terminal_id)
     
     " Tab 5: R Options  
-    call s:CreateHUDTab('Options', 'options', function('s:GenerateOptionsHUD'), l:source_file)
+    call s:CreateHUDTab('Options', 'options', function('s:GenerateOptionsHUD'), l:source_file, l:r_terminal_id)
     
     " Go to first HUD tab
     1tabnext
@@ -2373,13 +2374,16 @@ function! s:CloseHUDTabs() abort
 endfunction
 
 " Helper: Create individual HUD tab with data
-function! s:CreateHUDTab(tab_name, file_suffix, data_generator, source_file) abort
+function! s:CreateHUDTab(tab_name, file_suffix, data_generator, source_file, r_terminal_id) abort
     " Create new tab
     tabnew
     
     " Set buffer name for identification with source file context
     let l:buffer_name = 'HUD_' . a:source_file . '_' . a:tab_name
     execute 'file ' . l:buffer_name
+    
+    " Associate this buffer with the R terminal
+    let b:r_terminal_id = a:r_terminal_id
     
     " Configure buffer properties (but not readonly yet)
     setlocal buftype=nofile
