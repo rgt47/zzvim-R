@@ -1534,6 +1534,8 @@ if !g:zzvim_r_disable_mappings
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>v :call <SID>RDataViewer()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>x :call <SID>REnvironmentHUD()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>a :call <SID>ROptionsHUD()<CR>
+        " Unified HUD Dashboard - Open all HUD displays in tabs  
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>H :call <SID>RHUDDashboard()<CR>
     augroup END
 endif
 
@@ -1601,6 +1603,7 @@ command! -bar RPackageHUD call s:RPackageHUD()
 command! -bar RDataViewer call s:RDataViewer()
 command! -bar REnvironmentHUD call s:REnvironmentHUD()
 command! -bar ROptionsHUD call s:ROptionsHUD()
+command! -bar RHUDDashboard call s:RHUDDashboard()
 command! -bar RInstallDplyr call s:Send_to_r('install.packages("dplyr")', 1)
 
 "------------------------------------------------------------------------------
@@ -2298,4 +2301,274 @@ function! s:ROptionsHUD() abort
             call delete(options_file)
         endif
     endtry
+endfunction
+
+" =============================================================================
+" Unified HUD Dashboard - All workspace information in separate tabs
+" =============================================================================
+
+" HUD Dashboard: Open all HUD displays in separate tabs for quick overview
+function! s:RHUDDashboard() abort
+    " Validate R terminal exists
+    if !s:ValidateRTerminal()
+        return
+    endif
+    
+    echo "HUD Dashboard: Opening workspace overview..."
+    
+    " Store current tab for restoration if needed
+    let l:original_tab = tabpagenr()
+    
+    " Close any existing HUD tabs first (cleanup)
+    call s:CloseHUDTabs()
+    
+    " Create tabs for each HUD display
+    " Tab 1: Memory Usage
+    call s:CreateHUDTab('Memory', 'memory_usage', function('s:GenerateMemoryHUD'))
+    
+    " Tab 2: Data Frames  
+    call s:CreateHUDTab('DataFrames', 'data_frames', function('s:GenerateDataFrameHUD'))
+    
+    " Tab 3: Packages
+    call s:CreateHUDTab('Packages', 'packages', function('s:GeneratePackageHUD'))
+    
+    " Tab 4: Environment Variables
+    call s:CreateHUDTab('Environment', 'environment', function('s:GenerateEnvironmentHUD'))
+    
+    " Tab 5: R Options  
+    call s:CreateHUDTab('Options', 'options', function('s:GenerateOptionsHUD'))
+    
+    " Go to first HUD tab
+    1tabnext
+    
+    echo "HUD Dashboard: 5 tabs created. Use gt/gT to navigate, <LocalLeader>H to refresh"
+endfunction
+
+" Helper: Close existing HUD tabs to prevent accumulation
+function! s:CloseHUDTabs() abort
+    " Get list of all tab pages
+    let l:hud_patterns = ['HUD_Memory', 'HUD_DataFrames', 'HUD_Packages', 'HUD_Environment', 'HUD_Options']
+    
+    " Iterate through tabs from last to first (to avoid index shifting)
+    for l:tabnr in range(tabpagenr('$'), 1, -1)
+        let l:bufname = bufname(tabpagebuflist(l:tabnr)[0])
+        
+        for l:pattern in l:hud_patterns
+            if l:bufname =~# l:pattern
+                execute l:tabnr . 'tabclose'
+                break
+            endif
+        endfor
+    endfor
+endfunction
+
+" Helper: Create individual HUD tab with data
+function! s:CreateHUDTab(tab_name, file_suffix, data_generator) abort
+    " Create new tab
+    tabnew
+    
+    " Set buffer name for identification
+    let l:buffer_name = 'HUD_' . a:tab_name . '_' . localtime()
+    execute 'file ' . l:buffer_name
+    
+    " Configure buffer properties
+    setlocal buftype=nofile
+    setlocal bufhidden=wipe
+    setlocal noswapfile  
+    setlocal readonly
+    setlocal nowrap
+    setlocal nonumber
+    setlocal norelativenumber
+    
+    " Generate and display the HUD data
+    call a:data_generator()
+    
+    " Set up refresh keymap
+    nnoremap <buffer> <silent> <LocalLeader>H :call <SID>RHUDDashboard()<CR>
+    
+    " Move cursor to beginning
+    normal! gg
+    
+    " Set tab title (Vim/Neovim compatible)
+    if exists('+showtabline')
+        execute 'set showtabline=2'
+    endif
+endfunction
+
+" HUD Data Generators - Generate content for each tab
+function! s:GenerateMemoryHUD() abort
+    " Create temp file for memory data
+    let l:temp_file = tempname()
+    
+    let l:mem_cmd = '{' .
+                \ 'cat("MEMORY USAGE OVERVIEW\n");' .
+                \ 'cat("====================\n\n");' .
+                \ 'objs <- ls(); if(length(objs) > 0) {' .
+                \ 'mem_data <- sapply(objs, function(x) object.size(get(x)));' .
+                \ 'mem_mb <- round(mem_data / 1024^2, 2);' .
+                \ 'total_mb <- round(sum(mem_data) / 1024^2, 2);' .
+                \ 'cat(sprintf("%-20s %10s\n", "Object", "Memory (MB)"));' .
+                \ 'cat(sprintf("%-20s %10s\n", "------", "----------"));' .
+                \ 'for(i in order(mem_data, decreasing=T)) ' .
+                \ 'cat(sprintf("%-20s %10.2f\n", objs[i], mem_mb[i]));' .
+                \ 'cat(sprintf("\n%-20s %10.2f\n", "TOTAL WORKSPACE", total_mb))' .
+                \ '} else cat("No objects in workspace\n");' .
+                \ 'cat("\nPress <LocalLeader>H to refresh all HUD tabs\n")' .
+                \ '}' . ' > writeLines(capture.output(.Last.value), "' . l:temp_file . '")'
+    
+    call s:Send_to_r(l:mem_cmd, 1)
+    
+    " Wait and read file content
+    sleep 300m
+    if filereadable(l:temp_file)
+        let l:content = readfile(l:temp_file)
+        call setline(1, l:content)
+        call delete(l:temp_file)
+    else
+        call setline(1, ['Error: Could not generate memory data'])
+    endif
+endfunction
+
+function! s:GenerateDataFrameHUD() abort
+    let l:temp_file = tempname()
+    
+    let l:df_cmd = '{' .
+                \ 'cat("DATA FRAMES OVERVIEW\n");' .
+                \ 'cat("===================\n\n");' .
+                \ 'objs <- ls(); dfs <- character(0);' .
+                \ 'for(obj in objs) if(is.data.frame(get(obj))) dfs <- c(dfs, obj);' .
+                \ 'if(length(dfs) > 0) {' .
+                \ 'cat(sprintf("%-20s %8s %8s\n", "Data Frame", "Rows", "Columns"));' .
+                \ 'cat(sprintf("%-20s %8s %8s\n", "----------", "----", "-------"));' .
+                \ 'for(df in dfs) {' .
+                \ 'dims <- dim(get(df));' .
+                \ 'cat(sprintf("%-20s %8d %8d\n", df, dims[1], dims[2]))' .
+                \ '}} else cat("No data frames found\n");' .
+                \ 'cat("\nPress <LocalLeader>H to refresh all HUD tabs\n")' .
+                \ '}' . ' > writeLines(capture.output(.Last.value), "' . l:temp_file . '")'
+    
+    call s:Send_to_r(l:df_cmd, 1)
+    
+    sleep 300m
+    if filereadable(l:temp_file)
+        let l:content = readfile(l:temp_file)
+        call setline(1, l:content)
+        call delete(l:temp_file)
+    else
+        call setline(1, ['Error: Could not generate data frame data'])
+    endif
+endfunction
+
+function! s:GeneratePackageHUD() abort
+    let l:temp_file = tempname()
+    
+    let l:pkg_cmd = '{' .
+                \ 'cat("LOADED PACKAGES\n");' .
+                \ 'cat("===============\n\n");' .
+                \ 'loaded <- search()[grep("package:", search())];' .
+                \ 'loaded <- sub("package:", "", loaded);' .
+                \ 'cat(sprintf("Total loaded packages: %d\n\n", length(loaded)));' .
+                \ 'for(pkg in loaded) cat(sprintf("  %-30s\n", pkg));' .
+                \ 'cat("\nPress <LocalLeader>H to refresh all HUD tabs\n")' .
+                \ '}' . ' > writeLines(capture.output(.Last.value), "' . l:temp_file . '")'
+    
+    call s:Send_to_r(l:pkg_cmd, 1)
+    
+    sleep 300m
+    if filereadable(l:temp_file)
+        let l:content = readfile(l:temp_file)
+        call setline(1, l:content)  
+        call delete(l:temp_file)
+    else
+        call setline(1, ['Error: Could not generate package data'])
+    endif
+endfunction
+
+function! s:GenerateEnvironmentHUD() abort
+    " Create temp space-separated file for environment variables  
+    let l:env_file = tempname() . '.txt'
+    let l:env_file_escaped = substitute(l:env_file, '\', '/', 'g')  " Fix Windows paths
+    
+    let l:env_cmd = '{' .
+                \ 'env_vars <- Sys.getenv(); ' .
+                \ 'env_df <- data.frame(' .
+                \ 'Variable = names(env_vars), ' .
+                \ 'Value = as.character(env_vars), ' .
+                \ 'stringsAsFactors = FALSE); ' .
+                \ 'env_df <- env_df[order(env_df$Variable), ]; ' .
+                \ 'write.table(env_df, "' . l:env_file_escaped . '", ' .
+                \ 'sep="  ", row.names=FALSE, col.names=TRUE, quote=FALSE)' .
+                \ '}'
+    
+    call s:Send_to_r(l:env_cmd, 1)
+    
+    sleep 300m
+    if filereadable(l:env_file)
+        let l:content = ['ENVIRONMENT VARIABLES', '====================', ''] + readfile(l:env_file) + ['', 'Press <LocalLeader>H to refresh all HUD tabs']
+        call setline(1, l:content)
+        call delete(l:env_file)
+        
+        " Apply tabulation if available
+        call s:ApplyTabulation()
+    else
+        call setline(1, ['Error: Could not generate environment data'])
+    endif
+endfunction
+
+function! s:GenerateOptionsHUD() abort
+    " Create temp space-separated file for R options
+    let l:options_file = tempname() . '.txt' 
+    let l:options_file_escaped = substitute(l:options_file, '\', '/', 'g')  " Fix Windows paths
+    
+    let l:options_cmd = '{' .
+                \ 'r_options <- options(); ' .
+                \ 'opt_df <- data.frame(' .
+                \ 'Option = names(r_options), ' .
+                \ 'Value = sapply(r_options, function(x) {' .
+                \ 'if(is.null(x)) "NULL" ' .
+                \ 'else if(is.function(x)) "[function]" ' .
+                \ 'else if(length(x) > 1) paste0("[", length(x), " values]") ' .
+                \ 'else if(is.logical(x)) as.character(x) ' .
+                \ 'else if(is.numeric(x)) as.character(x) ' .
+                \ 'else {val <- tryCatch(as.character(x), error = function(e) "[complex]"); ' .
+                \ 'if(nchar(val) > 50) paste0(substr(val, 1, 47), "...") else val}' .
+                \ '}), ' .
+                \ 'stringsAsFactors = FALSE); ' .
+                \ 'opt_df <- opt_df[order(opt_df$Option), ]; ' .
+                \ 'write.table(opt_df, "' . l:options_file_escaped . '", ' .
+                \ 'sep="  ", row.names=FALSE, col.names=TRUE, quote=FALSE)' .
+                \ '}'
+    
+    call s:Send_to_r(l:options_cmd, 1)
+    
+    sleep 300m  
+    if filereadable(l:options_file)
+        let l:content = ['R SESSION OPTIONS', '==================', ''] + readfile(l:options_file) + ['', 'Press <LocalLeader>H to refresh all HUD tabs']
+        call setline(1, l:content)
+        call delete(l:options_file)
+        
+        " Apply tabulation if available
+        call s:ApplyTabulation()
+    else
+        call setline(1, ['Error: Could not generate options data'])
+    endif
+endfunction
+
+" Helper: Apply tabulation formatting if plugins are available
+function! s:ApplyTabulation() abort
+    " Check for Tabularize plugin (most common)
+    if exists(':Tabularize')
+        try
+            silent! execute '%Tabularize /  /'
+        catch
+            " Silently fail if tabularize has issues
+        endtry
+    " Check for EasyAlign plugin (alternative)
+    elseif exists(':EasyAlign')
+        try
+            silent! execute '%EasyAlign *\ '
+        catch
+            " Silently fail if EasyAlign has issues
+        endtry
+    endif
 endfunction
