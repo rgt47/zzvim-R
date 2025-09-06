@@ -2008,7 +2008,7 @@ function! s:RDataFrameHUD() abort
                 \ 'for(obj in objs) if(is.data.frame(get(obj))) dfs <- c(dfs, obj);' .
                 \ 'if(length(dfs) > 0) {' .
                 \ 'for(df in dfs) {' .
-                \ 'dims <- dim(get(df)); cols <- ncol(get(df));' .
+                \ 'dims <- dim(get(df));' .
                 \ 'cat(sprintf("%-15s: %d rows × %d cols\n", df, dims[1], dims[2]))' .
                 \ '}} else cat("No data frames found\n");' .
                 \ 'cat("=================\n")}', 1)
@@ -2184,7 +2184,7 @@ function! s:REnvironmentHUD() abort
         nnoremap <buffer> <silent> <ESC> :bwipe<CR>
         
         " Add search functionality for finding specific variables
-        nnoremap <buffer> <silent> / :call search('\c')<Left><Left><Left><Left><Left><Left><Left><Left><Left><Left><Left>
+        " Note: Normal / search is automatically available - this line is redundant and removed
         
         " Move to top of data (skip header)
         normal! gg
@@ -2280,7 +2280,7 @@ function! s:ROptionsHUD() abort
         nnoremap <buffer> <silent> <ESC> :bwipe<CR>
         
         " Add search functionality for finding specific options
-        nnoremap <buffer> <silent> / :call search('\c')<Left><Left><Left><Left><Left><Left><Left><Left><Left><Left><Left>
+        " Note: Normal / search is automatically available - this line is redundant and removed
         
         " Move to top of data (skip header)
         normal! gg
