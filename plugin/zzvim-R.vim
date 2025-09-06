@@ -2437,13 +2437,17 @@ function! s:GenerateMemoryHUD() abort
     call s:Send_to_r(l:mem_cmd, 1)
     
     " Wait and read file content
-    sleep 300m
+    sleep 500m
     if filereadable(l:temp_file)
         let l:content = readfile(l:temp_file)
-        call setline(1, l:content)
+        if len(l:content) > 0
+            call setline(1, l:content)
+        else
+            call setline(1, ['Error: Memory data file is empty'])
+        endif
         call delete(l:temp_file)
     else
-        call setline(1, ['Error: Could not generate memory data'])
+        call setline(1, ['Error: Could not generate memory data - file not found'])
     endif
 endfunction
 
@@ -2469,13 +2473,17 @@ function! s:GenerateDataFrameHUD() abort
     
     call s:Send_to_r(l:df_cmd, 1)
     
-    sleep 300m
+    sleep 500m
     if filereadable(l:temp_file)
         let l:content = readfile(l:temp_file)
-        call setline(1, l:content)
+        if len(l:content) > 0
+            call setline(1, l:content)
+        else
+            call setline(1, ['Error: Data frame data file is empty'])
+        endif
         call delete(l:temp_file)
     else
-        call setline(1, ['Error: Could not generate data frame data'])
+        call setline(1, ['Error: Could not generate data frame data - file not found'])
     endif
 endfunction
 
@@ -2496,13 +2504,17 @@ function! s:GeneratePackageHUD() abort
     
     call s:Send_to_r(l:pkg_cmd, 1)
     
-    sleep 300m
+    sleep 500m
     if filereadable(l:temp_file)
         let l:content = readfile(l:temp_file)
-        call setline(1, l:content)  
+        if len(l:content) > 0
+            call setline(1, l:content)
+        else
+            call setline(1, ['Error: Package data file is empty'])
+        endif
         call delete(l:temp_file)
     else
-        call setline(1, ['Error: Could not generate package data'])
+        call setline(1, ['Error: Could not generate package data - file not found'])
     endif
 endfunction
 
