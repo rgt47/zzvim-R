@@ -2324,6 +2324,12 @@ function! s:RHUDDashboard() abort
     
     echo "HUD Dashboard: Opening workspace overview..."
     
+    " Capture source file name before creating tabs
+    let l:source_file = fnamemodify(bufname('%'), ':t:r')  " Get filename without extension
+    if empty(l:source_file)
+        let l:source_file = 'unnamed'
+    endif
+    
     " Store current tab for restoration if needed
     let l:original_tab = tabpagenr()
     
@@ -2332,19 +2338,19 @@ function! s:RHUDDashboard() abort
     
     " Create tabs for each HUD display
     " Tab 1: Memory Usage
-    call s:CreateHUDTab('Memory', 'memory_usage', function('s:GenerateMemoryHUD'))
+    call s:CreateHUDTab('Memory', 'memory_usage', function('s:GenerateMemoryHUD'), l:source_file)
     
     " Tab 2: Data Frames  
-    call s:CreateHUDTab('DataFrames', 'data_frames', function('s:GenerateDataFrameHUD'))
+    call s:CreateHUDTab('DataFrames', 'data_frames', function('s:GenerateDataFrameHUD'), l:source_file)
     
     " Tab 3: Packages
-    call s:CreateHUDTab('Packages', 'packages', function('s:GeneratePackageHUD'))
+    call s:CreateHUDTab('Packages', 'packages', function('s:GeneratePackageHUD'), l:source_file)
     
     " Tab 4: Environment Variables
-    call s:CreateHUDTab('Environment', 'environment', function('s:GenerateEnvironmentHUD'))
+    call s:CreateHUDTab('Environment', 'environment', function('s:GenerateEnvironmentHUD'), l:source_file)
     
     " Tab 5: R Options  
-    call s:CreateHUDTab('Options', 'options', function('s:GenerateOptionsHUD'))
+    call s:CreateHUDTab('Options', 'options', function('s:GenerateOptionsHUD'), l:source_file)
     
     " Go to first HUD tab
     1tabnext
@@ -2367,16 +2373,12 @@ function! s:CloseHUDTabs() abort
 endfunction
 
 " Helper: Create individual HUD tab with data
-function! s:CreateHUDTab(tab_name, file_suffix, data_generator) abort
+function! s:CreateHUDTab(tab_name, file_suffix, data_generator, source_file) abort
     " Create new tab
     tabnew
     
     " Set buffer name for identification with source file context
-    let l:source_file = fnamemodify(bufname('%'), ':t:r')  " Get filename without extension
-    if empty(l:source_file)
-        let l:source_file = 'unnamed'
-    endif
-    let l:buffer_name = 'HUD_' . l:source_file . '_' . a:tab_name
+    let l:buffer_name = 'HUD_' . a:source_file . '_' . a:tab_name
     execute 'file ' . l:buffer_name
     
     " Configure buffer properties (but not readonly yet)
