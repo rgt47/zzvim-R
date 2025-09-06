@@ -2354,19 +2354,15 @@ endfunction
 
 " Helper: Close existing HUD tabs to prevent accumulation
 function! s:CloseHUDTabs() abort
-    " Get list of all tab pages
-    let l:hud_patterns = ['HUD_Memory', 'HUD_DataFrames', 'HUD_Packages', 'HUD_Environment', 'HUD_Options']
-    
+    " Close all tabs that start with 'HUD_' (any file, any HUD type)
     " Iterate through tabs from last to first (to avoid index shifting)
     for l:tabnr in range(tabpagenr('$'), 1, -1)
         let l:bufname = bufname(tabpagebuflist(l:tabnr)[0])
         
-        for l:pattern in l:hud_patterns
-            if l:bufname =~# l:pattern
-                execute l:tabnr . 'tabclose'
-                break
-            endif
-        endfor
+        " Match any buffer name starting with 'HUD_'
+        if l:bufname =~# '^HUD_'
+            execute l:tabnr . 'tabclose'
+        endif
     endfor
 endfunction
 
@@ -2375,8 +2371,12 @@ function! s:CreateHUDTab(tab_name, file_suffix, data_generator) abort
     " Create new tab
     tabnew
     
-    " Set buffer name for identification
-    let l:buffer_name = 'HUD_' . a:tab_name . '_' . localtime()
+    " Set buffer name for identification with source file context
+    let l:source_file = fnamemodify(bufname('%'), ':t:r')  " Get filename without extension
+    if empty(l:source_file)
+        let l:source_file = 'unnamed'
+    endif
+    let l:buffer_name = 'HUD_' . l:source_file . '_' . a:tab_name
     execute 'file ' . l:buffer_name
     
     " Configure buffer properties (but not readonly yet)
