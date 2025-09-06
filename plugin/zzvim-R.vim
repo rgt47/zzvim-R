@@ -453,7 +453,21 @@ function! s:GetBufferTerminal() abort
         unlet b:r_terminal_id
     endif
     
-    " No valid terminal - create new one and associate it with this buffer
+    " No valid terminal - look for existing one with correct name before creating new
+    let expected_name = s:GetTerminalName()
+    
+    " Search through all terminals for one with the expected name
+    let terminal_buffers = s:compat_term_list()
+    for buf_id in terminal_buffers
+        let buf_name = bufname(buf_id)
+        if buf_name ==# expected_name && s:compat_term_getstatus(buf_id) =~# 'running'
+            " Found existing running terminal with correct name - reuse it
+            let b:r_terminal_id = buf_id
+            return buf_id
+        endif
+    endfor
+    
+    " No existing terminal found - create new one
     let terminal_id = s:OpenRTerminal()
     
     if terminal_id != -1
