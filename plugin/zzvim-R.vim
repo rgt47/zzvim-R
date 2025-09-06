@@ -2309,10 +2309,16 @@ endfunction
 
 " HUD Dashboard: Open all HUD displays in separate tabs for quick overview
 function! s:RHUDDashboard() abort
-    " Ensure R terminal exists for current buffer
-    let terminal_id = s:GetBufferTerminal()
-    if terminal_id == -1
-        call s:Error("Failed to create or access R terminal")
+    " Check if R terminal is already running for current buffer
+    if !exists('b:r_terminal_id') || b:r_terminal_id <= 0
+        echo "HUD Dashboard: Start R session first with <LocalLeader>r"
+        return
+    endif
+    
+    " Verify the existing terminal is still running
+    let terminal_buffers = s:compat_term_list()
+    if index(terminal_buffers, b:r_terminal_id) < 0 || s:compat_term_getstatus(b:r_terminal_id) !~# 'running'
+        echo "HUD Dashboard: R session not running. Start with <LocalLeader>r"
         return
     endif
     
@@ -2373,17 +2379,19 @@ function! s:CreateHUDTab(tab_name, file_suffix, data_generator) abort
     let l:buffer_name = 'HUD_' . a:tab_name . '_' . localtime()
     execute 'file ' . l:buffer_name
     
-    " Configure buffer properties
+    " Configure buffer properties (but not readonly yet)
     setlocal buftype=nofile
     setlocal bufhidden=wipe
     setlocal noswapfile  
-    setlocal readonly
     setlocal nowrap
     setlocal nonumber
     setlocal norelativenumber
     
     " Generate and display the HUD data
     call a:data_generator()
+    
+    " Now set readonly after data is generated
+    setlocal readonly
     
     " Set up refresh keymap
     nnoremap <buffer> <silent> <LocalLeader>0 :call <SID>RHUDDashboard()<CR>
