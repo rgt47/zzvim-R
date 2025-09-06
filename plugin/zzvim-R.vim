@@ -848,6 +848,90 @@ function! s:MoveCursorAfterSubmission(selection_type, line_count) abort
     endif
 endfunction
 
+" Send Code to R and Write Output as Comments
+" Executes R code using standard SendToR logic, captures output, and writes
+" output as comments in the current buffer after the original code
+" Parameters:
+"   a:selection_type (string) - Type: '', 'line', 'function', 'chunk', 'selection'
+" Returns: nothing (void) - modifies buffer with output comments
+function! s:SendToRWithComments(selection_type) abort
+    " Phase 1: Get text using existing extraction logic
+    let text_lines = s:GetTextByType(a:selection_type)
+    
+    " Input validation
+    if empty(text_lines)
+        call s:Error("No text to send to R.")
+        return
+    endif
+    
+    " Phase 2: Determine start and end lines for comment insertion
+    let start_line = line('.')
+    let end_line = start_line
+    
+    " Adjust end line based on selection type
+    if a:selection_type ==# 'selection'
+        let end_line = getpos("'>")[1]
+    elseif len(text_lines) > 1
+        " Multi-line code block - end line is start + number of lines - 1
+        let end_line = start_line + len(text_lines) - 1
+    endif
+    
+    " Phase 3: Create temp file with code wrapped in capture.output()
+    let temp_file = '.zzvim_r_temp_capture.R'
+    let temp_output_file = '.zzvim_r_output.txt'
+    
+    " Build capture.output() command
+    let capture_lines = ['writeLines(capture.output({']
+    let capture_lines = capture_lines + text_lines
+    let capture_lines = capture_lines + ['}), "' . temp_output_file . '")']
+    
+    call writefile(capture_lines, temp_file)
+    
+    " Phase 4: Execute the wrapped code
+    call s:Send_to_r('source("' . temp_file . '")', 1)
+    
+    " Brief delay to ensure output file is written
+    sleep 100m
+    
+    " Phase 5: Read captured output and insert as comments
+    if filereadable(temp_output_file)
+        let output_lines = readfile(temp_output_file)
+        
+        " Filter out empty lines and add comment prefix
+        let comment_lines = []
+        for output_line in output_lines
+            if !empty(trim(output_line))
+                call add(comment_lines, '# Output: ' . output_line)
+            endif
+        endfor
+        
+        " Insert comments after the code block
+        if !empty(comment_lines)
+            call append(end_line, comment_lines)
+            echom "Added " . len(comment_lines) . " lines of output comments"
+        else
+            echom "No output to comment (code executed successfully)"
+        endif
+        
+        " Clean up temp files
+        call delete(temp_output_file)
+    else
+        echom "Could not capture R output"
+    endif
+    
+    " Clean up temp file
+    call delete(temp_file)
+    
+    " Phase 6: Move cursor using existing logic
+    " Determine actual selection type for cursor movement
+    let actual_type = a:selection_type
+    if empty(a:selection_type) && len(text_lines) > 1
+        let actual_type = 'function'
+    endif
+    
+    call s:MoveCursorAfterSubmission(actual_type, len(text_lines))
+endfunction
+
 " Smart Text Extraction Dispatcher with Pattern Recognition
 " Central intelligence function with enhanced pattern recognition
 " Determines what code to extract based on context using sophisticated 
@@ -1377,6 +1461,7 @@ if !g:zzvim_r_disable_mappings
                     \ :call <SID>ROpenSplitCommand('horizontal')<CR>
         autocmd FileType r,rmd,qmd xnoremap <buffer> <silent> <CR>    :<C-u>call <SID>SendToR('selection')<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <CR>  :call <SID>SendToR('')<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader><CR>  :call <SID>SendToRWithComments('')<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>o   :call <SID>AddPipeAndNewLine()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>j   :call <SID>MoveNextChunk()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>k :call <SID>MovePrevChunk()<CR>
@@ -1415,6 +1500,7 @@ command! -bar RSendLine call s:SendToR('line')
 command! -bar RSendSelection call s:SendToR('selection')
 command! -bar RSendFunction call s:SendToR('function')
 command! -bar RSendSmart call s:SendToR('')
+command! -bar RSendWithComments call s:SendToRWithComments('')
 command! -bar RAddPipe call s:AddPipeAndNewLine()
 
 " Chunk Navigation and Execution
