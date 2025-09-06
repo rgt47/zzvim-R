@@ -1487,6 +1487,9 @@ if !g:zzvim_r_disable_mappings
         " Simple Object Inspection  
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>' :call <SID>RWorkspaceOverview()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>i :call <SID>RInspectObject()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>m :call <SID>RMemoryHUD()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>e :call <SID>RDataFrameHUD()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>z :call <SID>RPackageHUD()<CR>
     augroup END
 endif
 
@@ -1548,6 +1551,9 @@ command! -bar -nargs=? ROpenSplit call s:ROpenSplitCommand(<q-args>)
 " Simple Object Inspection Commands
 command! -bar RWorkspace call s:RWorkspaceOverview()  
 command! -bar -nargs=? RInspect call s:RInspectObject(<q-args>)
+command! -bar RMemoryHUD call s:RMemoryHUD()
+command! -bar RDataFrameHUD call s:RDataFrameHUD()  
+command! -bar RPackageHUD call s:RPackageHUD()
 command! -bar RInstallDplyr call s:Send_to_r('install.packages("dplyr")', 1)
 
 "------------------------------------------------------------------------------
@@ -1932,4 +1938,42 @@ function! s:RInspectObject(...) abort
                 \ 'if(is.data.frame(' . obj . ')&&require(dplyr,quietly=T))' .
                 \ 'glimpse(' . obj . ') else str(' . obj . ')}' .
                 \ 'else cat("Not found: ' . obj . '\n")}', 1)
+endfunction
+
+" HUD Function 1: Memory Usage Display - Show memory usage of workspace objects
+function! s:RMemoryHUD() abort
+    call s:Send_to_r('{cat("\n=== Memory Usage ===\n");' .
+                \ 'objs <- ls(); if(length(objs) > 0) {' .
+                \ 'mem_data <- sapply(objs, function(x) object.size(get(x)));' .
+                \ 'mem_mb <- round(mem_data / 1024^2, 2);' .
+                \ 'total_mb <- round(sum(mem_data) / 1024^2, 2);' .
+                \ 'for(i in order(mem_data, decreasing=T)) ' .
+                \ 'cat(sprintf("%-15s: %8.2f MB\n", objs[i], mem_mb[i]));' .
+                \ 'cat(sprintf("%-15s: %8.2f MB\n", "TOTAL", total_mb))' .
+                \ '} else cat("No objects in workspace\n");' .
+                \ 'cat("==================\n")}', 1)
+endfunction
+
+" HUD Function 2: Data Frame Summary - Quick overview of all data frames
+function! s:RDataFrameHUD() abort
+    call s:Send_to_r('{cat("\n=== Data Frames ===\n");' .
+                \ 'objs <- ls(); dfs <- character(0);' .
+                \ 'for(obj in objs) if(is.data.frame(get(obj))) dfs <- c(dfs, obj);' .
+                \ 'if(length(dfs) > 0) {' .
+                \ 'for(df in dfs) {' .
+                \ 'dims <- dim(get(df)); cols <- ncol(get(df));' .
+                \ 'cat(sprintf("%-15s: %d rows × %d cols\n", df, dims[1], dims[2]))' .
+                \ '}} else cat("No data frames found\n");' .
+                \ 'cat("=================\n")}', 1)
+endfunction
+
+" HUD Function 3: Package Status - Show loaded packages and search path
+function! s:RPackageHUD() abort
+    call s:Send_to_r('{cat("\n=== Package Status ===\n");' .
+                \ 'loaded <- search()[grep("package:", search())];' .
+                \ 'loaded <- sub("package:", "", loaded);' .
+                \ 'cat("Loaded packages:\n");' .
+                \ 'for(pkg in loaded) cat(sprintf("  %s\n", pkg));' .
+                \ 'cat(sprintf("Total loaded: %d packages\n", length(loaded)));' .
+                \ 'cat("====================\n")}', 1)
 endfunction
