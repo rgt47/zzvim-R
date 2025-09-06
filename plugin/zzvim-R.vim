@@ -2417,20 +2417,22 @@ function! s:GenerateMemoryHUD() abort
     let l:temp_file = tempname()
     
     let l:mem_cmd = '{' .
-                \ 'cat("MEMORY USAGE OVERVIEW\n");' .
-                \ 'cat("====================\n\n");' .
+                \ 'output <- c();' .
+                \ 'output <- c(output, "MEMORY USAGE OVERVIEW");' .
+                \ 'output <- c(output, "====================", "");' .
                 \ 'objs <- ls(); if(length(objs) > 0) {' .
                 \ 'mem_data <- sapply(objs, function(x) object.size(get(x)));' .
                 \ 'mem_mb <- round(mem_data / 1024^2, 2);' .
                 \ 'total_mb <- round(sum(mem_data) / 1024^2, 2);' .
-                \ 'cat(sprintf("%-20s %10s\n", "Object", "Memory (MB)"));' .
-                \ 'cat(sprintf("%-20s %10s\n", "------", "----------"));' .
+                \ 'output <- c(output, sprintf("%-20s %10s", "Object", "Memory (MB)"));' .
+                \ 'output <- c(output, sprintf("%-20s %10s", "------", "----------"));' .
                 \ 'for(i in order(mem_data, decreasing=T)) ' .
-                \ 'cat(sprintf("%-20s %10.2f\n", objs[i], mem_mb[i]));' .
-                \ 'cat(sprintf("\n%-20s %10.2f\n", "TOTAL WORKSPACE", total_mb))' .
-                \ '} else cat("No objects in workspace\n");' .
-                \ 'cat("\nPress <LocalLeader>0 to refresh all HUD tabs\n")' .
-                \ '}' . ' > writeLines(capture.output(.Last.value), "' . l:temp_file . '")'
+                \ 'output <- c(output, sprintf("%-20s %10.2f", objs[i], mem_mb[i]));' .
+                \ 'output <- c(output, sprintf("%-20s %10.2f", "TOTAL WORKSPACE", total_mb))' .
+                \ '} else output <- c(output, "No objects in workspace");' .
+                \ 'output <- c(output, "", "Press <LocalLeader>0 to refresh all HUD tabs");' .
+                \ 'writeLines(output, "' . l:temp_file . '")' .
+                \ '}'
     
     call s:Send_to_r(l:mem_cmd, 1)
     
@@ -2449,19 +2451,21 @@ function! s:GenerateDataFrameHUD() abort
     let l:temp_file = tempname()
     
     let l:df_cmd = '{' .
-                \ 'cat("DATA FRAMES OVERVIEW\n");' .
-                \ 'cat("===================\n\n");' .
+                \ 'output <- c();' .
+                \ 'output <- c(output, "DATA FRAMES OVERVIEW");' .
+                \ 'output <- c(output, "===================", "");' .
                 \ 'objs <- ls(); dfs <- character(0);' .
                 \ 'for(obj in objs) if(is.data.frame(get(obj))) dfs <- c(dfs, obj);' .
                 \ 'if(length(dfs) > 0) {' .
-                \ 'cat(sprintf("%-20s %8s %8s\n", "Data Frame", "Rows", "Columns"));' .
-                \ 'cat(sprintf("%-20s %8s %8s\n", "----------", "----", "-------"));' .
+                \ 'output <- c(output, sprintf("%-20s %8s %8s", "Data Frame", "Rows", "Columns"));' .
+                \ 'output <- c(output, sprintf("%-20s %8s %8s", "----------", "----", "-------"));' .
                 \ 'for(df in dfs) {' .
                 \ 'dims <- dim(get(df));' .
-                \ 'cat(sprintf("%-20s %8d %8d\n", df, dims[1], dims[2]))' .
-                \ '}} else cat("No data frames found\n");' .
-                \ 'cat("\nPress <LocalLeader>0 to refresh all HUD tabs\n")' .
-                \ '}' . ' > writeLines(capture.output(.Last.value), "' . l:temp_file . '")'
+                \ 'output <- c(output, sprintf("%-20s %8d %8d", df, dims[1], dims[2]))' .
+                \ '}} else output <- c(output, "No data frames found");' .
+                \ 'output <- c(output, "", "Press <LocalLeader>0 to refresh all HUD tabs");' .
+                \ 'writeLines(output, "' . l:temp_file . '")' .
+                \ '}'
     
     call s:Send_to_r(l:df_cmd, 1)
     
@@ -2479,14 +2483,16 @@ function! s:GeneratePackageHUD() abort
     let l:temp_file = tempname()
     
     let l:pkg_cmd = '{' .
-                \ 'cat("LOADED PACKAGES\n");' .
-                \ 'cat("===============\n\n");' .
+                \ 'output <- c();' .
+                \ 'output <- c(output, "LOADED PACKAGES");' .
+                \ 'output <- c(output, "===============", "");' .
                 \ 'loaded <- search()[grep("package:", search())];' .
                 \ 'loaded <- sub("package:", "", loaded);' .
-                \ 'cat(sprintf("Total loaded packages: %d\n\n", length(loaded)));' .
-                \ 'for(pkg in loaded) cat(sprintf("  %-30s\n", pkg));' .
-                \ 'cat("\nPress <LocalLeader>0 to refresh all HUD tabs\n")' .
-                \ '}' . ' > writeLines(capture.output(.Last.value), "' . l:temp_file . '")'
+                \ 'output <- c(output, sprintf("Total loaded packages: %d", length(loaded)), "");' .
+                \ 'for(pkg in loaded) output <- c(output, sprintf("  %-30s", pkg));' .
+                \ 'output <- c(output, "", "Press <LocalLeader>0 to refresh all HUD tabs");' .
+                \ 'writeLines(output, "' . l:temp_file . '")' .
+                \ '}'
     
     call s:Send_to_r(l:pkg_cmd, 1)
     
