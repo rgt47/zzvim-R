@@ -2217,11 +2217,11 @@ function! s:ROptionsHUD() abort
                 \ 'Option = names(r_options), ' .
                 \ 'Value = sapply(r_options, function(x) {' .
                 \ 'if(is.null(x)) "NULL" ' .
+                \ 'else if(is.function(x)) "[function]" ' .
                 \ 'else if(length(x) > 1) paste0("[", length(x), " values]") ' .
                 \ 'else if(is.logical(x)) as.character(x) ' .
                 \ 'else if(is.numeric(x)) as.character(x) ' .
-                \ 'else if(nchar(as.character(x)) > 50) paste0(substr(as.character(x), 1, 50), "...") ' .
-                \ 'else as.character(x)' .
+                \ 'else tryCatch(as.character(x), error = function(e) "[complex object]")' .
                 \ '}), ' .
                 \ 'stringsAsFactors = FALSE); ' .
                 \ 'opt_df <- opt_df[order(opt_df$Option), ]; ' .
