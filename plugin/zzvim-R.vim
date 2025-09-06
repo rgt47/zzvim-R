@@ -529,6 +529,15 @@ function! s:OpenRTerminal(...) abort
     let current_terminal = bufnr('%')
     
     " Set terminal name for identification
+    " Check if a buffer with this name already exists
+    if bufexists(terminal_name)
+        " Find an available name by adding a number
+        let counter = 1
+        while bufexists(terminal_name . '_' . counter)
+            let counter += 1
+        endwhile
+        let terminal_name = terminal_name . '_' . counter
+    endif
     execute 'file ' . terminal_name
     
     " Set legacy tab-local variable for backward compatibility
