@@ -2169,14 +2169,14 @@ function! s:REnvironmentHUD() abort
         if exists(':Tabularize')
             " Use Tabularize plugin to align space-separated columns
             silent! %Tabularize / /
-            echom "Environment HUD: Applied Tabularize alignment for environment variables"
+            echo "Environment HUD: Applied Tabularize alignment for environment variables"
         elseif exists(':EasyAlign')
             " Alternative: use vim-easy-align for space alignment
             silent! %EasyAlign */ /
-            echom "Environment HUD: Applied EasyAlign alignment for environment variables"
+            echo "Environment HUD: Applied EasyAlign alignment for environment variables"
         else
             " Basic display if no plugin available
-            echom "Environment HUD: Showing environment variables (install Tabularize plugin for better alignment)"
+            echo "Environment HUD: Showing environment variables (install Tabularize plugin for better alignment)"
         endif
         
         " Set up convenient key mappings for the viewer buffer
@@ -2192,7 +2192,7 @@ function! s:REnvironmentHUD() abort
             normal! j
         endif
         
-        echom "Environment HUD: Press 'q' or <ESC> to close, '/' to search variables"
+        echo "Environment HUD: Press 'q' or <ESC> to close, '/' to search variables"
         
     catch
         call s:Error("Failed to open environment variables viewer: " . v:exception)
@@ -2265,14 +2265,14 @@ function! s:ROptionsHUD() abort
         if exists(':Tabularize')
             " Use Tabularize plugin to align space-separated columns
             silent! %Tabularize / /
-            echom "R Options HUD: Applied Tabularize alignment for R options"
+            echo "R Options HUD: Applied Tabularize alignment for R options"
         elseif exists(':EasyAlign')
             " Alternative: use vim-easy-align for space alignment
             silent! %EasyAlign */ /
-            echom "R Options HUD: Applied EasyAlign alignment for R options"
+            echo "R Options HUD: Applied EasyAlign alignment for R options"
         else
             " Basic display if no plugin available
-            echom "R Options HUD: Showing R options (install Tabularize plugin for better alignment)"
+            echo "R Options HUD: Showing R options (install Tabularize plugin for better alignment)"
         endif
         
         " Set up convenient key mappings for the viewer buffer
@@ -2288,7 +2288,7 @@ function! s:ROptionsHUD() abort
             normal! j
         endif
         
-        echom "R Options HUD: Press 'q' or <ESC> to close, '/' to search options"
+        echo "R Options HUD: Press 'q' or <ESC> to close, '/' to search options"
         
     catch
         call s:Error("Failed to open R options viewer: " . v:exception)
