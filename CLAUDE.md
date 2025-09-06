@@ -1625,13 +1625,13 @@ result <- calculate_stats(c(1, 2, 3, 4, 5))
 
 **Status**: Feature complete and ready for production use. Provides significant workflow enhancement while maintaining zzvim-R's core philosophy of lightweight, reliable R development tools.
 
-## Comprehensive HUD Functions Implementation (September 6, 2025)
+## HUD Functions and Enhanced RAction Implementation (September 6, 2025)
 
-### **Major Enhancement: Six HUD (Heads-Up Display) Functions**
+### **Major Enhancement: Five HUD Functions + Enhanced RAction**
 
-A comprehensive suite of workspace and system information viewers has been implemented, providing IDE-quality inspection capabilities while maintaining zzvim-R's lightweight architecture.
+A comprehensive suite of workspace information viewers (5 HUD functions) and an enhanced object inspection capability (1 RAction) has been implemented, providing IDE-quality inspection capabilities while maintaining zzvim-R's lightweight architecture.
 
-#### **Complete HUD Function Suite**
+#### **HUD Functions (Workspace Overview)**
 
 **1. Memory Usage HUD** (`<LocalLeader>m` / `:RMemoryHUD`)
 - **Function Location**: Line 1991 in `plugin/zzvim-R.vim`
@@ -1660,22 +1660,7 @@ A comprehensive suite of workspace and system information viewers has been imple
   - Shows total package count for session monitoring
   - Critical for debugging package conflicts and dependencies
 
-**4. RStudio-Style Data Viewer** (`<LocalLeader>v` / `:RDataViewer`)
-- **Function Location**: Line 2029 in `plugin/zzvim-R.vim`
-- **Purpose**: Professional data frame viewer with tabulated display
-- **Technical Implementation**:
-  - Exports data frame to space-delimited temp file using `write.table()`
-  - Opens in new split buffer with professional settings
-  - Integrates with Tabularize plugin for column alignment
-  - Alternative EasyAlign support for enhanced compatibility
-  - Convenient navigation with `q`/`<ESC>` to close
-- **Advanced Features**:
-  - Cross-platform path handling (Windows compatibility)
-  - Automatic temp file cleanup with proper error handling
-  - Read-only buffer configuration for data safety
-  - Custom buffer naming for clear identification
-
-**5. Environment Variables HUD** (`<LocalLeader>x` / `:REnvironmentHUD`)
+**4. Environment Variables HUD** (`<LocalLeader>x` / `:REnvironmentHUD`)
 - **Function Location**: Line 2119 in `plugin/zzvim-R.vim`
 - **Purpose**: System environment variables inspection
 - **Technical Implementation**:
@@ -1688,7 +1673,7 @@ A comprehensive suite of workspace and system information viewers has been imple
   - Tabulated display with column alignment
   - Essential for debugging R installation and path issues
 
-**6. R Options HUD** (`<LocalLeader>a` / `:ROptionsHUD`)
+**5. R Options HUD** (`<LocalLeader>a` / `:ROptionsHUD`)
 - **Function Location**: Line 2208 in `plugin/zzvim-R.vim`
 - **Purpose**: Current R session options display
 - **Intelligent Value Processing**:
@@ -1700,6 +1685,24 @@ A comprehensive suite of workspace and system information viewers has been imple
   - Comprehensive `options()` parsing
   - Alphabetical sorting for systematic review
   - Essential for R configuration debugging and optimization
+
+#### **Enhanced RAction (Object-Specific Inspection)**
+
+**RStudio-Style Data Viewer** (`<LocalLeader>v` / `:RDataViewer`)
+- **Function Location**: Line 2029 in `plugin/zzvim-R.vim`
+- **Purpose**: Professional data frame viewer for object under cursor
+- **Category**: Enhanced RAction (operates on specific objects like head, str, dim)
+- **Technical Implementation**:
+  - Exports data frame to space-delimited temp file using `write.table()`
+  - Opens in new split buffer with professional settings
+  - Integrates with Tabularize plugin for column alignment
+  - Alternative EasyAlign support for enhanced compatibility
+  - Convenient navigation with `q`/`<ESC>` to close
+- **Advanced Features**:
+  - Cross-platform path handling (Windows compatibility)
+  - Automatic temp file cleanup with proper error handling
+  - Read-only buffer configuration for data safety
+  - Custom buffer naming for clear identification
 
 #### **Unified Technical Architecture**
 
@@ -1731,12 +1734,12 @@ nnoremap <buffer> <silent> <ESC> :bwipe<CR>
 #### **User Experience Enhancements**
 
 **Professional IDE Capabilities**:
-- **Memory Management**: Identify memory-heavy objects for optimization
-- **Data Inventory**: Comprehensive overview of analysis datasets  
-- **Package Debugging**: Quick package conflict and dependency resolution
-- **Data Exploration**: RStudio-quality data frame viewing
-- **System Diagnostics**: Environment and configuration inspection
-- **Session Optimization**: R options tuning and verification
+- **Memory Management**: Identify memory-heavy objects for optimization (HUD)
+- **Data Inventory**: Comprehensive overview of analysis datasets (HUD)
+- **Package Debugging**: Quick package conflict and dependency resolution (HUD)
+- **Data Exploration**: RStudio-quality data frame viewing (Enhanced RAction)
+- **System Diagnostics**: Environment and configuration inspection (HUD)
+- **Session Optimization**: R options tuning and verification (HUD)
 
 **Workflow Integration Benefits**:
 - **Rapid Context Switching**: Quick workspace overviews without leaving Vim
@@ -1792,13 +1795,13 @@ nnoremap <buffer> <silent> <ESC> :bwipe<CR>
 #### **Final Assessment**
 
 **Complete IDE Transformation**:
-The comprehensive HUD function suite transforms zzvim-R from a capable R integration plugin into a **full-featured R development environment** that rivals commercial IDEs while preserving Vim's efficiency and customization advantages.
+The combination of 5 HUD functions (workspace overview) and enhanced RAction (object-specific inspection) transforms zzvim-R from a capable R integration plugin into a **full-featured R development environment** that rivals commercial IDEs while preserving Vim's efficiency and customization advantages.
 
 **Strategic Achievement**:
-- **Feature Complete**: Six essential workspace inspection capabilities
+- **Feature Complete**: Five HUD functions + one enhanced RAction for comprehensive workspace inspection
 - **Professional Quality**: IDE-level functionality with superior performance
 - **Architectural Excellence**: Clean, extensible implementation patterns
 - **Educational Value**: Advanced VimScript techniques for community learning
 - **Production Ready**: Comprehensive testing, documentation, and error handling
 
-**Status**: Complete HUD function suite successfully implemented, tested, and documented. Provides professional R development environment with comprehensive workspace inspection capabilities while maintaining zzvim-R's core philosophy of lightweight, reliable development tools.
+**Status**: Five HUD functions and one enhanced RAction successfully implemented, tested, and documented. Provides professional R development environment with comprehensive workspace inspection capabilities while maintaining zzvim-R's core philosophy of lightweight, reliable development tools.
