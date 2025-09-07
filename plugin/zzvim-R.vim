@@ -2158,14 +2158,16 @@ function! s:REnvironmentHUD() abort
     let env_file = tempname() . '.txt'
     let env_file_escaped = substitute(env_file, '\', '/', 'g')  " Fix Windows paths
     
-    " Phase 1: Export environment variables as a data frame
+    " Phase 1: Export environment variables as a data frame with R_ variables prioritized
     let env_cmd = '{' .
                 \ 'env_vars <- Sys.getenv(); ' .
                 \ 'env_df <- data.frame(' .
                 \ 'Variable = names(env_vars), ' .
                 \ 'Value = as.character(env_vars), ' .
                 \ 'stringsAsFactors = FALSE); ' .
-                \ 'env_df <- env_df[order(env_df$Variable), ]; ' .
+                \ 'env_df$R_priority <- ifelse(grepl("^R_", env_df$Variable), 1, 2); ' .
+                \ 'env_df <- env_df[order(env_df$R_priority, env_df$Variable), ]; ' .
+                \ 'env_df$R_priority <- NULL; ' .
                 \ 'write.table(env_df, "' . env_file_escaped . '", ' .
                 \ 'sep=" ", row.names=FALSE, col.names=TRUE, quote=FALSE); ' .
                 \ 'cat("Environment HUD: Exported", nrow(env_df), "environment variables\n")' .
