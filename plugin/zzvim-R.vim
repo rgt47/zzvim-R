@@ -528,11 +528,16 @@ function! s:OpenRTerminal(...) abort
     " g:zzvim_r_command contains full R startup command with arguments
     execute 'vertical term ' . g:zzvim_r_command
     
-    " Resize terminal window to half of current window width
-    " 'vertical resize' = adjust vertical split width
-    " winwidth(0) gets current window width, divide by 2 for half width
-    let dynamic_width = winwidth(0) / 2
-    execute 'vertical resize ' . dynamic_width
+    " Resize terminal window using configured width or dynamic calculation
+    " Check if user has explicitly set terminal width, otherwise use dynamic sizing
+    if exists('g:zzvim_r_terminal_width') && g:zzvim_r_terminal_width > 0
+        " Use user-configured width
+        let terminal_width = g:zzvim_r_terminal_width
+    else
+        " Use dynamic width: half of current window width
+        let terminal_width = winwidth(0) / 2
+    endif
+    execute 'vertical resize ' . terminal_width
 
     " Configure terminal buffer display options for better R interaction
     " setlocal = buffer-local settings (only affect current buffer)
@@ -1923,10 +1928,15 @@ function! s:ROpenSplitCommand(split_type) abort
         execute split_cmd
         execute 'buffer ' . terminal_id
         
-        " Resize the terminal window based on current window size
+        " Resize the terminal window using configured or dynamic width
         if split_desc == 'vertical'
-            " Use half of current window width for dynamic sizing
-            let terminal_width = winwidth(0) / 2
+            " Check if user configured width, otherwise use dynamic sizing
+            if exists('g:zzvim_r_terminal_width') && g:zzvim_r_terminal_width > 0
+                let terminal_width = g:zzvim_r_terminal_width
+            else
+                " Use half of current window width for dynamic sizing
+                let terminal_width = winwidth(0) / 2
+            endif
             execute 'vertical resize ' . terminal_width
         else
             " For horizontal splits, use a reasonable height
