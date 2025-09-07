@@ -528,9 +528,11 @@ function! s:OpenRTerminal(...) abort
     " g:zzvim_r_command contains full R startup command with arguments
     execute 'vertical term ' . g:zzvim_r_command
     
-    " Resize terminal window to configured width
+    " Resize terminal window to half of current window width
     " 'vertical resize' = adjust vertical split width
-    execute 'vertical resize ' . g:zzvim_r_terminal_width
+    " winwidth(0) gets current window width, divide by 2 for half width
+    let dynamic_width = winwidth(0) / 2
+    execute 'vertical resize ' . dynamic_width
 
     " Configure terminal buffer display options for better R interaction
     " setlocal = buffer-local settings (only affect current buffer)
@@ -1921,9 +1923,10 @@ function! s:ROpenSplitCommand(split_type) abort
         execute split_cmd
         execute 'buffer ' . terminal_id
         
-        " Resize the terminal window based on configuration
+        " Resize the terminal window based on current window size
         if split_desc == 'vertical'
-            let terminal_width = get(g:, 'zzvim_r_terminal_width', 100)
+            " Use half of current window width for dynamic sizing
+            let terminal_width = winwidth(0) / 2
             execute 'vertical resize ' . terminal_width
         else
             " For horizontal splits, use a reasonable height
