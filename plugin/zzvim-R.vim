@@ -689,9 +689,27 @@ function! s:MoveNextChunk() abort
     " Get chunk start pattern from user configuration with safe fallback
     " get(g:, 'var', default) safely retrieves global variable
     let l:chunk_start_pattern = get(g:, 'zzvim_r_chunk_start', '^```{')
-    
+
+    " Save current position for potential restoration
+    let l:current_pos = getpos('.')
+    let l:current_line = line('.')
+
+    " Check if we're already on a chunk start line
+    let l:current_line_content = getline('.')
+    if l:current_line_content =~# l:chunk_start_pattern
+        " We're on a chunk start - move inside this chunk
+        if l:current_line < line('$')
+            normal! j
+            echom "Moved inside current chunk at line " . line('.')
+            return
+        else
+            call s:Error("Current chunk found, but no lines inside the chunk.")
+            return
+        endif
+    endif
+
     " Search for next chunk start from current position
-    " search(pattern, flags): 'W' = wrap around file end, don't wrap
+    " search(pattern, flags): 'W' = don't wrap around file end
     " Returns line number if found, 0 if not found
     let l:chunk_start = search(l:chunk_start_pattern, 'W')
 
