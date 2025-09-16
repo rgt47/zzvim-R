@@ -412,7 +412,7 @@ let g:zzvim_r_map_submit = get(g:, 'zzvim_r_map_submit', '<CR>')
 let g:zzvim_r_terminal_width = get(g:, 'zzvim_r_terminal_width', 100)
 let g:zzvim_r_terminal_height = get(g:, 'zzvim_r_terminal_height', 15)
 let g:zzvim_r_command = get(g:, 'zzvim_r_command', 'R --no-save --quiet')
-let g:zzvim_r_chunk_start = get(g:, 'zzvim_r_chunk_start', '^```{')
+let g:zzvim_r_chunk_start = get(g:, 'zzvim_r_chunk_start', '^```\s*{\?\s*[rR]\>')
 let g:zzvim_r_chunk_end = get(g:, 'zzvim_r_chunk_end', '^```\s*$')
 let g:zzvim_r_debug = get(g:, 'zzvim_r_debug', 0)
 
