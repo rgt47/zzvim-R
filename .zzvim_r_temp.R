@@ -1,2 +1,4 @@
-ggplot(iris, aes(x = Sepal.Length, y = Sepal.Width)) +
-  geom_point()
+aa = function(y){
+x = y + 1
+  x
+}
