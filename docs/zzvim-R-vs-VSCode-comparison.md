@@ -17,7 +17,7 @@ VS Code follows a modern, extensible IDE approach with comprehensive language su
 1. **R Language Service**: Code completion, syntax highlighting, function signatures, and diagnostics
 2. **Advanced Debugging**: Visual debugger with breakpoints, variable inspection, and call stack navigation
 3. **Comprehensive Object Viewing**: Workspace viewer, data viewer, plot viewer, and interactive widget support
-4. **Terminal Integration**: Multiple R terminal sessions with seamless code execution
+4. **Terminal Integration**: Multiple R terminal sessions with integrated code execution
 5. **R Markdown Support**: Chunk highlighting, navigation, and execution (with limitations)
 6. **Package Development**: Integration with devtools for comprehensive R package workflows
 7. **Remote Development**: SSH, container, and WSL support for distributed development
@@ -35,7 +35,7 @@ VS Code follows a modern, extensible IDE approach with comprehensive language su
 
 | Feature Category | zzvim-R | VS Code R Extension | Analysis |
 |------------------|---------|-------------------|----------|
-| **Editor Capabilities** | Full Vim modal editing | GUI editor with limited Vim bindings | zzvim-R superior for text manipulation |
+| **Editor Capabilities** | Full Vim modal editing | GUI editor with limited Vim bindings | zzvim-R more advanced for text manipulation |
 | **Learning Curve** | Vim proficiency required | Familiar GUI with gradual extension adoption | VS Code more accessible to beginners |
 | **Startup Time** | Instant (Vim + plugin) | 3-8 seconds (application launch) | zzvim-R significantly faster |
 | **Memory Usage** | ~2MB plugin + R session | 100-300MB+ (Electron + extensions) | zzvim-R 50-150x more efficient |
@@ -70,7 +70,7 @@ VS Code follows a modern, extensible IDE approach with comprehensive language su
 
 ### zzvim-R Modern Enhancement Options
 
-While VS Code provides built-in completion and Copilot integration, zzvim-R achieves feature parity through optional enhancements while maintaining superior performance:
+While VS Code provides built-in completion and Copilot integration, zzvim-R achieves feature parity through optional enhancements while maintaining enhanced performance:
 
 #### **CoC Integration: Matching VS Code LSP Features**
 ```vim
@@ -404,7 +404,7 @@ pkgdown::build_site()
 **Advanced R Developer Task**: Develop complex statistical model, debug performance issues, create visualization
 
 **zzvim-R Workflow Timing**:
-1. **Code Development**: 25 minutes (superior text editing efficiency)
+1. **Code Development**: 25 minutes (enhanced text editing efficiency)
 2. **Debugging**: 20 minutes (terminal-based R debugging tools)
 3. **Visualization**: 15 minutes (external plot viewer + script-based plots)
 4. **Documentation**: 10 minutes (Vim text manipulation for comments)

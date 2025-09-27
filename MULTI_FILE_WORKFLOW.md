@@ -4,12 +4,12 @@ This document demonstrates how to efficiently manage multiple R analyses across 
 
 ## Overview
 
-The zzvim-R plugin provides **buffer-specific R terminals**, meaning each R file gets its own isolated R session. This enables:
+The zzvim-R plugin provides buffer-specific R terminals, meaning each R file gets its own isolated R session. This enables:
 
 - **Parallel Analysis**: Run different analyses simultaneously without variable conflicts
 - **Context Preservation**: Each file maintains its own R workspace and loaded packages
-- **Seamless Switching**: Move between analyses without losing state
-- **Independent Sessions**: Errors in one analysis don't affect others
+- **State Management**: Move between analyses without losing session state
+- **Independent Sessions**: Errors in one analysis do not affect others
 
 ## Core Concepts
 
@@ -336,4 +336,4 @@ summary_table <- read_csv("shared/summary.csv")
 5. **Flexibility**: Mix interactive exploration with structured analysis
 6. **Error Resilience**: Problems in one analysis don't crash others
 
-This multi-file workflow transforms Vim into a powerful R development environment that rivals dedicated IDEs while maintaining the speed and efficiency of terminal-based editing.
+This multi-file workflow transforms Vim into a comprehensive R development environment that competes with dedicated IDEs while maintaining the speed and efficiency of terminal-based editing.

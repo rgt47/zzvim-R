@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(vim:*)",
-      "Bash(awk:*)"
+      "Bash(awk:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": [],

@@ -47,7 +47,7 @@ ESS follows Emacs' philosophy of extensible computing environment with deep stat
 | Workflow Aspect | zzvim-R | ESS | Advantage |
 |------------------|---------|-----|-----------|
 | **Code Execution** | Smart pattern detection + terminal | Buffer-to-process communication | Different paradigms, both effective |
-| **Object Browsing** | Planned terminal-based browser | ess-rdired with auto-update | ESS currently superior |
+| **Object Browsing** | Planned terminal-based browser | ess-rdired with auto-update | ESS currently more advanced |
 | **Session Management** | Buffer-specific R terminals | Integrated inferior ESS processes | ESS more mature |
 | **Help Integration** | R help() in terminal | Native Emacs help buffers | ESS better integration |
 | **Debugging** | R browser() + terminal | Integrated debugging interface | ESS more sophisticated |
@@ -299,7 +299,7 @@ rmarkdown::render("manuscript.Rmd", output_format = "pdf_document")
 | **Code Sharing** | R scripts (universal format) | R scripts + Emacs configurations | zzvim-R for pure R sharing |
 | **Document Collaboration** | R Markdown + git workflow | Org-mode documents + version control | Depends on team editor preferences |
 | **Knowledge Transfer** | Vim expertise required | Emacs ecosystem knowledge needed | Both require specialized skills |
-| **Reproducibility** | Script-based, minimal dependencies | Org-mode literate programming | ESS superior for reproducible research |
+| **Reproducibility** | Script-based, minimal dependencies | Org-mode literate programming | ESS more comprehensive for reproducible research |
 | **Training Resources** | Vim + R learning materials | Extensive ESS/Emacs documentation | ESS more comprehensive resources |
 
 ### Academic and Research Environments

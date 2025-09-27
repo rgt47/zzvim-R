@@ -5,18 +5,18 @@ Advanced R integration for Vim and Neovim with smart code execution and multi-te
 ## Features
 
 - **Smart Code Execution**: Automatically detects R functions, control structures, and pipe chains
-- **Multi-Terminal Sessions**: Buffer-specific R terminals - each R file gets its own R session  
-- **Silent Execution**: No "Press ENTER" prompts for streamlined workflows
+- **Multi-Terminal Sessions**: Buffer-specific R terminals with isolated session management
+- **Silent Execution**: Streamlined code submission without user prompts
 - **R Markdown Support**: Navigate and execute chunks with `<LocalLeader>j/k/l`
-- **Object Inspection**: Quick data analysis with `<LocalLeader>h/s/d/p` shortcuts  
-- **HUD Dashboard**: Unified workspace overview with `<LocalLeader>0` - 5 tabs of workspace info
-- **Professional Data Viewer**: RStudio-style data frame viewer with `<LocalLeader>v`
-- **Workspace Intelligence**: Memory usage, package status, environment variables at a glance
-- **Visual Selection**: Send any selected code block to R
-- **Pattern Recognition**: Handles complex R constructs including nested braces and pipes
-- **Optional Modern IDE Features**: CoC integration for LSP completion and diagnostics
-- **AI-Assisted Development**: GitHub Copilot support for intelligent code suggestions
-- **Progressive Enhancement**: Start simple, add advanced features as needed
+- **Object Inspection**: Data analysis tools with `<LocalLeader>h/s/d/p` shortcuts
+- **HUD Dashboard**: Unified workspace overview with `<LocalLeader>0` providing 5 tabs of workspace information
+- **Data Viewer**: RStudio-style data frame viewer with `<LocalLeader>v`
+- **Workspace Intelligence**: Memory usage, package status, and environment variable monitoring
+- **Visual Selection**: Submit selected code blocks to R
+- **Pattern Recognition**: Supports complex R constructs including nested braces and pipes
+- **Optional IDE Features**: CoC integration for LSP completion and diagnostics
+- **AI-Assisted Development**: GitHub Copilot support for code suggestions
+- **Progressive Enhancement**: Modular feature addition as required
 
 ## Quick Start
 
@@ -33,11 +33,11 @@ Advanced R integration for Vim and Neovim with smart code execution and multi-te
 | `<LocalLeader>r` | Open buffer-specific R terminal |
 | `<LocalLeader>w` | Open R terminal in vertical split |
 | **HUD & Workspace** |
-| `<LocalLeader>0` | **HUD Dashboard** - open all 5 workspace tabs |
+| `<LocalLeader>0` | HUD Dashboard - open all 5 workspace tabs |
 | `<LocalLeader>m` | Memory Usage HUD |
 | `<LocalLeader>e` | Data Frames HUD |  
 | `<LocalLeader>z` | Package Status HUD |
-| `<LocalLeader>v` | **RStudio-style Data Viewer** |
+| `<LocalLeader>v` | RStudio-style Data Viewer |
 | **Object Inspection** |
 | `<LocalLeader>h` | `head()` on word under cursor |
 | `<LocalLeader>s` | `str()` on word under cursor |
@@ -245,16 +245,16 @@ let g:copilot_filetypes = {'r': v:true, 'rmd': v:true, 'qmd': v:true}
 
 ## Why zzvim-R?
 
-- **Smart & Fast**: Intelligent R code detection with instant execution
-- **Lightweight**: Minimal memory footprint compared to heavy IDEs
-- **Terminal-Native**: Works seamlessly in SSH environments and containers
-- **Framework Flexibility**: Choose from CoC, nvim-cmp, or native LSP
-- **Editor Agnostic**: Works with both Vim and Neovim (unlike R.nvim)
-- **Standard Protocols**: LSP-based completion (vs. R.nvim's custom TCP)
-- **Progressive Enhancement**: Start simple, add features as needed
-- **Educational**: Learn VimScript while using a practical tool
-- **Modern R**: Optimized for tidyverse, pipes, and contemporary workflows
-- **Best of Both Worlds**: Vim efficiency with optional modern IDE capabilities
+- **Smart Code Detection**: Intelligent R code analysis with immediate execution
+- **Lightweight Architecture**: Minimal memory footprint compared to comprehensive IDEs
+- **Terminal-Native**: Functions effectively in SSH environments and containers
+- **Framework Flexibility**: Supports CoC, nvim-cmp, or native LSP integration
+- **Editor Compatibility**: Works with both Vim and Neovim (unlike R.nvim)
+- **Standard Protocols**: LSP-based completion (versus R.nvim's custom TCP)
+- **Progressive Enhancement**: Modular feature addition as required
+- **Educational Value**: VimScript learning integrated with practical tool usage
+- **Modern R Support**: Optimized for tidyverse, pipes, and contemporary workflows
+- **Balanced Approach**: Vim efficiency with optional modern IDE capabilities
 
 ## Usage Examples
 
@@ -306,12 +306,12 @@ data(mtcars)
 ```
 
 **HUD Dashboard Features:**
-- **`<LocalLeader>0`** - Open all 5 HUD tabs simultaneously  
-- **Memory Tab**: Object memory usage sorted by size
-- **DataFrames Tab**: All data frames with dimensions
-- **Packages Tab**: Currently loaded packages
-- **Environment Tab**: System environment variables  
-- **Options Tab**: Current R session options
+- `<LocalLeader>0` - Open all 5 HUD tabs simultaneously
+- Memory Tab: Object memory usage sorted by size
+- DataFrames Tab: All data frames with dimensions
+- Packages Tab: Currently loaded packages
+- Environment Tab: System environment variables
+- Options Tab: Current R session options
 
 **Navigation:**
 - `gt` / `gT` - Navigate between HUD tabs
