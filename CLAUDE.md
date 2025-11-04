@@ -4,17 +4,18 @@ This document provides comprehensive information about the zzvim-R plugin, its c
 
 ## Document Status
 
-**Last Updated**: August 31, 2025  
-**Plugin Version**: 1.0.4  
-**Documentation Status**: Comprehensive accuracy review completed with 76-char line wrapping  
-**Test Coverage**: Full test suite + clean execution validation with automated CI workflows  
-**Release Readiness**: Production ready with clean terminal output and professional UX  
+**Last Updated**: November 4, 2025
+**Plugin Version**: 1.0.4
+**Documentation Status**: Comprehensive accuracy review completed with 76-char line wrapping
+**Test Coverage**: Full test suite + clean execution validation with automated CI workflows
+**Release Readiness**: Production ready with clean terminal output and professional UX
 **Repository Status**: Optimized code execution system with minimal terminal clutter
 **Clean Execution System**: Complete elimination of source() command visibility with proper code echo
 **Object Browser**: Optimized with compact R expressions for professional output
 **R Markdown Integration**: Fixed chunk execution with proper code echo and cursor advancement
 **Cross-Platform Support**: Full Vim/Neovim compatibility with unified API
 **Professional IDE Setup**: Complete R development environment with LSP, formatting, and diagnostics
+**Terminal Selection**: Intelligent detection and user selection of existing terminals
 
 ## Plugin Overview
 
@@ -24,6 +25,7 @@ zzvim-R is a Vim plugin that provides R integration for Vim/Neovim, enabling int
 
 - **Smart Code Execution**: Intelligent detection of R functions, control structures, and code blocks with silent execution (no "Press ENTER" prompts)
 - **Multi-Terminal Management**: Buffer-specific R terminal sessions with complete workflow isolation between different R files
+- **Intelligent Terminal Selection**: Automatic detection of existing terminals with user prompt to associate or create new
 - **Advanced Window Management**: Flexible terminal split windows (vertical/horizontal) with configurable sizing
 - **Terminal Association Visibility**: Comprehensive commands to view and manage R file ↔ terminal associations
 - **Chunk Navigation**: Navigate between R Markdown code chunks with buffer-specific execution
@@ -102,7 +104,9 @@ The plugin uses a simple, single-file architecture with clear functional separat
 
 ### **3. Multi-Terminal Management and Communication**
 - **`s:GetTerminalName()`**: Generate unique terminal names for buffer-specific association
-- **`s:GetBufferTerminal()`**: Find or create buffer-specific R terminal with auto-recovery
+- **`s:GetAllTerminals()`**: Detect all existing terminal buffers with status information
+- **`s:PromptTerminalSelection(terminals)`**: Interactive prompt for terminal selection or creation
+- **`s:GetBufferTerminal()`**: Find or create buffer-specific R terminal with intelligent detection and user prompting
 - **`s:OpenRTerminal()`**: Create and manage R terminal sessions
 - **`s:Send_to_r(cmd, stay_on_line)`**: Send commands to buffer-specific R terminal with silent execution
 - **`s:SendControlKeys(key)`**: Send control sequences to terminal
@@ -2040,8 +2044,165 @@ env_df$R_priority <- NULL
 
 **Potential Extensions**:
 - **Variable grouping**: Further categorization by function (paths, options, versions)
-- **Value formatting**: Special handling for R path variables and version strings  
+- **Value formatting**: Special handling for R path variables and version strings
 - **Interactive filtering**: Search capabilities within R-specific variables
 - **Export functionality**: Save R environment configuration for documentation
 
 Both enhancements represent significant improvements in user experience while maintaining zzvim-R's core philosophy of lightweight, efficient R development tools with professional-grade functionality.
+
+## Intelligent Terminal Selection (November 4, 2025)
+
+### **User-Friendly Terminal Detection and Association**
+
+A significant workflow enhancement has been implemented to intelligently detect existing terminal windows and prompt users to associate with them, rather than always creating new terminals.
+
+#### **Feature Overview**
+
+**Problem Identified**: Users often manually open terminal windows (`:term`, `:vertical term`) before working with R files. The plugin would create new R terminals without recognizing existing ones, leading to terminal proliferation.
+
+**Solution Implemented**: Intelligent terminal detection with interactive user selection, allowing users to reuse existing terminals or create new ones as needed.
+
+#### **Technical Implementation**
+
+**New Functions Added:**
+
+1. **`s:GetAllTerminals()`** (lines 439-464 in plugin/zzvim-R.vim)
+   - Detects all existing terminal buffers (not just R-specific terminals)
+   - Returns list of terminal information: buffer number, display name, and running status
+   - Cross-platform compatible (Vim and Neovim)
+
+2. **`s:PromptTerminalSelection(terminals)`** (lines 466-507)
+   - Interactive `inputlist()` prompt showing all available terminals
+   - Displays terminal name, status indicator ([running]/[stopped]), and buffer number
+   - Options: Select existing terminal (1-N), create new terminal (N+1), or cancel (0)
+   - Returns selected buffer number, -1 for new terminal, or -2 for cancel
+
+3. **Enhanced `s:GetBufferTerminal()`** (lines 509-571)
+   - Modified terminal association logic with intelligent detection workflow
+   - Priority system:
+     1. Existing buffer association → reuse immediately (no prompt)
+     2. Terminal with expected name → auto-associate (no prompt)
+     3. Other terminals exist → prompt user for selection
+     4. No terminals exist → create new terminal automatically
+   - Maintains backward compatibility while adding smart detection
+
+#### **User Experience Workflows**
+
+**Scenario 1: No Existing Terminals**
+- User opens R file and executes code with `<CR>` or `<LocalLeader>r`
+- Plugin creates new R terminal automatically
+- **Result**: Seamless experience, no prompts (existing behavior preserved)
+
+**Scenario 2: Existing Terminals Present**
+- User has manually opened terminal(s): `:term` or `:vertical term`
+- User opens R file and executes code
+- **Prompt displayed**:
+```
+Select a terminal to associate with this R file:
+
+1. Terminal #5  [running] (buf #5)
+2. Terminal #8  [running] (buf #8)
+
+3. Create new R terminal
+
+Enter number (or 0 to cancel): _
+```
+- User can select existing terminal, create new, or cancel
+
+**Scenario 3: Terminal Named Correctly**
+- Terminal exists with name matching expected pattern (e.g., `R-analysis` for `analysis.R`)
+- Plugin auto-detects and associates without prompting
+- **Result**: Automatic reuse of correctly-named terminals (smart detection)
+
+**Scenario 4: Already Associated**
+- Buffer previously associated with terminal in current session
+- Subsequent code execution uses remembered association
+- **Result**: No prompts, consistent terminal usage (workflow preservation)
+
+**Scenario 5: Terminal Status Indication**
+- Prompt shows both running and stopped terminals
+- User can select stopped terminals if desired
+- **Result**: Flexibility to reuse terminals regardless of state
+
+#### **Technical Benefits**
+
+**Smart Detection Features**:
+- **Cross-platform compatibility**: Works identically in Vim and Neovim
+- **Status awareness**: Distinguishes running vs. stopped terminals
+- **Flexible naming**: Handles both named and unnamed terminal buffers
+- **User control**: Complete control over terminal selection vs. creation
+- **Cancellation support**: Ability to cancel without creating terminal
+
+**Backward Compatibility**:
+- **Existing workflows preserved**: No prompts when no terminals exist
+- **Auto-detection maintained**: Terminals with expected names still auto-associate
+- **Buffer association remembered**: Once set, association persists for session
+- **No breaking changes**: All existing functionality unchanged
+
+#### **Implementation Quality**
+
+**Code Quality Standards**:
+- **Clear function separation**: Terminal detection, user prompting, and association logic cleanly separated
+- **Comprehensive error handling**: Invalid selections, cancelled operations, and missing terminals handled gracefully
+- **Professional UX**: Clear prompts with informative terminal descriptions
+- **Educational documentation**: Functions include detailed comments explaining logic
+
+**Testing Infrastructure**:
+- **`test_files/test_terminal_selection.vim`**: Comprehensive test scenario documentation
+- **`test_files/test_selection.R`**: Sample R code for testing terminal association
+- **Manual test scenarios**: Six scenarios covering all workflow variations
+- **Syntax validation**: Plugin loads without errors in both Vim and Neovim
+
+#### **User Experience Impact**
+
+**Workflow Improvements**:
+- **Terminal reuse**: Users can leverage existing terminals instead of creating new ones
+- **Reduced clutter**: Fewer terminal windows accumulating during R development sessions
+- **User empowerment**: Clear choices about terminal association vs. creation
+- **Flexible workflows**: Supports both manual terminal creation and automatic terminal management
+
+**Professional Benefits**:
+- **IDE-quality UX**: Terminal selection mirrors professional IDE behavior
+- **Reduced friction**: No need to close manually-created terminals before using plugin
+- **Learning curve**: Intuitive prompt makes terminal management accessible
+- **Power user friendly**: Advanced users can leverage manual terminal control
+
+#### **Strategic Value**
+
+**Competitive Positioning**:
+- **Unique feature**: Terminal detection and selection not common in R development plugins
+- **User-centric design**: Respects user's existing terminal configuration
+- **Workflow flexibility**: Supports both beginner and advanced user workflows
+- **Professional polish**: Demonstrates thoughtful UX design in Vim plugin development
+
+**Educational Impact**:
+- **VimScript patterns**: Demonstrates `inputlist()` usage for interactive selection
+- **Terminal API usage**: Shows cross-platform terminal detection techniques
+- **Function composition**: Clear example of building complex features from simple functions
+- **User interaction design**: Best practices for plugin-user communication
+
+#### **Future Enhancement Opportunities**
+
+**Potential Extensions**:
+- **Terminal filtering**: Filter by terminal type (shell, R, Python, etc.)
+- **Default preferences**: Remember user's terminal selection preferences across sessions
+- **Automatic detection improvements**: Detect R-specific terminals by inspecting running processes
+- **Visual terminal browser**: Enhanced UI for terminal selection with preview pane
+- **Batch operations**: Associate multiple R files with terminals simultaneously
+
+**Architecture Foundation**:
+- **Modular design**: Terminal detection functions reusable for other features
+- **Extensible prompting**: Selection prompt pattern applicable to other plugin choices
+- **Integration ready**: Foundation for additional terminal management features
+
+#### **Final Assessment**
+
+**Revolutionary Workflow Enhancement**: The intelligent terminal selection feature transforms zzvim-R from a "create-only" terminal system to a **flexible, user-aware terminal management system** that respects existing user workflows while maintaining simplicity for new users.
+
+**Strategic Achievement**:
+- **User empowerment**: Users control terminal associations with clear, informative prompts
+- **Backward compatible**: Existing workflows unchanged, new functionality opt-in via existing terminals
+- **Professional quality**: IDE-level terminal management with Vim's speed and efficiency
+- **Educational value**: Implementation demonstrates advanced VimScript techniques for interactive features
+
+**Status**: Intelligent terminal selection successfully implemented, tested, and documented. Provides professional terminal management experience while preserving zzvim-R's core philosophy of lightweight, efficient R development tools with user-friendly design.
