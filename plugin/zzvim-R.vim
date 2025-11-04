@@ -436,6 +436,76 @@ function! s:GetTerminalName() abort
     return 'R-' . buffer_name
 endfunction
 
+" Get information about all existing terminals
+" Returns: list of dicts with {bufnr, name, status} for each terminal
+function! s:GetAllTerminals() abort
+    let terminal_buffers = s:compat_term_list()
+    let terminals = []
+
+    for buf_id in terminal_buffers
+        let buf_name = bufname(buf_id)
+        let status = s:compat_term_getstatus(buf_id)
+
+        " Get a descriptive name for the terminal
+        if empty(buf_name)
+            let display_name = 'Terminal #' . buf_id
+        else
+            let display_name = buf_name
+        endif
+
+        call add(terminals, {
+            \ 'bufnr': buf_id,
+            \ 'name': display_name,
+            \ 'status': status
+            \ })
+    endfor
+
+    return terminals
+endfunction
+
+" Prompt user to select from existing terminals or create new
+" Parameters:
+"   terminals - list of terminal info dicts from GetAllTerminals()
+" Returns: number - selected terminal buffer number or -1 to create new
+function! s:PromptTerminalSelection(terminals) abort
+    " Build prompt message
+    let prompt_lines = ['Select a terminal to associate with this R file:']
+    call add(prompt_lines, '')
+
+    let idx = 1
+    for term in a:terminals
+        let status_indicator = term.status =~# 'running' ? '[running]' : '[stopped]'
+        let line = printf('%d. %s  %s (buf #%d)',
+            \ idx, term.name, status_indicator, term.bufnr)
+        call add(prompt_lines, line)
+        let idx += 1
+    endfor
+
+    call add(prompt_lines, '')
+    call add(prompt_lines, printf('%d. Create new R terminal', idx))
+    call add(prompt_lines, '')
+    call add(prompt_lines, 'Enter number (or 0 to cancel): ')
+
+    " Use inputlist() for selection
+    let choice = inputlist(prompt_lines)
+
+    " Handle choice
+    if choice == 0
+        " User cancelled
+        return -2
+    elseif choice > 0 && choice <= len(a:terminals)
+        " User selected an existing terminal
+        return a:terminals[choice - 1].bufnr
+    elseif choice == len(a:terminals) + 1
+        " User wants to create new terminal
+        return -1
+    else
+        " Invalid choice
+        call s:Error('Invalid selection')
+        return -2
+    endif
+endfunction
+
 " Find or create buffer-specific R terminal (multi-terminal architecture)
 " Implements buffer-specific terminal association for workflow isolation
 " Returns: number - terminal buffer number or -1 if failed
@@ -452,10 +522,10 @@ function! s:GetBufferTerminal() abort
         " Terminal died or doesn't exist - clear the association
         unlet b:r_terminal_id
     endif
-    
-    " No valid terminal - look for existing one with correct name before creating new
+
+    " No valid terminal - look for existing one with correct name before prompting
     let expected_name = s:GetTerminalName()
-    
+
     " Search through all terminals for one with the expected name
     let terminal_buffers = s:compat_term_list()
     for buf_id in terminal_buffers
@@ -466,16 +536,36 @@ function! s:GetBufferTerminal() abort
             return buf_id
         endif
     endfor
-    
-    " No existing terminal found - create new one
+
+    " No terminal with expected name - check if ANY terminals exist
+    let all_terminals = s:GetAllTerminals()
+
+    if !empty(all_terminals)
+        " Terminals exist - prompt user to select one or create new
+        let selection = s:PromptTerminalSelection(all_terminals)
+
+        if selection == -2
+            " User cancelled - don't create terminal
+            call s:Error('Terminal association cancelled')
+            return -1
+        elseif selection > 0
+            " User selected an existing terminal - associate it
+            let b:r_terminal_id = selection
+            echom 'Associated with terminal buffer #' . selection
+            return b:r_terminal_id
+        endif
+        " If selection == -1, fall through to create new terminal
+    endif
+
+    " No existing terminals, or user chose to create new one
     let terminal_id = s:OpenRTerminal()
-    
+
     if terminal_id != -1
         " Associate new terminal with this buffer
         let b:r_terminal_id = terminal_id
         return b:r_terminal_id
     endif
-    
+
     " Failed to create terminal
     return -1
 endfunction
