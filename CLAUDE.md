@@ -4,8 +4,8 @@ This document provides comprehensive information about the zzvim-R plugin, its c
 
 ## Document Status
 
-**Last Updated**: November 4, 2025
-**Plugin Version**: 1.0.4
+**Last Updated**: November 10, 2025
+**Plugin Version**: 1.0.4+docker
 **Documentation Status**: Comprehensive accuracy review completed with 76-char line wrapping
 **Test Coverage**: Full test suite + clean execution validation with automated CI workflows
 **Release Readiness**: Production ready with clean terminal output and professional UX
@@ -16,6 +16,7 @@ This document provides comprehensive information about the zzvim-R plugin, its c
 **Cross-Platform Support**: Full Vim/Neovim compatibility with unified API
 **Professional IDE Setup**: Complete R development environment with LSP, formatting, and diagnostics
 **Terminal Selection**: Intelligent detection and user selection of existing terminals
+**Docker Integration**: Full Docker container support with force-association capabilities
 
 ## Plugin Overview
 
@@ -26,6 +27,7 @@ zzvim-R is a Vim plugin that provides R integration for Vim/Neovim, enabling int
 - **Smart Code Execution**: Intelligent detection of R functions, control structures, and code blocks with silent execution (no "Press ENTER" prompts)
 - **Multi-Terminal Management**: Buffer-specific R terminal sessions with complete workflow isolation between different R files
 - **Intelligent Terminal Selection**: Automatic detection of existing terminals with user prompt to associate or create new
+- **Docker Container Support**: Full integration with Docker containers for isolated R environments with force-association capabilities
 - **Advanced Window Management**: Flexible terminal split windows (vertical/horizontal) with configurable sizing
 - **Terminal Association Visibility**: Comprehensive commands to view and manage R file ↔ terminal associations
 - **Chunk Navigation**: Navigate between R Markdown code chunks with buffer-specific execution
@@ -2204,5 +2206,330 @@ Enter number (or 0 to cancel): _
 - **Backward compatible**: Existing workflows unchanged, new functionality opt-in via existing terminals
 - **Professional quality**: IDE-level terminal management with Vim's speed and efficiency
 - **Educational value**: Implementation demonstrates advanced VimScript techniques for interactive features
+
+**Status**: Intelligent terminal selection successfully implemented, tested, and documented. Provides professional terminal management experience while preserving zzvim-R's core philosophy of lightweight, efficient R development tools with user-friendly design.
+
+## Docker Container Integration (November 10, 2025)
+
+### **Major Feature Addition: Full Docker Container Support**
+
+A comprehensive Docker integration system has been implemented, enabling users to run R in isolated Docker containers while maintaining all existing plugin functionality. The implementation includes a critical "force-association" feature that allows connecting to existing Docker terminals (e.g., launched via Makefile) even when properly named.
+
+#### **Feature Overview**
+
+The Docker integration provides containerized R environments with:
+
+- **Docker terminal launching**: Create R sessions in Docker containers
+- **Force-association**: Connect to existing Docker terminals regardless of naming
+- **Configurable images**: Support for any Docker image (rocker/*, custom images)
+- **Volume mounting**: Flexible directory mounting for data and code access
+- **Full feature parity**: All zzvim-R features work identically in containers
+
+#### **Implementation Architecture**
+
+**Core Functions:**
+
+1. **`s:OpenDockerRTerminal()`** (lines 686-774 in plugin/zzvim-R.vim)
+   - Main Docker terminal creation function
+   - Parameters:
+     - `a:1` (optional) - terminal name override
+     - `a:2` (optional) - force re-association (1 = force, 0 = normal)
+   - Docker availability check with clear error messaging
+   - Dynamic command building from configuration variables
+   - Standard flags: `-it --rm` for interactive with auto-cleanup
+   - Buffer marking: `b:r_is_docker = 1` identifies Docker terminals
+   - Window management: Dynamic or configured terminal width
+   - Automatic buffer association via `b:r_terminal_id`
+
+2. **Configuration Variables** (lines 419-437)
+   ```vim
+   let g:zzvim_r_docker_image = 'rocker/tidyverse:latest'
+   let g:zzvim_r_docker_options = '-v ' . getcwd() . ':/workspace -w /workspace'
+   let g:zzvim_r_docker_command = 'R --no-save --quiet'
+   ```
+
+3. **Ex Commands** (lines 1794-1795)
+   ```vim
+   command! -bar RDockerTerminal call s:OpenDockerRTerminal()
+   command! -bar RDockerTerminalForce call s:OpenDockerRTerminal(s:GetTerminalName(), 1)
+   ```
+
+4. **Key Mappings** (lines 1747-1748)
+   ```vim
+   <LocalLeader>R   " Launch new Docker terminal
+   <LocalLeader>dr  " Force-associate with existing Docker terminal
+   ```
+
+#### **Force-Association Feature**
+
+**Problem Solved**: Users often manually create Docker terminals (e.g., via `make r` in Makefile) and need to associate their R buffer with that existing terminal, even if the terminal already has the "correct" name.
+
+**Solution**: The force-association parameter in `s:OpenDockerRTerminal()`:
+- Searches for terminal with expected name
+- Associates with it immediately without prompting
+- Allows reusing manually-created Docker terminals
+- Essential for Makefile-based workflows
+
+**Usage Example**:
+```vim
+" Terminal 1: User runs 'make r' which launches Docker container
+" Terminal 2: Open R file in Vim
+vim analysis.R
+
+" In Vim: Force-associate with the make r terminal
+<LocalLeader>dr
+
+" Now <CR> executes code in that Docker container
+```
+
+#### **Use Cases and Workflows**
+
+**Use Case 1: Workspace with Code Library**
+
+Directory structure:
+```
+~/prj/png1/                    # Workspace (analysis work)
+├── Makefile                   # Contains 'make r' target
+├── analysis.R
+└── data/
+
+~/prj/d07/zzcollab/           # Code library (R functions)
+├── R/
+└── DESCRIPTION
+```
+
+Makefile configuration:
+```makefile
+r:
+    docker run -it --rm \
+        -v $(PWD):/workspace \
+        -v $(HOME)/prj/d07/zzcollab:/zzcollab \
+        -w /workspace \
+        png1 R --no-save --quiet
+```
+
+Workflow:
+1. Terminal 1: `cd ~/prj/png1 && make r`
+2. Terminal 2: `vim analysis.R`
+3. In Vim: `<LocalLeader>dr` (force-associate)
+4. Execute code: `<CR>`
+
+R code can access both directories:
+```r
+source("/zzcollab/R/utils.R")        # Code library
+data <- read_csv("data/input.csv")   # Workspace data
+```
+
+**Use Case 2: Direct Launch from Vim**
+
+Configuration in `~/.vimrc`:
+```vim
+autocmd BufRead,BufNewFile ~/prj/png1/*.R
+    \ let g:zzvim_r_docker_image = 'png1' |
+    \ let g:zzvim_r_docker_options = '-v ' . expand('~/prj/png1') . ':/workspace -v ~/prj/d07/zzcollab:/zzcollab -w /workspace'
+```
+
+Workflow:
+1. `vim analysis.R`
+2. `<LocalLeader>R` (launches Docker directly)
+3. `<CR>` (execute code)
+
+**Use Case 3: Multiple Files, Shared Container**
+
+1. Launch container: `make r` (Terminal 1)
+2. Open file1.R: `<LocalLeader>dr` (associate)
+3. Open file2.R: `<LocalLeader>dr` → select same terminal
+4. Both files share the Docker environment
+
+#### **Integration with Existing Features**
+
+All existing zzvim-R features work identically with Docker terminals:
+
+| Feature | Docker Support | Notes |
+|---------|---------------|-------|
+| Smart code execution (`<CR>`) | ✅ Full | Pattern detection identical |
+| Multi-terminal management | ✅ Full | Buffer-specific isolation maintained |
+| Chunk navigation/execution | ✅ Full | `.Rmd` and `.qmd` files supported |
+| Object inspection | ✅ Full | All `<LocalLeader>` mappings work |
+| HUD functions | ✅ Full | Display container workspace state |
+| Visual selection | ✅ Full | Execute selected code in container |
+| Terminal associations | ✅ Full | `:RShowTerminal`, `:RListTerminals` |
+| Control commands | ✅ Full | `<LocalLeader>q/c` work |
+
+#### **Documentation**
+
+Comprehensive documentation created for Docker integration:
+
+1. **`DOCKER_USAGE.md`** - Complete Docker integration guide
+   - Configuration reference
+   - Common workflows
+   - Troubleshooting guide
+   - 4 workflow examples with volume mounting
+
+2. **`PNG1_WORKSPACE_QUICKSTART.md`** - Workspace-specific guide
+   - Detailed workflow for png1 workspace + zzcollab code library
+   - Directory structure explanation
+   - Makefile configuration
+   - Multiple scenario examples
+
+3. **`PNG1_CHEATSHEET.txt`** - One-page quick reference
+   - All key mappings with custom LocalLeader
+   - Quick troubleshooting
+   - Configuration examples
+   - Typical workflow summary
+
+4. **`png1-workspace-diagram.txt`** - Visual ASCII diagrams
+   - Terminal layout visualization
+   - Directory mounting diagrams
+   - Execution flow charts
+   - Path reference guide
+
+5. **`PNG1_SETUP_SUMMARY.md`** - Setup guide
+   - Configuration for `.vimrc`
+   - Makefile templates
+   - Quick verification steps
+
+6. **`DOCKER_IMPLEMENTATION_SUMMARY.md`** - Technical details
+   - Implementation specifics (~120 lines added)
+   - Design decisions
+   - Testing infrastructure
+   - Future enhancement opportunities
+
+7. **`test_files/test_docker.R`** - Test file
+   - Comprehensive test cases
+   - Verifies tidyverse availability
+   - Tests volume mounting
+   - All code patterns validated
+
+8. **`test_files/DOCKER_TEST_SCENARIOS.md`** - 15 test scenarios
+   - Covers all Docker features
+   - Error case testing
+   - Cross-platform considerations
+
+#### **Technical Benefits**
+
+**Design Quality**:
+- **VimScript conventions**: Follows plugin's existing patterns
+- **Error handling**: Comprehensive checks with clear messages
+- **Documentation**: Extensive inline comments
+- **Backward compatibility**: No changes to existing functionality
+- **Cross-platform**: Works in Vim and Neovim
+
+**Performance**:
+- **Container overhead**: Minimal performance penalty vs native R
+- **Auto-cleanup**: `--rm` flag prevents container accumulation
+- **Volume mounts**: Efficient file access without copying
+- **Lazy initialization**: Docker only used when explicitly requested
+
+#### **Key Design Decisions**
+
+1. **Force-Association Feature**: Essential for Makefile-based workflows where users launch containers externally and want to connect Vim to them
+
+2. **Volume Mounting Strategy**: Default mounts current directory to `/workspace` for intuitive file access
+
+3. **Container Lifecycle**: Uses `--rm` flag for automatic cleanup when terminal closes
+
+4. **Terminal Naming**: Docker terminals follow same naming as regular terminals (`R-filename`) for consistency
+
+5. **Configuration Variables**: Separate Docker-specific config allows custom images, options, and commands without affecting regular R terminals
+
+#### **User Experience**
+
+**Workflow Flexibility**:
+- **Option 1**: Launch via Makefile (`make r`) + force-associate (`<LocalLeader>dr`)
+- **Option 2**: Launch directly from Vim (`<LocalLeader>R`)
+- **Option 3**: Mix of both approaches per file
+
+**Key Mappings** (with `<Space>` as LocalLeader):
+- `<Space>dr` - Force-associate with existing Docker terminal ⭐ PRIMARY METHOD
+- `<Space>R` - Launch new Docker terminal (alternative)
+- `<Space>r` - Launch regular (non-Docker) R terminal
+
+**Professional Benefits**:
+- **Reproducible environments**: Specific R versions and package configurations
+- **Isolation**: Multiple R versions/configurations simultaneously
+- **Portability**: Consistent environment across machines
+- **No installation**: R runs in container, no host installation needed
+
+#### **Testing Infrastructure**
+
+**Test Files**:
+- `test_files/test_docker.R` - Comprehensive functionality tests
+- `test_files/DOCKER_TEST_SCENARIOS.md` - 15 detailed test scenarios
+
+**Validation**:
+- ✅ Syntax validated (no errors)
+- ✅ All execution methods work identically
+- ✅ Configuration variables provide flexibility
+- ✅ Cross-platform support (Vim/Neovim)
+- ✅ Backward compatibility maintained
+
+#### **Known Limitations**
+
+1. **Requires Docker**: Docker must be installed and running
+2. **Container overhead**: Slight performance penalty vs native R
+3. **Volume mounts**: Files must be in mounted directories
+4. **Network access**: May require `--network=host` for some operations
+5. **Platform differences**: Windows paths may require special handling
+
+#### **Future Enhancement Opportunities**
+
+**Potential Additions**:
+1. **Docker Compose support**: Launch multi-container environments
+2. **Container persistence**: Save/restore container state
+3. **GPU passthrough**: Auto-detect and enable GPU support
+4. **Image validation**: Check if image exists before launching
+5. **Custom Docker flags per file**: File-specific Docker options
+6. **Container health checks**: Verify container is healthy before executing
+7. **Volume mount profiles**: Predefined mount configurations
+8. **Interactive image selection**: Prompt user to choose from available images
+
+#### **Strategic Impact**
+
+**Competitive Advantage**:
+- **Unique feature**: Docker integration with force-association not common in R plugins
+- **User-centric design**: Respects existing workflows (Makefile-based)
+- **Professional polish**: IDE-quality containerization with Vim efficiency
+- **Workflow flexibility**: Supports both beginner and advanced users
+
+**Educational Value**:
+- **VimScript patterns**: Advanced function parameters and optional arguments
+- **Docker integration**: Best practices for container management in Vim
+- **Configuration design**: Flexible, user-customizable settings
+- **Documentation**: Comprehensive examples serve as learning resource
+
+#### **Final Assessment**
+
+**Revolutionary Feature**: The Docker integration with force-association transforms zzvim-R into a **containerization-ready R development environment** that maintains the plugin's core simplicity while adding enterprise-grade reproducibility and isolation capabilities.
+
+**Strategic Achievement**:
+- **Workflow preservation**: Force-association respects existing Makefile-based workflows
+- **Feature parity**: All zzvim-R features work identically in containers
+- **Professional quality**: Clean implementation with comprehensive documentation
+- **User empowerment**: Flexible workflows support diverse development needs
+
+**Status**: Docker integration successfully implemented, tested, and documented. Provides professional containerized R development while preserving zzvim-R's core philosophy of lightweight, efficient tools with user-friendly design.
+
+#### **Migration Guide**
+
+For existing zzvim-R users:
+
+1. **No changes required**: All existing functionality preserved
+2. **Optional feature**: Docker support is opt-in via new key mappings
+3. **Configuration**: Set Docker variables in `.vimrc` if desired
+4. **Usage**: Use `<LocalLeader>R` for Docker, `<LocalLeader>r` for regular
+
+#### **Success Criteria Met**
+
+✅ Docker terminal launches successfully
+✅ Force-association with existing terminals works
+✅ All code execution methods work identically
+✅ Configuration variables provide flexibility
+✅ Comprehensive documentation created
+✅ Test infrastructure established
+✅ Backward compatibility maintained
+✅ Cross-platform support (Vim/Neovim)
+
+The Docker integration represents a significant evolution in zzvim-R's capabilities, enabling professional containerized R development workflows while maintaining the plugin's commitment to simplicity and efficiency.
 
 **Status**: Intelligent terminal selection successfully implemented, tested, and documented. Provides professional terminal management experience while preserving zzvim-R's core philosophy of lightweight, efficient R development tools with user-friendly design.
