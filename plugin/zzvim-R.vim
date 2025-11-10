@@ -120,13 +120,17 @@ scriptencoding utf-8
 "
 " Multi-Terminal Management:
 " -------------------------
-"   <LocalLeader>r    - Create buffer-specific R terminal session (vertical 
+"   <LocalLeader>r    - Create buffer-specific R terminal session (vertical
 "                      split, each R file gets its own isolated terminal)
+"   <LocalLeader>R    - Launch R in Docker container (uses configured image)
+"   <LocalLeader>dr   - Force-associate with existing Docker terminal
+"                      (even if terminal name matches - allows reusing
+"                      manually created Docker terminals)
 "   <LocalLeader>w    - Open buffer-specific R terminal in new vertical split
 "                      window (preserves current buffer view)
 "   <LocalLeader>W    - Open buffer-specific R terminal in new horizontal split
 "                      window (preserves current buffer view)
-"   <LocalLeader>q    - Send 'Q' command to R (quit current buffer's R 
+"   <LocalLeader>q    - Send 'Q' command to R (quit current buffer's R
 "                      session)
 "   <LocalLeader>c    - Send Ctrl-C interrupt signal (stop running commands)
 "
@@ -278,13 +282,20 @@ scriptencoding utf-8
 "
 " Terminal Association Utilities:
 " ------------------------------
-"     :RShowTerminal           - Show which terminal is associated with current 
+"     :RShowTerminal           - Show which terminal is associated with current
 "                               R buffer
 "     :RListTerminals          - List all R file-terminal associations
 "     :RSwitchToTerminal       - Switch to the terminal associated with current
 "                               R buffer
-"     :ROpenSplit              - Open buffer-specific R terminal in new split 
+"     :ROpenSplit              - Open buffer-specific R terminal in new split
 "                               window (horizontal or vertical)
+"
+" Docker Container Support:
+" ------------------------
+"     :RDockerTerminal         - Launch R in Docker container (creates new)
+"     :RDockerTerminalForce    - Force-associate with existing Docker terminal
+"                               Use this to connect to an already-running
+"                               Docker terminal even if properly named
 "
 " HUD (Heads-Up Display) Commands:
 " --------------------------------
@@ -415,6 +426,26 @@ let g:zzvim_r_command = get(g:, 'zzvim_r_command', 'R --no-save --quiet')
 let g:zzvim_r_chunk_start = get(g:, 'zzvim_r_chunk_start', '^```\s*{\?\s*[rR]\>')
 let g:zzvim_r_chunk_end = get(g:, 'zzvim_r_chunk_end', '^```\s*$')
 let g:zzvim_r_debug = get(g:, 'zzvim_r_debug', 0)
+
+" Docker Configuration:
+" --------------------
+" g:zzvim_r_docker_image        (string)
+"   Docker image to use for R environment
+"   Default: 'rocker/tidyverse:latest'
+"   Example: let g:zzvim_r_docker_image = 'rocker/r-ver:4.3.0'
+let g:zzvim_r_docker_image = get(g:, 'zzvim_r_docker_image', 'rocker/tidyverse:latest')
+
+" g:zzvim_r_docker_options      (string)
+"   Additional docker run options (volume mounts, environment variables, etc.)
+"   Default: '-v ' . getcwd() . ':/workspace -w /workspace'
+"   Example: let g:zzvim_r_docker_options = '-v ~/data:/data -e R_LIBS_USER=/data/rlibs'
+let g:zzvim_r_docker_options = get(g:, 'zzvim_r_docker_options', '-v ' . getcwd() . ':/workspace -w /workspace')
+
+" g:zzvim_r_docker_command      (string)
+"   R command to run inside Docker container
+"   Default: 'R --no-save --quiet'
+"   Example: let g:zzvim_r_docker_command = 'R --vanilla'
+let g:zzvim_r_docker_command = get(g:, 'zzvim_r_docker_command', 'R --no-save --quiet')
 
 "------------------------------------------------------------------------------
 " Utility Functions
@@ -659,6 +690,96 @@ function! s:OpenRTerminal(...) abort
     " Allows immediate code editing without manual window switching
     wincmd p
     
+    " Return the terminal buffer number for proper association
+    return current_terminal
+endfunction
+
+" Create R Terminal in Docker Container
+" Launches R inside a Docker container with volume mounting and configuration
+" Parameters:
+"   a:1 (optional) - terminal name override
+"   a:2 (optional) - force re-association (1 = force, 0 = normal)
+" Returns: number - terminal buffer number or -1 if failed
+function! s:OpenDockerRTerminal(...) abort
+    " Generate unique terminal name for this buffer
+    let terminal_name = a:0 > 0 ? a:1 : s:GetTerminalName()
+    let force_associate = a:0 > 1 ? a:2 : 0
+
+    " Check if Docker is available
+    if !executable('docker')
+        call s:Error('Docker is not installed or not in PATH')
+        return -1
+    endif
+
+    " If force_associate is enabled and terminal with this name exists, use it
+    if force_associate
+        let terminal_buffers = s:compat_term_list()
+        for buf_id in terminal_buffers
+            let buf_name = bufname(buf_id)
+            if buf_name ==# terminal_name
+                " Found existing terminal with correct name - associate with it
+                let b:r_terminal_id = buf_id
+                let b:r_is_docker = 1
+                echom 'Force-associated with existing Docker terminal: ' . terminal_name
+                return buf_id
+            endif
+        endfor
+    endif
+
+    " Build Docker command with user-configured options
+    " docker run -it --rm: interactive, allocate TTY, remove container on exit
+    let docker_cmd = 'docker run -it --rm '
+
+    " Add user-configured options (volume mounts, environment variables, etc.)
+    let docker_cmd .= g:zzvim_r_docker_options . ' '
+
+    " Add Docker image
+    let docker_cmd .= g:zzvim_r_docker_image . ' '
+
+    " Add R command to run inside container
+    let docker_cmd .= g:zzvim_r_docker_command
+
+    " Create vertical terminal split and execute Docker command
+    execute 'vertical term ' . docker_cmd
+
+    " Resize terminal window using configured width or dynamic calculation
+    if exists('g:zzvim_r_terminal_width') && g:zzvim_r_terminal_width > 0
+        let terminal_width = g:zzvim_r_terminal_width
+    else
+        let terminal_width = winwidth(0) / 2
+    endif
+    execute 'vertical resize ' . terminal_width
+
+    " Configure terminal buffer display options
+    setlocal norelativenumber nonumber signcolumn=no
+
+    " Store terminal buffer information for buffer association
+    let current_terminal = bufnr('%')
+
+    " Set terminal name for identification
+    " Check if a buffer with this name already exists
+    if bufexists(terminal_name)
+        " Find an available name by adding a number
+        let counter = 1
+        while bufexists(terminal_name . '_' . counter)
+            let counter += 1
+        endwhile
+        let terminal_name = terminal_name . '_' . counter
+    endif
+    execute 'file ' . terminal_name
+
+    " Mark this as a Docker terminal for future reference
+    let b:r_is_docker = 1
+
+    " Set legacy tab-local variable for backward compatibility
+    let t:is_r_term = 1
+
+    " Return cursor focus to previous window
+    wincmd p
+
+    " Associate new terminal with this buffer
+    let b:r_terminal_id = current_terminal
+
     " Return the terminal buffer number for proper association
     return current_terminal
 endfunction
@@ -1634,6 +1755,8 @@ if !g:zzvim_r_disable_mappings
     augroup zzvim_RMarkdown
         autocmd!
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>r  :call <SID>OpenRTerminal()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>R  :call <SID>OpenDockerRTerminal()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>dr :call <SID>OpenDockerRTerminal(s:GetTerminalName(), 1)<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>w :call <SID>ROpenSplitCommand('vertical')<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>W :call <SID>ROpenSplitCommand('horizontal')<CR>
         autocmd FileType r,rmd,qmd xnoremap <buffer> <silent> <CR>    :<C-u>call <SID>SendToR('selection')<CR>
@@ -1681,6 +1804,8 @@ endif
 
 " Core Operations
 command! -bar ROpenTerminal call s:OpenRTerminal()
+command! -bar RDockerTerminal call s:OpenDockerRTerminal()
+command! -bar RDockerTerminalForce call s:OpenDockerRTerminal(s:GetTerminalName(), 1)
 command! -bar RSendLine call s:SendToR('line')
 command! -bar RSendSelection call s:SendToR('selection')
 command! -bar RSendFunction call s:SendToR('function')
