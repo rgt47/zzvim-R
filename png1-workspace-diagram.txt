@@ -1,0 +1,306 @@
+================================================================================
+                    PNG1 WORKSPACE + ZZCOLLAB DIAGRAM
+================================================================================
+
+DIRECTORY LAYOUT
+================================================================================
+
+HOST SYSTEM                                    DOCKER CONTAINER (png1)
+───────────                                    ──────────────────────
+
+~/prj/png1/                                    /workspace/  ← working dir
+├── Makefile                    ─────────────▶ ├── Makefile
+├── analysis.R                                 ├── analysis.R
+├── data/                                      ├── data/
+│   ├── survey.csv                            │   └── survey.csv
+└── output/                                    └── output/
+    └── results.csv                                └── results.csv
+
+~/prj/d07/zzcollab/                           /zzcollab/
+├── R/                          ─────────────▶ ├── R/
+│   ├── utils.R                               │   ├── utils.R
+│   └── plots.R                               │   └── plots.R
+└── DESCRIPTION                                └── DESCRIPTION
+
+
+TERMINAL SETUP (tmux recommended)
+================================================================================
+
+┌─────────────────────────────────────┬─────────────────────────────────────┐
+│  TERMINAL 1 (Left Pane)             │  TERMINAL 2 (Right Pane)            │
+│  Docker Container                   │  Vim Editor                         │
+├─────────────────────────────────────┼─────────────────────────────────────┤
+│                                     │                                     │
+│  $ cd ~/prj/png1                    │  $ cd ~/prj/png1                    │
+│  $ make r                           │  $ vim analysis.R                   │
+│                                     │                                     │
+│  ┌───────────────────────────────┐ │  ┌───────────────────────────────┐ │
+│  │ Docker (png1 image)           │ │  │ analysis.R                    │ │
+│  │                               │ │  │                               │ │
+│  │ R version 4.x.x               │ │  │ # Load zzcollab functions     │ │
+│  │                               │ │  │ source("/zzcollab/R/utils.R") │ │
+│  │ >                             │ │  │                               │ │
+│  │   [Code execution output]     │ │  │ # Load workspace data         │ │
+│  │                               │ │  │ data <- read_csv("data/...")  │ │
+│  │ >                             │ │  │                    ▲           │ │
+│  │                               │ │  │                    │           │ │
+│  └───────────────────────────────┘ │  │                 cursor here   │ │
+│                                     │  │                               │ │
+│  Working dir: /workspace            │  │ Press <Space>dr once          │ │
+│                                     │  │ Then press <CR> to execute    │ │
+│  Mounts:                            │  └───────────────────────────────┘ │
+│  ~/prj/png1 → /workspace            │                                     │
+│  ~/prj/d07/zzcollab → /zzcollab    │                                     │
+│                                     │                                     │
+└─────────────────────────────────────┴─────────────────────────────────────┘
+
+
+EXECUTION FLOW
+================================================================================
+
+1. USER PRESSES <Space>dr (ONCE PER FILE)
+   ↓
+   zzvim-R force-associates buffer with docker terminal
+   ↓
+   Message: "Force-associated with existing Docker terminal: R-analysis"
+
+
+2. USER PRESSES <CR> ON CODE LINE
+   ↓
+   VIM (Terminal 2)                    PNG1 CONTAINER (Terminal 1)
+   ────────────────                    ────────────────────────────
+
+   Cursor on:
+   source("/zzcollab/R/utils.R")
+   ↓
+   zzvim-R detects line
+   ↓
+   Sends to terminal ───────────────▶ source("/zzcollab/R/utils.R")
+                                      ↓
+                                      R loads /zzcollab/R/utils.R
+                                      ↓
+                                      Functions now available
+                                      ↓
+                                      > [shows prompt]
+
+
+3. NEXT EXECUTION
+   ↓
+   Cursor on:
+   data <- read_csv("data/survey.csv")
+   ↓
+   Press <CR> ─────────────────────▶ data <- read_csv("data/survey.csv")
+                                      ↓
+                                      R reads /workspace/data/survey.csv
+                                      ↓
+                                      Variable 'data' created
+                                      ↓
+                                      > [shows prompt]
+
+
+TYPICAL R CODE STRUCTURE IN ~/prj/png1/analysis.R
+================================================================================
+
+# 1. LOAD ZZCOLLAB FUNCTIONS
+source("/zzcollab/R/data_utils.R")     # Press <CR> here
+source("/zzcollab/R/plot_utils.R")     # Press <CR> here
+
+# 2. LOAD LIBRARIES
+library(tidyverse)                     # Press <CR> here
+
+# 3. LOAD WORKSPACE DATA (relative to /workspace)
+data <- read_csv("data/survey.csv")    # Press <CR> here
+                                       # NOT: "/workspace/data/..."
+
+# 4. USE ZZCOLLAB FUNCTIONS
+cleaned <- clean_data(data)            # Function from zzcollab
+                                       # Press <CR> here
+
+# 5. ANALYZE
+results <- cleaned %>%                 # Cursor anywhere in this
+    group_by(category) %>%             # block, press <CR>
+    summarize(mean = mean(score))      # Sends entire pipe chain
+
+# 6. SAVE TO WORKSPACE
+write_csv(results, "output/summary.csv")  # Press <CR> here
+
+
+PATH REFERENCE IN R
+================================================================================
+
+CORRECT                                 INCORRECT
+──────────────────────────────────────────────────────────────────────────
+source("/zzcollab/R/utils.R")          source("~/prj/d07/zzcollab/R/...")
+read_csv("data/input.csv")             read_csv("~/prj/png1/data/...")
+write_csv(x, "output/result.csv")      write_csv(x, "/workspace/output/...")
+
+getwd()                                 # Returns: /workspace
+list.files()                            # Shows png1 contents
+list.files("/zzcollab/R")              # Shows zzcollab R functions
+
+
+MAKEFILE CONFIGURATION
+================================================================================
+
+File: ~/prj/png1/Makefile
+
+r:
+    docker run -it --rm \
+        -v $(PWD):/workspace \              ← png1 workspace
+        -v $(HOME)/prj/d07/zzcollab:/zzcollab \  ← zzcollab code
+        -w /workspace \                     ← set working directory
+        png1 \                              ← your docker image
+        R --no-save --quiet                 ← R command
+
+Result: Container has access to BOTH directories
+
+
+VIM CONFIGURATION
+================================================================================
+
+File: ~/.vimrc
+
+" Auto-configure for png1 workspace
+autocmd BufRead,BufNewFile ~/prj/png1/*.R,~/prj/png1/*.Rmd
+    \ let g:zzvim_r_docker_image = 'png1' |
+    \ let g:zzvim_r_docker_options = '-v ' . expand('~/prj/png1') . ':/workspace -v ~/prj/d07/zzcollab:/zzcollab -w /workspace'
+
+Effect: When you open R files in ~/prj/png1, zzvim-R automatically
+        knows to use png1 image with both directories mounted
+
+
+KEY MAPPINGS VISUAL GUIDE
+================================================================================
+
+<Space>dr    │  Force-associate buffer with docker terminal
+             │  ↓
+             └──► Do this ONCE per file when you open it
+                 ↓
+                 "Force-associated with existing Docker terminal"
+
+
+<CR>         │  Execute code under cursor
+(Enter)      │  ↓
+             ├──► On single line:    sends that line
+             ├──► In function def:   sends entire function
+             ├──► In code block:     sends entire block
+             └──► In pipe chain:     sends entire chain
+
+
+<Space>h     │  Object inspection: head(object)
+             │  ↓
+             └──► Place cursor on variable name, press <Space>h
+
+
+<Space>m     │  Memory HUD - shows all objects and their sizes
+             │  ↓
+             └──► Press from anywhere
+
+
+WORKFLOW CHECKLIST
+================================================================================
+
+□ 1. Open Terminal 1
+     cd ~/prj/png1
+     make r
+
+□ 2. Open Terminal 2 (or split with Ctrl-b %)
+     cd ~/prj/png1
+     vim analysis.R
+
+□ 3. In Vim (first time):
+     <Space>dr                    [Press Space, then d, then r]
+
+□ 4. Write R code:
+     source("/zzcollab/R/utils.R")
+     data <- read_csv("data/file.csv")
+
+□ 5. Execute code:
+     Place cursor on line
+     Press <CR>                   [Press Enter key]
+     Watch output in Terminal 1
+
+□ 6. Inspect objects:
+     Place cursor on 'data'
+     Press <Space>h               [Press Space, then h]
+
+
+TROUBLESHOOTING FLOWCHART
+================================================================================
+
+Can't execute code?
+│
+├─ Did you press <Space>dr?
+│  └─ No → Press <Space>dr first
+│  └─ Yes → Continue
+│
+├─ Check association: :RShowTerminal
+│  └─ No terminal shown → See "No terminal found" below
+│  └─ Terminal shown → Continue
+│
+└─ Check docker terminal is running
+   └─ In Terminal 1, is R prompt visible?
+      └─ No → Restart: make r
+      └─ Yes → Try :RListTerminals in vim
+
+
+No terminal found?
+│
+├─ :ls!                    [List all buffers]
+│  └─ Find terminal buffer number (e.g., #5)
+│
+├─ :b 5                    [Switch to that buffer]
+│
+├─ :file R-analysis        [Rename to match R file]
+│
+├─ Ctrl-W p                [Back to R file]
+│
+└─ <Space>dr               [Try associating again]
+
+
+Files not found in R?
+│
+├─ getwd()                 [Check working directory]
+│  └─ Should show: /workspace
+│
+├─ list.files()            [Check visible files]
+│  └─ Should show png1 contents
+│
+└─ Check Makefile has:
+   -v $(PWD):/workspace
+
+
+zzcollab functions not found?
+│
+├─ list.files("/zzcollab") [Check zzcollab visible]
+│  └─ Should show: R/, DESCRIPTION, etc.
+│
+├─ file.exists("/zzcollab/R/utils.R")
+│  └─ Should return: TRUE
+│
+└─ Check Makefile has:
+   -v $(HOME)/prj/d07/zzcollab:/zzcollab
+
+
+SUMMARY
+================================================================================
+
+┌──────────────────────────────────────────────────────────────────┐
+│  TWO DIRECTORIES                                                 │
+│  ~/prj/png1           → Your workspace (analysis work)           │
+│  ~/prj/d07/zzcollab   → Your code library (R functions)          │
+│                                                                   │
+│  ONE DOCKER IMAGE                                                │
+│  png1 - contains both directories mounted                        │
+│                                                                   │
+│  TWO KEY MAPPINGS                                                │
+│  <Space>dr - Associate with docker terminal (once per file)      │
+│  <CR>      - Execute code (as many times as needed)              │
+│                                                                   │
+│  TWO PATHS IN R                                                  │
+│  /zzcollab/R/...      - For sourcing zzcollab functions          │
+│  data/...             - For reading/writing workspace files      │
+│                        (relative to /workspace)                  │
+└──────────────────────────────────────────────────────────────────┘
+
+================================================================================
