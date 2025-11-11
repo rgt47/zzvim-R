@@ -25,17 +25,7 @@
 
 ## Configuration Files
 
-### 1. Add to `~/.vimrc`
-
-```vim
-" png1 workspace configuration
-" Auto-loads when editing R files in ~/prj/png1
-autocmd BufRead,BufNewFile ~/prj/png1/*.R,~/prj/png1/*.Rmd
-    \ let g:zzvim_r_docker_image = 'png1' |
-    \ let g:zzvim_r_docker_options = '-v ' . expand('~/prj/png1') . ':/workspace -v ~/prj/d07/zzcollab:/zzcollab -w /workspace'
-```
-
-### 2. Create/Update `~/prj/png1/Makefile`
+### Create/Update `~/prj/png1/Makefile`
 
 ```makefile
 # Launch R in png1 container
@@ -50,28 +40,16 @@ r:
 
 ## Daily Workflow
 
-### Terminal Setup (tmux recommended)
-
 ```bash
 cd ~/prj/png1
-tmux
-
-# Split vertically
-Ctrl-b %
-
-# Left pane: Launch container
-make r
-
-# Right pane: Edit code
-Ctrl-b →
 vim analysis.R
 ```
 
 ### In Vim
 
 ```vim
-" One-time setup per file
-<Space>dr              " Force-associate with docker terminal
+" Launch Docker R
+ZR                     " Shift+Z then Shift+R
 
 " Then execute code normally
 <CR>                   " On any line
@@ -139,8 +117,8 @@ source("/zzcollab/R/my_function.R")
 
 | Mapping | Action |
 |---------|--------|
-| `<Space>dr` | **Force-associate with make r terminal** |
-| `<Space>R` | Launch png1 directly (alternative to make r) |
+| `ZR` | **Launch Docker R via make r** ⭐ |
+| `<Space>dr` | Force-associate with existing Docker terminal |
 | `<CR>` | Execute line/function/block |
 | `<Space>h` | head(object) |
 | `<Space>s` | str(object) |
@@ -154,34 +132,43 @@ source("/zzcollab/R/my_function.R")
 ### Scenario 1: Regular Analysis
 
 ```bash
-# Terminal 1
-cd ~/prj/png1
-make r
-
-# Terminal 2
 cd ~/prj/png1
 vim analysis.R
 ```
 
 In Vim:
 ```vim
-<Space>dr     " Associate once
+ZR            " Launch Docker R
 <CR>          " Execute code
 ```
 
 ### Scenario 2: Multiple Analysis Files
 
 ```bash
-make r        # Terminal 1: One R session
-
-vim analysis1.R    # Terminal 2
-vim analysis2.R    # Terminal 3
+cd ~/prj/png1
+vim -p analysis1.R analysis2.R
 ```
 
-In each Vim:
+In first tab:
 ```vim
-<Space>dr     " Both can associate with same R session
-              " They share the same R environment
+ZR            " Launch Docker R for analysis1
+<CR>          " Execute code
+```
+
+In second tab (gt to switch):
+```vim
+ZR            " Launch Docker R for analysis2 (separate container)
+<CR>          " Execute code
+```
+
+Or share one container:
+```vim
+" In first tab:
+ZR            " Launch Docker R
+
+" In second tab:
+<Space>dr     " Select existing terminal from first tab
+              " Both tabs share the same R environment
 ```
 
 ### Scenario 3: Testing zzcollab Functions
@@ -235,23 +222,20 @@ list.files()
 read_csv("data/file.csv")  # Not /workspace/data/file.csv
 ```
 
-### Problem: Can't associate terminal
+### Problem: Can't launch Docker terminal
 
 ```vim
-" Check terminals exist
-:ls!
+" Check make is available
+:!which make
 
-" Switch to docker terminal
-:b [terminal-number]
+" Test make r outside vim
+:!make r
 
-" Rename it
-:file R-analysis
+" Check Makefile exists
+:!ls -la Makefile
 
-" Back to R file
-Ctrl-W p
-
-" Try again
-<Space>dr
+" Try manual launch
+:vert term make r
 ```
 
 ## Quick Reference
@@ -260,10 +244,9 @@ Ctrl-W p
 WORKFLOW
 --------
 cd ~/prj/png1           # 1. Go to workspace
-make r                  # 2. Launch container
-vim analysis.R          # 3. Edit code
-<Space>dr               # 4. Associate (once)
-<CR>                    # 5. Execute
+vim analysis.R          # 2. Edit code
+ZR                      # 3. Launch Docker R
+<CR>                    # 4. Execute
 
 PATHS IN R
 ----------
@@ -273,7 +256,7 @@ write_csv(result, "output/out.csv")  # workspace output
 
 KEY COMMANDS
 ------------
-<Space>dr   → Associate with docker terminal
+ZR          → Launch Docker R via make r
 <CR>        → Execute code
 <Space>h    → head(object)
 <Space>m    → Memory HUD

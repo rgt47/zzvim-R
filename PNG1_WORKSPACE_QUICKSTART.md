@@ -8,25 +8,19 @@
 - Docker image: `png1`
 - Launch: `make r` (from workspace directory)
 
-## The 3-Step Workflow
+## The Simple Workflow
 
-### Step 1: Launch png1 container (Terminal 1)
-```bash
-cd ~/prj/png1
-make r
-```
-
-### Step 2: Open R file in Vim (Terminal 2)
+### Step 1: Open R file in Vim
 ```bash
 cd ~/prj/png1
 vim analysis.R
 ```
 
-### Step 3: Associate and execute
+### Step 2: Launch Docker R and execute
 
 **In Vim:**
 ```vim
-<Space>dr     " Force-associate (Space + d + r)
+ZR            " Launch Docker R via 'make r' (Shift+Z then Shift+R)
 <CR>          " Execute code
 ```
 
@@ -47,24 +41,21 @@ vim analysis.R
     └── ...
 ```
 
-## Typical tmux Workflow
+## Alternative: External Terminal Workflow
+
+If you prefer to launch Docker R externally before opening Vim:
 
 ```bash
-# Start in workspace
+# Terminal 1:
 cd ~/prj/png1
-tmux
-
-# In tmux:
-Ctrl-b %              # Split vertically
-
-# Left pane:
 make r                # Launches png1 with R
 
-# Right pane (Ctrl-b →):
-vim analysis.R        # Edit your analysis code
+# Terminal 2:
+cd ~/prj/png1
+vim analysis.R
 
 # In Vim:
-<Space>dr             # One-time association
+<Space>dr             # Force-associate with make r terminal
 <CR>                  # Execute code as needed
 ```
 
@@ -94,28 +85,22 @@ data <- read_csv("data/my_data.csv")
 result <- process_data(data)  # Function from zzcollab
 ```
 
-## Add png1 Config to ~/.vimrc
+## Launching Docker R from Vim
 
-Add this to your `~/.vimrc`:
+Instead of using external terminals, you can launch Docker R directly from Vim:
 
 ```vim
-" png1 workspace configuration
-autocmd BufRead,BufNewFile ~/prj/png1/*.R,~/prj/png1/*.Rmd
-    \ let g:zzvim_r_docker_image = 'png1' |
-    \ let g:zzvim_r_docker_options = '-v ' . expand('~/prj/png1') . ':/workspace -v ~/prj/d07/zzcollab:/zzcollab -w /workspace'
+ZR            " Launches png1 via 'make r' (Shift+Z then Shift+R)
 ```
 
-With this config, you can optionally launch directly from Vim:
-```vim
-<Space>R      " Launches png1 with both directories mounted
-```
+This is the recommended workflow - simpler and faster than external terminals.
 
 ## Key Mappings (LocalLeader = Space)
 
 | Key | Action |
 |-----|--------|
-| `<Space>dr` | **Force-associate with make r terminal** |
-| `<Space>R` | Launch new Docker terminal (alternative) |
+| `ZR` | **Launch Docker R via make r** ⭐ |
+| `<Space>dr` | Force-associate with existing Docker terminal |
 | `<CR>` | Execute current line/function/block |
 | `<Space>h` | head(object under cursor) |
 | `<Space>s` | str(object) |
@@ -125,19 +110,7 @@ With this config, you can optionally launch directly from Vim:
 
 ## Complete Example Session
 
-**Terminal 1 (or left tmux pane):**
-```bash
-cd ~/prj/png1
-make r
-```
-
-You see:
-```
-R version X.X.X ...
->
-```
-
-**Terminal 2 (or right tmux pane):**
+**Open your R file:**
 ```bash
 cd ~/prj/png1
 vim analysis.R
@@ -170,8 +143,8 @@ write_csv(summary_stats, "/workspace/output/summary.csv")
 
 **Execute the code:**
 ```vim
-" First time: Associate with docker terminal
-<Space>dr              " Once per file
+" Launch Docker R
+ZR                     " Shift+Z then Shift+R
 
 " Execute line by line or blocks
 <CR>                   " On any line
@@ -257,11 +230,6 @@ list.files("/zzcollab/R")
 ### Scenario 1: Analysis with zzcollab functions
 
 ```bash
-# Terminal 1:
-cd ~/prj/png1
-make r
-
-# Terminal 2:
 cd ~/prj/png1
 vim analysis.R
 ```
@@ -277,18 +245,22 @@ data <- load_survey_data()  # Function from zzcollab
 plot_results(data)           # Function from zzcollab
 ```
 
+In Vim:
+```vim
+ZR                        " Launch Docker R
+<CR>                      " Execute code
+```
+
 ### Scenario 2: Developing zzcollab functions
 
 **Edit zzcollab code:**
 ```bash
-# Terminal 3 (or new tmux window):
 cd ~/prj/d07/zzcollab
 vim R/new_function.R
 ```
 
 **Test in png1 workspace:**
 ```bash
-# Terminal 2 (png1 workspace):
 cd ~/prj/png1
 vim test_new_function.R
 ```
@@ -303,23 +275,41 @@ test_data <- read_csv("data/test.csv")
 result <- new_function(test_data)
 ```
 
-Execute with `<CR>` - tests your zzcollab code with png1 data!
+In Vim:
+```vim
+ZR                        " Launch Docker R
+<CR>                      " Execute - tests your zzcollab code with png1 data!
+```
 
 ### Scenario 3: Multiple analysis files in png1
 
+Open multiple files in separate Vim tabs or windows:
+
 ```bash
 cd ~/prj/png1
-make r                    # Terminal 1: One R session
-
-# Open multiple files:
-vim analysis1.R           # Terminal 2
-vim analysis2.R           # Terminal 3
+vim -p analysis1.R analysis2.R
 ```
 
-In each Vim:
+In first tab:
 ```vim
-<Space>dr                 " Associate with same docker terminal
-" All files share the R session - can share variables!
+ZR                        " Launch Docker R for analysis1
+<CR>                      " Execute code
+```
+
+In second tab (gt to switch):
+```vim
+ZR                        " Launch Docker R for analysis2 (separate container)
+<CR>                      " Execute code
+```
+
+Or share one container:
+```vim
+" In first tab:
+ZR                        " Launch Docker R
+
+" In second tab:
+<Space>dr                 " Select existing terminal from first tab
+                          " Both tabs share the same R environment
 ```
 
 ## Quick Reference Card
@@ -332,8 +322,8 @@ Host: ~/prj/d07/zzcollab → Container: /zzcollab   (code library)
 
 DOCKER TERMINAL
 ---------------
-<Space>dr    Force-associate with make r terminal ⭐
-<Space>R     Launch png1 directly from Vim
+ZR           Launch png1 via make r ⭐
+<Space>dr    Force-associate with existing Docker terminal
 
 CODE EXECUTION
 --------------
@@ -351,21 +341,12 @@ OBJECT INSPECTION
 TYPICAL WORKFLOW
 ----------------
 cd ~/prj/png1                  # Go to workspace
-make r                         # Terminal 1: Launch png1
-vim analysis.R                 # Terminal 2: Edit
-<Space>dr                      # Associate once
-<CR>                           # Execute as needed
+vim analysis.R                 # Edit R code
+ZR                             # Launch Docker R
+<CR>                           # Execute code as needed
 ```
 
 ## Configuration Summary
-
-**~/.vimrc:**
-```vim
-" png1 workspace with zzcollab access
-autocmd BufRead,BufNewFile ~/prj/png1/*.R,~/prj/png1/*.Rmd
-    \ let g:zzvim_r_docker_image = 'png1' |
-    \ let g:zzvim_r_docker_options = '-v ' . expand('~/prj/png1') . ':/workspace -v ~/prj/d07/zzcollab:/zzcollab -w /workspace'
-```
 
 **~/prj/png1/Makefile:**
 ```makefile
@@ -396,8 +377,7 @@ write_csv(results, "output/results.csv")
 
 - **Work from:** `~/prj/png1` (your workspace)
 - **Code library:** `~/prj/d07/zzcollab` (mounted at `/zzcollab`)
-- **Launch:** `make r` in png1 workspace
-- **Associate:** `<Space>dr` in Vim
+- **Launch Docker R:** `ZR` in Vim (runs `make r` automatically)
 - **Execute:** `<CR>` on any code
 
-The key insight: Your Makefile mounts both directories, so you can use zzcollab functions while working with png1 data!
+The key insight: `ZR` launches Docker R with both directories mounted via your Makefile, so you can use zzcollab functions while working with png1 data!

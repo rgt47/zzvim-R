@@ -7,93 +7,65 @@
 - Docker image: `png1`
 - Launch: `make r`
 
-## The 3-Step Workflow
+## The Simple Workflow
 
-### Step 1: Launch png1 container (Terminal 1)
-```bash
-cd ~/prj/d07/zzcollab
-make r
-```
-
-### Step 2: Open R file in Vim (Terminal 2)
+### Step 1: Open R file in Vim
 ```bash
 cd ~/prj/d07/zzcollab
 vim analysis.R
 ```
 
-### Step 3: Associate and execute
+### Step 2: Launch Docker R and execute
 
 **In Vim:**
-
-**Option A: Terminal already visible and named**
 ```vim
-<Space>dr     " Force-associate (Space + d + r)
-```
-
-**Option B: First time - need to rename terminal**
-```vim
-" Setup (first time only):
-Ctrl-W w              " Switch to docker terminal window
-:file R-analysis      " Rename to match R file
-Ctrl-W p              " Back to analysis.R
-<Space>dr             " Force-associate
-
-" Now execute code:
-<CR>                  " Execute line/function/block
+ZR            " Launch Docker R via 'make r' (Shift+Z then Shift+R)
+<CR>          " Execute code
 ```
 
 ## That's It!
 
-After `<Space>dr`, all normal zzvim-R features work:
+After `ZR` launches Docker R, all normal zzvim-R features work:
 - `<CR>` - Execute code
 - `<Space>h` - head(object)
 - `<Space>s` - str(object)
 - `<Space>m` - Memory HUD
 - Visual select + `<CR>` - Execute selection
 
-## Typical tmux Workflow
+## Alternative: External Terminal Workflow
+
+If you prefer to launch Docker R externally before opening Vim:
 
 ```bash
-# Start tmux and split
+# Terminal 1:
 cd ~/prj/d07/zzcollab
-tmux
-
-# In tmux:
-Ctrl-b %              # Split vertically
-
-# Left pane:
 make r                # Launches png1 with R
 
-# Right pane (Ctrl-b →):
-vim src/analysis.R    # Edit your R code
+# Terminal 2:
+cd ~/prj/d07/zzcollab
+vim src/analysis.R
 
 # In Vim:
-<Space>dr             # One-time association
+<Space>dr             # Force-associate with make r terminal
 <CR>                  # Execute code as needed
 ```
 
-## Add png1 Config to ~/.vimrc
+## Launching Docker R from Vim
 
-Add this to your `~/.vimrc`:
+The recommended approach is to launch Docker R directly from Vim:
 
 ```vim
-" zzcollab project with png1 Docker image
-autocmd BufRead,BufNewFile ~/prj/d07/zzcollab/*.R,~/prj/d07/zzcollab/*.Rmd
-    \ let g:zzvim_r_docker_image = 'png1' |
-    \ let g:zzvim_r_docker_options = '-v ' . expand('~/prj/d07/zzcollab') . ':/workspace -w /workspace'
+ZR            " Launches png1 via 'make r' (Shift+Z then Shift+R)
 ```
 
-With this config, you can optionally skip `make r` and launch directly:
-```vim
-<Space>R      " Capital R - launches png1 directly from Vim
-```
+This is simpler and faster than using external terminals.
 
 ## Key Mappings Summary (Your LocalLeader = Space)
 
 | Key | Action |
 |-----|--------|
-| `<Space>dr` | **Force-associate with existing terminal** (use with `make r`) |
-| `<Space>R` | Launch new Docker terminal (alternative to `make r`) |
+| `ZR` | **Launch Docker R via make r** ⭐ |
+| `<Space>dr` | Force-associate with existing Docker terminal |
 | `<Space>r` | Launch regular (non-Docker) R terminal |
 | `<CR>` | Execute current line/function/block |
 | `<Space>h` | head(object under cursor) |
@@ -121,30 +93,15 @@ Ctrl-W p              " Back to R file
 :RListTerminals       " Shows all R file ↔ terminal associations
 ```
 
-**Verify png1 config**
+**Verify Docker terminal is running**
 ```vim
-:echo g:zzvim_r_docker_image
-" Should show: png1
-
-:echo g:zzvim_r_docker_options
-" Should show volume mount with /workspace
+:ls!                  " List all buffers including terminals
+" Look for a terminal buffer with 'make r' or R prompt visible
 ```
 
 ## Complete Example Session
 
-**Terminal 1 (or left tmux pane):**
-```bash
-cd ~/prj/d07/zzcollab
-make r
-```
-
-You see:
-```
-R version X.X.X ...
->
-```
-
-**Terminal 2 (or right tmux pane):**
+**Open your R file:**
 ```bash
 cd ~/prj/d07/zzcollab
 vim src/analysis.R
@@ -166,8 +123,8 @@ summary(data)             # Line 8
 
 **Execute the code:**
 ```vim
-" First time: Associate with docker terminal
-<Space>dr              " You'll see: "Force-associated with existing Docker terminal"
+" Launch Docker R
+ZR                     " Shift+Z then Shift+R
 
 " Execute line 1
 " Cursor on line 1, press Enter:
@@ -195,7 +152,7 @@ summary(data)             # Line 8
 " → str(data) shows structure
 ```
 
-All executed code runs in your png1 container from Terminal 1!
+All executed code runs in your png1 container!
 
 ## Working with .Rmd Files
 
@@ -203,14 +160,12 @@ If you use R Markdown in zzcollab:
 
 ```bash
 cd ~/prj/d07/zzcollab
-make r              # Terminal 1
-
-vim report.Rmd      # Terminal 2
+vim report.Rmd
 ```
 
 **In Vim:**
 ```vim
-<Space>dr           " Associate once
+ZR                  " Launch Docker R
 
 " Navigate chunks:
 <Space>j            " Next chunk
@@ -228,8 +183,8 @@ vim report.Rmd      # Terminal 2
 ```
 DOCKER TERMINAL MANAGEMENT
 --------------------------
-<Space>dr  → Force-associate with make r terminal ⭐ (most common)
-<Space>R   → Launch png1 directly from Vim
+ZR         → Launch png1 via make r ⭐ (recommended)
+<Space>dr  → Force-associate with existing terminal
 <Space>r   → Launch regular R (no Docker)
 
 CODE EXECUTION
@@ -346,10 +301,15 @@ list.files()    # Should show your project files
 
 ## Summary
 
-**Most Common Workflow:**
+**Recommended Workflow:**
+1. `vim analysis.R`
+2. `ZR` in Vim (launches Docker R via `make r`)
+3. `<CR>` to execute code as needed
+
+**Alternative Workflow (external terminal):**
 1. `make r` in one terminal
 2. `vim analysis.R` in another terminal
 3. `<Space>dr` once in Vim
 4. `<CR>` to execute code as needed
 
-That's it! The force-association (`<Space>dr`) was specifically designed for your workflow of using `make r` to launch containers.
+That's it! `ZR` is the simplest way to get started with Docker R development.
