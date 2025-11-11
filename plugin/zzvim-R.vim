@@ -122,7 +122,8 @@ scriptencoding utf-8
 " -------------------------
 "   <LocalLeader>r    - Create buffer-specific R terminal session (vertical
 "                      split, each R file gets its own isolated terminal)
-"   <LocalLeader>R    - Launch R in Docker container (uses configured image)
+"   <LocalLeader>R    - Launch R in Docker container via 'make r' command
+"                      (terminal auto-named R-<filename> for association)
 "   <LocalLeader>dr   - Force-associate with existing Docker terminal
 "                      (even if terminal name matches - allows reusing
 "                      manually created Docker terminals)
@@ -292,7 +293,8 @@ scriptencoding utf-8
 "
 " Docker Container Support:
 " ------------------------
-"     :RDockerTerminal         - Launch R in Docker container (creates new)
+"     :RDockerTerminal         - Launch R in Docker via 'make r' (creates new)
+"                               Terminal auto-named R-<filename> for association
 "     :RDockerTerminalForce    - Force-associate with existing Docker terminal
 "                               Use this to connect to an already-running
 "                               Docker terminal even if properly named
@@ -429,22 +431,22 @@ let g:zzvim_r_debug = get(g:, 'zzvim_r_debug', 0)
 
 " Docker Configuration:
 " --------------------
-" g:zzvim_r_docker_image        (string)
-"   Docker image to use for R environment
-"   Default: 'rocker/tidyverse:latest'
-"   Example: let g:zzvim_r_docker_image = 'rocker/r-ver:4.3.0'
+" NOTE: <LocalLeader>R now runs 'make r' instead of building docker commands
+" These configuration variables are no longer used by <LocalLeader>R
+" Configure your Docker setup in your Makefile instead
+"
+" Example Makefile target 'r':
+"   r:
+"       docker run -it --rm \
+"           -v $(PWD):/workspace \
+"           -v ~/prj/d07/zzcollab:/zzcollab \
+"           -w /workspace \
+"           png1 R --no-save --quiet
+
+" Legacy Docker configuration variables (unused)
+" Kept for backward compatibility - you can remove these from your .vimrc
 let g:zzvim_r_docker_image = get(g:, 'zzvim_r_docker_image', 'rocker/tidyverse:latest')
-
-" g:zzvim_r_docker_options      (string)
-"   Additional docker run options (volume mounts, environment variables, etc.)
-"   Default: '-v ' . getcwd() . ':/workspace -w /workspace'
-"   Example: let g:zzvim_r_docker_options = '-v ~/data:/data -e R_LIBS_USER=/data/rlibs'
 let g:zzvim_r_docker_options = get(g:, 'zzvim_r_docker_options', '-v ' . getcwd() . ':/workspace -w /workspace')
-
-" g:zzvim_r_docker_command      (string)
-"   R command to run inside Docker container
-"   Default: 'R --no-save --quiet'
-"   Example: let g:zzvim_r_docker_command = 'R --vanilla'
 let g:zzvim_r_docker_command = get(g:, 'zzvim_r_docker_command', 'R --no-save --quiet')
 
 "------------------------------------------------------------------------------
@@ -694,8 +696,8 @@ function! s:OpenRTerminal(...) abort
     return current_terminal
 endfunction
 
-" Create R Terminal in Docker Container
-" Launches R inside a Docker container with volume mounting and configuration
+" Create R Terminal in Docker Container using Makefile
+" Launches R in Docker via 'make r' command and names terminal appropriately
 " Parameters:
 "   a:1 (optional) - terminal name override
 "   a:2 (optional) - force re-association (1 = force, 0 = normal)
@@ -705,9 +707,9 @@ function! s:OpenDockerRTerminal(...) abort
     let terminal_name = a:0 > 0 ? a:1 : s:GetTerminalName()
     let force_associate = a:0 > 1 ? a:2 : 0
 
-    " Check if Docker is available
-    if !executable('docker')
-        call s:Error('Docker is not installed or not in PATH')
+    " Check if make is available
+    if !executable('make')
+        call s:Error('make is not installed or not in PATH')
         return -1
     endif
 
@@ -726,21 +728,8 @@ function! s:OpenDockerRTerminal(...) abort
         endfor
     endif
 
-    " Build Docker command with user-configured options
-    " docker run -it --rm: interactive, allocate TTY, remove container on exit
-    let docker_cmd = 'docker run -it --rm '
-
-    " Add user-configured options (volume mounts, environment variables, etc.)
-    let docker_cmd .= g:zzvim_r_docker_options . ' '
-
-    " Add Docker image
-    let docker_cmd .= g:zzvim_r_docker_image . ' '
-
-    " Add R command to run inside container
-    let docker_cmd .= g:zzvim_r_docker_command
-
-    " Create vertical terminal split and execute Docker command
-    execute 'vertical term ' . docker_cmd
+    " Create vertical terminal split and execute 'make r'
+    execute 'vertical term make r'
 
     " Resize terminal window using configured width or dynamic calculation
     if exists('g:zzvim_r_terminal_width') && g:zzvim_r_terminal_width > 0
