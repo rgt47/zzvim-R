@@ -14,9 +14,9 @@ The Docker integration allows you to:
 
 ### Basic Usage
 
-1. **Launch R in Docker container:**
+1. **Launch R in Docker container via 'make r':**
    ```vim
-   <LocalLeader>R
+   ZR
    " or
    :RDockerTerminal
    ```
@@ -35,56 +35,33 @@ The Docker integration allows you to:
 
 ## Configuration
 
-Add these settings to your `.vimrc` or `init.vim`:
+**ZR now runs `make r` instead of building docker commands.**
 
-### Docker Image Selection
+Configure your Docker setup in your Makefile:
 
-```vim
-" Use specific R version
-let g:zzvim_r_docker_image = 'rocker/r-ver:4.3.0'
-
-" Use tidyverse image (default)
-let g:zzvim_r_docker_image = 'rocker/tidyverse:latest'
-
-" Use custom image
-let g:zzvim_r_docker_image = 'my-custom-r-image:latest'
+```makefile
+# Example Makefile target
+r:
+	docker run -it --rm \
+		-v $(PWD):/workspace \
+		-v ~/prj/d07/zzcollab:/zzcollab \
+		-w /workspace \
+		png1 R --no-save --quiet
 ```
 
-### Volume Mounts and Options
-
-```vim
-" Default: mounts current directory as /workspace
-let g:zzvim_r_docker_options = '-v ' . getcwd() . ':/workspace -w /workspace'
-
-" Mount multiple directories
-let g:zzvim_r_docker_options = '-v ~/data:/data -v ~/scripts:/scripts -w /workspace -v ' . getcwd() . ':/workspace'
-
-" Set environment variables
-let g:zzvim_r_docker_options = '-v ' . getcwd() . ':/workspace -w /workspace -e R_LIBS_USER=/workspace/rlibs'
-
-" Use custom network
-let g:zzvim_r_docker_options = '--network=host -v ' . getcwd() . ':/workspace -w /workspace'
-```
-
-### R Startup Command
-
-```vim
-" Default
-let g:zzvim_r_docker_command = 'R --no-save --quiet'
-
-" Vanilla R session
-let g:zzvim_r_docker_command = 'R --vanilla'
-
-" Custom startup
-let g:zzvim_r_docker_command = 'R --no-save --quiet --no-restore'
-```
+You can customize:
+- Docker image (png1, rocker/tidyverse, etc.)
+- Volume mounts (-v flags)
+- Environment variables (-e flags)
+- Working directory (-w flag)
+- R startup options (R --no-save --quiet, R --vanilla, etc.)
 
 ## Common Workflows
 
 ### Workflow 1: New Docker Terminal for Each File
 
 1. Open R file: `vim analysis.R`
-2. Launch Docker R: `<LocalLeader>R`
+2. Launch Docker R: `ZR`
 3. Execute code: `<CR>` on any line
 4. Terminal automatically named `R-analysis`
 
@@ -92,7 +69,7 @@ let g:zzvim_r_docker_command = 'R --no-save --quiet --no-restore'
 
 If you already have a Docker terminal running:
 
-1. Manually start Docker: `:vertical term docker run -it --rm -v $(pwd):/workspace -w /workspace rocker/tidyverse R`
+1. Manually start Docker: `:vertical term make r`
 2. Open R file: `vim analysis.R`
 3. Force-associate: `<LocalLeader>dr`
 4. Execute code: `<CR>` works with existing terminal
@@ -100,12 +77,12 @@ If you already have a Docker terminal running:
 ### Workflow 3: Multiple Files with Shared Docker Environment
 
 **Option A: Separate containers per file**
-- Open `file1.R` → `<LocalLeader>R` → get `R-file1`
-- Open `file2.R` → `<LocalLeader>R` → get `R-file2`
+- Open `file1.R` → `ZR` → get `R-file1`
+- Open `file2.R` → `ZR` → get `R-file2`
 - Each file has isolated environment
 
 **Option B: Shared container** (requires manual setup)
-- Start one Docker terminal manually
+- Start one Docker terminal manually (`:term make r`)
 - For each file: open file → `<LocalLeader>dr` → select same terminal
 
 ### Workflow 4: Project-Specific Package Libraries
@@ -125,7 +102,7 @@ install.packages("dplyr")
 
 | Mapping | Command | Description |
 |---------|---------|-------------|
-| `<LocalLeader>R` | `:RDockerTerminal` | Launch new Docker R terminal |
+| `ZR` | `:RDockerTerminal` | Launch Docker R via 'make r' |
 | `<LocalLeader>dr` | `:RDockerTerminalForce` | Force-associate with existing Docker terminal |
 | `<LocalLeader>r` | `:ROpenTerminal` | Launch regular (non-Docker) R terminal |
 | `<CR>` | - | Execute code in associated terminal (Docker or regular) |

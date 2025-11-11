@@ -2,40 +2,24 @@
 
 ## Overview
 
-Docker container support has been successfully added to zzvim-R, enabling users to run R in isolated, reproducible Docker environments while maintaining all existing plugin functionality.
+Docker container support has been successfully added to zzvim-R, enabling users to run R in isolated, reproducible Docker environments via Makefile while maintaining all existing plugin functionality.
 
 ## Implementation Date
 
-November 10, 2025
+November 10, 2025 (Updated with ZR mapping)
 
 ## Features Added
 
-### 1. Configuration Variables (lines 419-437)
+### 1. Core Function: s:OpenDockerRTerminal() (lines 697-785)
 
-Three new configuration variables for Docker customization:
+Main Docker terminal creation function that executes `make r`:
 
-```vim
-" Docker image to use (default: rocker/tidyverse:latest)
-let g:zzvim_r_docker_image = get(g:, 'zzvim_r_docker_image', 'rocker/tidyverse:latest')
-
-" Docker run options including volume mounts (default: mount current directory)
-let g:zzvim_r_docker_options = get(g:, 'zzvim_r_docker_options', '-v ' . getcwd() . ':/workspace -w /workspace')
-
-" R command to run in container (default: R --no-save --quiet)
-let g:zzvim_r_docker_command = get(g:, 'zzvim_r_docker_command', 'R --no-save --quiet')
-```
-
-### 2. Core Function: s:OpenDockerRTerminal() (lines 686-774)
-
-Main Docker terminal creation function with:
-
-- **Docker availability check**: Verifies Docker is installed
+- **Make availability check**: Verifies `make` is installed
 - **Force-association support**: Optional parameter to reuse existing terminals
-- **Dynamic command building**: Constructs `docker run` command from configuration
-- **Standard flags**: Uses `-it --rm` for interactive terminal with auto-cleanup
+- **Executes Makefile command**: Runs `make r` to launch Docker container
+- **Standard terminal behavior**: Uses vertical split with dynamic/configured width
 - **Terminal naming**: Follows same convention as regular terminals (`R-filename`)
 - **Buffer marking**: Sets `b:r_is_docker = 1` to identify Docker terminals
-- **Window management**: Dynamic or configured terminal width
 - **Automatic association**: Links buffer to Docker terminal via `b:r_terminal_id`
 
 **Function signature:**
@@ -47,71 +31,87 @@ function! s:OpenDockerRTerminal(...) abort
 endfunction
 ```
 
-### 3. Ex Commands (lines 1794-1795)
+**Key change from original:** Now runs `make r` instead of building docker commands from config variables.
 
-Two new commands for Docker terminal management:
+### 2. Ex Commands (lines 1796-1797)
+
+Two commands for Docker terminal management:
 
 ```vim
 command! -bar RDockerTerminal call s:OpenDockerRTerminal()
 command! -bar RDockerTerminalForce call s:OpenDockerRTerminal(s:GetTerminalName(), 1)
 ```
 
-### 4. Key Mappings (lines 1747-1748)
-
-Two new buffer-local mappings for R/Rmd/Qmd files:
+### 3. Key Mappings (line 1747)
 
 ```vim
-autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>R  :call <SID>OpenDockerRTerminal()<CR>
-autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>dr :call <SID>OpenDockerRTerminal(s:GetTerminalName(), 1)<CR>
+autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> ZR :call <SID>OpenDockerRTerminal()<CR>
 ```
+
+**Note:** Changed from `<LocalLeader>R` to `ZR` for easier typing.
+
+### 4. Configuration
+
+**No longer uses vim configuration variables.** Instead, configure Docker via Makefile:
+
+```makefile
+# Example Makefile target
+r:
+	docker run -it --rm \
+		-v $(PWD):/workspace \
+		-v ~/prj/d07/zzcollab:/zzcollab \
+		-w /workspace \
+		png1 R --no-save --quiet
+```
+
+**Legacy variables** (lines 448-450) kept for backward compatibility but unused by ZR:
+- `g:zzvim_r_docker_image`
+- `g:zzvim_r_docker_options`
+- `g:zzvim_r_docker_command`
 
 ### 5. Documentation Updates
 
-**In-file documentation (lines 125-128, 293-298):**
-- Key mapping descriptions in header comments
-- Ex command documentation in command reference section
+**In-file documentation:**
+- Key mapping: `ZR` to launch Docker R via `make r`
+- Ex command documentation updated
+- Configuration section explains Makefile approach
 
 **External documentation:**
-- `DOCKER_USAGE.md`: Comprehensive user guide with examples
-- `test_files/test_docker.R`: Test file for Docker functionality
-- `test_files/DOCKER_TEST_SCENARIOS.md`: 15 test scenarios
+- `DOCKER_USAGE.md`: User guide with Makefile examples
+- `DOCKER_QUICKREF.md`: Quick reference card
+- `test_files/DOCKER_TEST_SCENARIOS.md`: Test scenarios
 - `DOCKER_IMPLEMENTATION_SUMMARY.md`: This file
 
 ## Key Design Decisions
 
-### 1. Force-Association Feature
-
-**Problem:** Users may manually create Docker terminals (e.g., with custom flags) and want to associate their R buffer with that existing terminal, even if the terminal has the "correct" name.
-
-**Solution:** Added optional `force_associate` parameter that:
-- Searches for terminal with expected name
-- Associates with it immediately without prompting
-- Allows reusing manually-created Docker terminals
-
-### 2. Volume Mounting Strategy
-
-**Default behavior:** Mount current working directory to `/workspace` in container and set it as working directory.
+### 1. Makefile-Based Approach
 
 **Rationale:**
-- Makes project files immediately accessible
-- Intuitive for most workflows
-- Easy to override for advanced use cases
+- Users typically have complex Docker configurations in Makefiles
+- More flexible than vim config variables
+- Allows easy sharing of Docker setup across team
+- Simplifies plugin code
 
-### 3. Container Lifecycle
+### 2. ZR Key Mapping
 
-**Uses `--rm` flag:** Containers automatically removed when terminal closes.
+**Changed from** `<LocalLeader>R` **to** `ZR`
 
 **Rationale:**
-- Prevents container accumulation
-- Reduces disk usage
-- Simplifies cleanup
-- Standard practice for ephemeral development containers
+- Easier to type (two shifted keys vs Space then Shift+R)
+- Consistent with `ZT` for RMarkdown rendering
+- Establishes Z-prefix pattern for special R operations
+
+### 3. Force-Association Feature
+
+**Purpose:** Users may manually create Docker terminals (e.g., `:term make r`) and want to associate their R buffer with that existing terminal.
+
+**Solution:** Force-associate parameter searches for terminal with expected name and associates immediately.
 
 ### 4. Terminal Naming Convention
 
 Docker terminals follow same naming as regular terminals: `R-filename`
 
-**Rationale:**
+**Benefits:**
 - Consistent user experience
 - Works with existing terminal management commands
 - Enables selective force-association by filename
@@ -136,24 +136,30 @@ All existing zzvim-R features work identically with Docker terminals:
 ### Example 1: Quick Docker Terminal
 ```vim
 vim analysis.R
-<LocalLeader>R      " Launch Docker R
-<CR>                " Execute current line
+ZR              " Launch Docker R via 'make r'
+<CR>            " Execute current line
 ```
 
-### Example 2: Custom Image
-```vim
-" In .vimrc:
-let g:zzvim_r_docker_image = 'rocker/r-ver:4.3.0'
+### Example 2: Custom Makefile Configuration
+```makefile
+# In project Makefile
+r:
+	docker run -it --rm \
+		-v $(PWD):/workspace \
+		-v ~/data:/data \
+		-w /workspace \
+		rocker/r-ver:4.3.0 R --no-save --quiet
+```
 
-" In Vim:
+```vim
 vim analysis.R
-<LocalLeader>R      " Uses custom image
+ZR              " Uses custom Makefile configuration
 ```
 
 ### Example 3: Reuse Manual Terminal
 ```vim
 " In Vim:
-:vertical term docker run -it --rm -v $(pwd):/workspace -w /workspace rocker/tidyverse R
+:vertical term make r
 :file R-analysis    " Rename terminal
 
 " In another window:
@@ -166,7 +172,7 @@ vim analysis.R
 ```vim
 " Start one container:
 vim file1.R
-<LocalLeader>R      " Creates R-file1
+ZR              " Creates R-file1
 
 " Associate other files:
 vim file2.R
@@ -180,18 +186,17 @@ Comprehensive test infrastructure created:
 
 1. **Test file:** `test_files/test_docker.R`
    - Tests basic R operations
-   - Verifies tidyverse availability
-   - Checks volume mounting
+   - Verifies volume mounting
    - Tests all code patterns
 
 2. **Test scenarios:** `test_files/DOCKER_TEST_SCENARIOS.md`
-   - 15 detailed test scenarios
-   - Covers all features
-   - Includes error cases
+   - 12 detailed test scenarios
+   - Covers all features with ZR mapping
+   - Includes Makefile configuration tests
    - Cross-platform considerations
 
 3. **User guide:** `DOCKER_USAGE.md`
-   - Quick start examples
+   - Quick start with Makefile examples
    - Configuration reference
    - Common workflows
    - Troubleshooting guide
@@ -199,64 +204,54 @@ Comprehensive test infrastructure created:
 ## Code Quality
 
 - **VimScript conventions:** Follows plugin's existing patterns
-- **Error handling:** Comprehensive checks with clear messages
+- **Error handling:** Checks for `make` availability, clear error messages
 - **Documentation:** Extensive inline comments
-- **Backward compatibility:** No changes to existing functionality
+- **Backward compatibility:** Legacy config variables kept but unused
 - **Cross-platform:** Works in Vim and Neovim
 
 ## File Changes Summary
 
-| File | Lines Changed | Description |
-|------|---------------|-------------|
-| `plugin/zzvim-R.vim` | ~120 lines added | Core implementation |
-| `DOCKER_USAGE.md` | New file | User documentation |
-| `DOCKER_IMPLEMENTATION_SUMMARY.md` | New file | This summary |
-| `test_files/test_docker.R` | New file | Test file |
-| `test_files/DOCKER_TEST_SCENARIOS.md` | New file | Test scenarios |
-
-## Future Enhancement Opportunities
-
-Potential additions for future versions:
-
-1. **Docker Compose support:** Launch multi-container environments
-2. **Container persistence:** Save/restore container state
-3. **GPU passthrough:** Auto-detect and enable GPU support
-4. **Image validation:** Check if image exists before launching
-5. **Custom Docker flags per file:** File-specific Docker options
-6. **Container health checks:** Verify container is healthy before executing
-7. **Volume mount profiles:** Predefined mount configurations
-8. **Interactive image selection:** Prompt user to choose from available images
+| File | Changes | Description |
+|------|---------|-------------|
+| `plugin/zzvim-R.vim` | ~30 lines modified | Changed to use `make r`, updated docs, ZR mapping |
+| `DOCKER_USAGE.md` | Updated | User documentation with Makefile approach |
+| `DOCKER_QUICKREF.md` | Updated | ZR mapping and Makefile examples |
+| `DOCKER_IMPLEMENTATION_SUMMARY.md` | Updated | This summary with accurate implementation |
+| `test_files/DOCKER_TEST_SCENARIOS.md` | Rewritten | Test scenarios for Makefile-based workflow |
 
 ## Known Limitations
 
-1. **Requires Docker:** Docker must be installed and running
-2. **Container overhead:** Slight performance penalty vs native R
-3. **Volume mounts:** Files must be in mounted directories
-4. **Network access:** May require `--network=host` for some operations
-5. **Platform differences:** Windows paths may require special handling
+1. **Requires Make:** `make` must be installed and available
+2. **Requires Makefile:** Project must have Makefile with 'r' target
+3. **Container overhead:** Slight performance penalty vs native R
+4. **Volume mounts:** Files must be in mounted directories
+5. **Platform differences:** Makefile syntax may vary across platforms
 
 ## Compatibility
 
 - **Vim:** 8.0+ with terminal support
 - **Neovim:** All versions with terminal support
+- **Make:** GNU Make or compatible
 - **Docker:** Docker Engine 19.03+ or Docker Desktop
-- **Operating Systems:** Linux, macOS, Windows (with appropriate Docker setup)
+- **Operating Systems:** Linux, macOS, Windows (with appropriate setup)
 
 ## Migration Guide
 
 For existing zzvim-R users:
 
 1. **No changes required:** All existing functionality preserved
-2. **Optional feature:** Docker support is opt-in via new key mappings
-3. **Configuration:** Set Docker variables in `.vimrc` if desired
-4. **Usage:** Use `<LocalLeader>R` for Docker, `<LocalLeader>r` for regular
+2. **Optional feature:** Docker support via ZR is opt-in
+3. **Configuration:** Create Makefile with 'r' target (see examples)
+4. **Usage:** Use `ZR` for Docker, `<LocalLeader>r` for regular
+5. **Old config:** Can remove old `g:zzvim_r_docker_*` variables from .vimrc
 
 ## Success Criteria Met
 
-✅ Docker terminal launches successfully
+✅ Docker terminal launches successfully via `make r`
 ✅ Force-association with existing terminals works
 ✅ All code execution methods work identically
-✅ Configuration variables provide flexibility
+✅ ZR mapping easier to type than previous mapping
+✅ Makefile-based configuration more flexible
 ✅ Comprehensive documentation created
 ✅ Test infrastructure established
 ✅ Backward compatibility maintained
@@ -264,4 +259,4 @@ For existing zzvim-R users:
 
 ## Summary
 
-The Docker integration adds powerful containerization capabilities to zzvim-R while maintaining the plugin's core philosophy of simplicity and reliability. Users can now choose between native R terminals and Docker containers based on their workflow needs, with seamless switching between the two approaches.
+The Docker integration provides containerized R development via Makefile, with the simplified ZR key mapping for launching Docker R terminals. Users configure Docker setups in their Makefiles rather than vim config, providing more flexibility and easier sharing across teams. All zzvim-R features work identically in Docker containers, maintaining the plugin's core philosophy of simplicity and reliability.

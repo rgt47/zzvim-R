@@ -5,35 +5,41 @@ This document outlines test scenarios for the Docker integration feature in zzvi
 ## Prerequisites
 
 - Docker installed and running
-- Docker image available (e.g., `rocker/tidyverse:latest`)
+- Makefile with 'r' target configured
 - zzvim-R plugin loaded in Vim/Neovim
 
-## Test Scenario 1: Basic Docker Terminal Launch
+## Test Scenario 1: Basic Docker Terminal Launch via ZR
 
-**Purpose:** Verify Docker terminal creation works
+**Purpose:** Verify Docker terminal creation via `make r` works
+
+**Setup:** Create Makefile in test directory:
+```makefile
+r:
+	docker run -it --rm -v $(PWD):/workspace -w /workspace rocker/tidyverse R --no-save --quiet
+```
 
 **Steps:**
 1. Open test file: `vim test_docker.R`
-2. Press `<LocalLeader>R` (typically `\R`)
+2. Press `ZR` (Shift+Z then Shift+R)
 3. Verify terminal opens in vertical split
 4. Check R prompt appears in Docker container
-5. Press `<LocalLeader>q` to return to editor
+5. Switch back to editor
 6. Place cursor on line: `x <- 1:10`
 7. Press `<CR>` to execute
 8. Switch to terminal and verify `x` is created
 
 **Expected Results:**
-- Terminal opens with Docker R session
-- Terminal named `R-test_docker`
+- Terminal opens with Docker R session via `make r`
+- Terminal automatically named `R-test_docker`
 - Code executes in Docker container
 - Working directory is `/workspace`
 
-## Test Scenario 2: Force-Associate with Existing Terminal
+## Test Scenario 2: Force-Associate with Manually Created Terminal
 
 **Purpose:** Verify force-association with existing Docker terminal
 
 **Steps:**
-1. Manually create Docker terminal: `:vertical term docker run -it --rm -v $(pwd):/workspace -w /workspace rocker/tidyverse R`
+1. Manually create Docker terminal: `:vertical term make r`
 2. Rename terminal: `:file R-test_docker`
 3. Switch back to editor window
 4. Open test file: `vim test_docker.R`
@@ -46,57 +52,16 @@ This document outlines test scenarios for the Docker integration feature in zzvi
 - Message: "Force-associated with existing Docker terminal: R-test_docker"
 - Code executes in existing terminal
 
-## Test Scenario 3: Custom Docker Image
-
-**Purpose:** Test custom Docker image configuration
-
-**Configuration in .vimrc:**
-```vim
-let g:zzvim_r_docker_image = 'rocker/r-ver:4.3.0'
-```
-
-**Steps:**
-1. Open Vim with above configuration
-2. Open test file: `vim test_docker.R`
-3. Press `<LocalLeader>R`
-4. In R terminal, run: `R.version.string`
-
-**Expected Results:**
-- Docker pulls rocker/r-ver:4.3.0 image if not cached
-- R version shows 4.3.0
-- Terminal works correctly
-
-## Test Scenario 4: Volume Mount Verification
-
-**Purpose:** Verify files are accessible in container
-
-**Configuration in .vimrc:**
-```vim
-let g:zzvim_r_docker_options = '-v ' . getcwd() . ':/workspace -w /workspace'
-```
-
-**Steps:**
-1. Create test file in project: `echo "test" > testfile.txt`
-2. Open R file: `vim test_docker.R`
-3. Press `<LocalLeader>R`
-4. In R terminal, run: `list.files()`
-5. Run: `readLines("testfile.txt")`
-
-**Expected Results:**
-- `list.files()` shows project files including `testfile.txt`
-- `readLines()` successfully reads the file
-- Container has read/write access to mounted directory
-
-## Test Scenario 5: Multi-File Workflow
+## Test Scenario 3: Multi-File Workflow
 
 **Purpose:** Test buffer-specific terminal isolation
 
 **Steps:**
 1. Open first file: `vim file1.R`
-2. Press `<LocalLeader>R` → creates `R-file1` terminal
+2. Press `ZR` → creates `R-file1` terminal
 3. Execute: `x <- 100`
 4. Open second file in new buffer: `:e file2.R`
-5. Press `<LocalLeader>R` → creates `R-file2` terminal
+5. Press `ZR` → creates `R-file2` terminal
 6. Execute: `x <- 200`
 7. Switch back to file1.R: `:b file1.R`
 8. Check terminal: Should show `x = 100`
@@ -108,13 +73,13 @@ let g:zzvim_r_docker_options = '-v ' . getcwd() . ':/workspace -w /workspace'
 - Terminals are isolated (different R sessions)
 - Switching buffers automatically uses correct terminal
 
-## Test Scenario 6: All Code Execution Methods
+## Test Scenario 4: All Code Execution Methods
 
 **Purpose:** Verify all execution methods work with Docker
 
 **Steps:**
 1. Open `test_docker.R`
-2. Press `<LocalLeader>R` to launch Docker terminal
+2. Press `ZR` to launch Docker terminal
 3. Test execution methods:
    - Single line: Place cursor on `x <- 1:10`, press `<CR>`
    - Function block: Place cursor on `calculate_mean <- function(...)`, press `<CR>`
@@ -126,13 +91,13 @@ let g:zzvim_r_docker_options = '-v ' . getcwd() . ':/workspace -w /workspace'
 - Code executes in Docker container
 - Results appear in terminal
 
-## Test Scenario 7: Object Inspection Commands
+## Test Scenario 5: Object Inspection Commands
 
 **Purpose:** Test object inspection with Docker terminals
 
 **Steps:**
 1. Open `test_docker.R`
-2. Press `<LocalLeader>R`
+2. Press `ZR`
 3. Execute: `df <- data.frame(x=1:5, y=letters[1:5])`
 4. Place cursor on `df`
 5. Test inspection mappings:
@@ -146,13 +111,13 @@ let g:zzvim_r_docker_options = '-v ' . getcwd() . ':/workspace -w /workspace'
 - Output appears in Docker terminal
 - Commands execute in containerized R session
 
-## Test Scenario 8: HUD Functions with Docker
+## Test Scenario 6: HUD Functions with Docker
 
 **Purpose:** Verify HUD displays work with Docker terminals
 
 **Steps:**
 1. Open `test_docker.R`
-2. Press `<LocalLeader>R`
+2. Press `ZR`
 3. Execute some code to create objects:
    ```r
    x <- 1:100
@@ -170,27 +135,27 @@ let g:zzvim_r_docker_options = '-v ' . getcwd() . ':/workspace -w /workspace'
 - Show objects/packages in Docker container
 - Not affected by host R environment
 
-## Test Scenario 9: Error Handling - Docker Not Installed
+## Test Scenario 7: Error Handling - Make Not Available
 
-**Purpose:** Test error handling when Docker unavailable
+**Purpose:** Test error handling when make unavailable
 
 **Steps:**
-1. Temporarily rename Docker binary or ensure it's not in PATH
+1. Temporarily rename make binary or ensure it's not in PATH
 2. Open R file: `vim test_docker.R`
-3. Press `<LocalLeader>R`
+3. Press `ZR`
 
 **Expected Results:**
-- Error message: "zzvim-R: Docker is not installed or not in PATH"
+- Error message: "make is not installed or not in PATH"
 - No terminal created
 - Plugin remains functional for regular terminals
 
-## Test Scenario 10: Terminal Status Commands
+## Test Scenario 8: Terminal Status Commands
 
 **Purpose:** Verify terminal association commands work with Docker
 
 **Steps:**
 1. Open `test_docker.R`
-2. Press `<LocalLeader>R`
+2. Press `ZR`
 3. Run commands:
    - `:RShowTerminal` - Show current association
    - `:RListTerminals` - List all associations
@@ -201,12 +166,12 @@ let g:zzvim_r_docker_options = '-v ' . getcwd() . ':/workspace -w /workspace'
 - `:RListTerminals` displays Docker terminals
 - `:RSwitchToTerminal` successfully switches focus
 
-## Test Scenario 11: Container Persistence
+## Test Scenario 9: Container Persistence
 
 **Purpose:** Verify container cleanup with --rm flag
 
 **Steps:**
-1. Open R file and launch Docker terminal: `<LocalLeader>R`
+1. Open R file and launch Docker terminal: `ZR`
 2. Note container name from terminal
 3. Close terminal: `:q` in terminal window
 4. Check running containers: `docker ps`
@@ -217,7 +182,7 @@ let g:zzvim_r_docker_options = '-v ' . getcwd() . ':/workspace -w /workspace'
 - Container not in `docker ps -a` (removed by --rm flag)
 - Clean automatic cleanup
 
-## Test Scenario 12: Ex Commands
+## Test Scenario 10: Ex Commands
 
 **Purpose:** Test Ex command versions of Docker functions
 
@@ -231,60 +196,62 @@ let g:zzvim_r_docker_options = '-v ' . getcwd() . ':/workspace -w /workspace'
 7. Verify association
 
 **Expected Results:**
-- `:RDockerTerminal` creates new Docker terminal
+- `:RDockerTerminal` creates new Docker terminal via `make r`
 - `:RDockerTerminalForce` associates with existing
 - Both commands work identically to key mappings
 
-## Test Scenario 13: Tidyverse Image Features
+## Test Scenario 11: Custom Makefile Configuration
 
-**Purpose:** Test tidyverse-specific functionality
+**Purpose:** Test different Makefile configurations
 
-**Configuration:**
-```vim
-let g:zzvim_r_docker_image = 'rocker/tidyverse:latest'
+**Test A: Multiple Volume Mounts**
+```makefile
+r:
+	docker run -it --rm \
+		-v $(PWD):/workspace \
+		-v ~/data:/data \
+		-v ~/code:/code \
+		-w /workspace \
+		rocker/tidyverse R --no-save --quiet
 ```
 
-**Steps:**
-1. Open R file
-2. Press `<LocalLeader>R`
-3. Execute code using tidyverse:
-   ```r
-   library(dplyr)
-   library(ggplot2)
+**Test B: Custom Image**
+```makefile
+r:
+	docker run -it --rm \
+		-v $(PWD):/workspace \
+		-w /workspace \
+		my-custom-r-image R --no-save --quiet
+```
 
-   df <- mtcars %>%
-     filter(mpg > 20) %>%
-     arrange(desc(hp))
-   ```
+**Test C: Environment Variables**
+```makefile
+r:
+	docker run -it --rm \
+		-v $(PWD):/workspace \
+		-w /workspace \
+		-e R_LIBS_USER=/workspace/rlibs \
+		rocker/tidyverse R --no-save --quiet
+```
 
-**Expected Results:**
-- Tidyverse packages available
-- Code executes without installation
-- Pipe operator `%>%` works
-
-## Test Scenario 14: Cross-Platform Paths
-
-**Purpose:** Test volume mounting on different operating systems
-
-**Steps (run on Linux, macOS, Windows):**
-1. Set up Docker with appropriate volume syntax for OS
-2. Open R file
-3. Press `<LocalLeader>R`
-4. In R, run: `getwd()`
-5. In R, run: `list.files()`
+**Steps for each test:**
+1. Update Makefile
+2. Open `vim test.R`
+3. Press `ZR`
+4. Verify configuration in R terminal
 
 **Expected Results:**
-- Working directory correctly set to `/workspace`
-- Files from host visible in container
-- Paths work correctly for the OS
+- Each Makefile configuration works correctly
+- Volume mounts, images, and environment variables respected
+- `make r` command properly executed
 
-## Test Scenario 15: Rapid Terminal Switching
+## Test Scenario 12: Rapid Terminal Switching
 
 **Purpose:** Test stability with rapid operations
 
 **Steps:**
 1. Open file: `vim test_docker.R`
-2. Press `<LocalLeader>R` quickly
+2. Press `ZR` quickly
 3. Immediately press `<LocalLeader>dr`
 4. Execute code: `<CR>`
 5. Switch to terminal and back rapidly
@@ -300,11 +267,12 @@ let g:zzvim_r_docker_image = 'rocker/tidyverse:latest'
 
 ### Issue: Terminal doesn't appear
 - Check Docker is running: `docker ps`
-- Verify image exists: `docker images | grep rocker`
+- Verify Makefile exists with 'r' target
+- Test `make r` directly in shell
 - Check terminal split size configuration
 
 ### Issue: Files not visible in container
-- Verify volume mount in `g:zzvim_r_docker_options`
+- Verify volume mount in Makefile (-v flags)
 - Check current directory: `getcwd()` in Vim matches mount source
 - Ensure Docker has permission to mount directory
 
@@ -314,10 +282,16 @@ let g:zzvim_r_docker_image = 'rocker/tidyverse:latest'
 - Check terminal is running, not stopped
 
 ### Issue: Package not found in container
-- Verify correct Docker image selected
+- Verify correct Docker image in Makefile
 - Some images (r-ver) don't include packages
 - Use tidyverse image for common packages
 - Or install in container: `install.packages("package")`
+
+### Issue: make command fails
+- Test `make r` directly in terminal outside Vim
+- Check Makefile syntax (tabs vs spaces)
+- Verify Docker image exists: `docker images`
+- Check Docker daemon is running
 
 ## Success Criteria
 

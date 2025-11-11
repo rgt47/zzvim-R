@@ -122,7 +122,7 @@ scriptencoding utf-8
 " -------------------------
 "   <LocalLeader>r    - Create buffer-specific R terminal session (vertical
 "                      split, each R file gets its own isolated terminal)
-"   <LocalLeader>R    - Launch R in Docker container via 'make r' command
+"   ZR               - Launch R in Docker container via 'make r' command
 "                      (terminal auto-named R-<filename> for association)
 "   <LocalLeader>dr   - Force-associate with existing Docker terminal
 "                      (even if terminal name matches - allows reusing
@@ -431,8 +431,8 @@ let g:zzvim_r_debug = get(g:, 'zzvim_r_debug', 0)
 
 " Docker Configuration:
 " --------------------
-" NOTE: <LocalLeader>R now runs 'make r' instead of building docker commands
-" These configuration variables are no longer used by <LocalLeader>R
+" NOTE: ZR now runs 'make r' instead of building docker commands
+" These configuration variables are no longer used by ZR
 " Configure your Docker setup in your Makefile instead
 "
 " Example Makefile target 'r':
@@ -1744,7 +1744,7 @@ if !g:zzvim_r_disable_mappings
     augroup zzvim_RMarkdown
         autocmd!
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>r  :call <SID>OpenRTerminal()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>R  :call <SID>OpenDockerRTerminal()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> ZR  :call <SID>OpenDockerRTerminal()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>dr :call <SID>OpenDockerRTerminal(s:GetTerminalName(), 1)<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>w :call <SID>ROpenSplitCommand('vertical')<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>W :call <SID>ROpenSplitCommand('horizontal')<CR>

@@ -10,15 +10,14 @@ DIRECTORY SETUP
 
 QUICK START
 -----------
-Terminal 1:  cd ~/prj/png1 && make r
-Terminal 2:  vim analysis.R
-In Vim:      <Space>dr  (force-associate)
+vim analysis.R
+In Vim:      ZR         (launch Docker R)
              <CR>       (execute code)
 
 DOCKER TERMINAL
 ---------------
-<Space>dr    Force-associate with make r terminal ⭐ PRIMARY METHOD
-<Space>R     Launch png1 directly (alternative to make r)
+ZR           Launch png1 via make r ⭐ PRIMARY METHOD
+<Space>dr    Force-associate with existing Docker terminal
 <Space>r     Launch regular R (no Docker)
 
 CODE EXECUTION
@@ -73,10 +72,9 @@ Check association:
 TYPICAL WORKFLOW
 ----------------
 1. cd ~/prj/png1              # Go to workspace
-2. make r                     # Terminal 1: Launch png1
-3. vim analysis.R             # Terminal 2: Edit R code
-4. <Space>dr                  # In Vim: Associate once
-5. <CR>                       # Execute code as needed
+2. vim analysis.R             # Edit R code
+3. ZR                         # In Vim: Launch Docker R
+4. <CR>                       # Execute code as needed
 
 EXAMPLE SESSION
 ---------------
@@ -96,14 +94,7 @@ result <- process_data(data)       # Cursor here, press <CR>
 # Cursor on 'result', press <Space>h  → head(result)
 # Cursor on 'result', press <Space>s  → str(result)
 
-CONFIGURATION (~/.vimrc)
-------------------------
-" Auto-configure png1 workspace with zzcollab access
-autocmd BufRead,BufNewFile ~/prj/png1/*.R,~/prj/png1/*.Rmd
-    \ let g:zzvim_r_docker_image = 'png1' |
-    \ let g:zzvim_r_docker_options = '-v ' . expand('~/prj/png1') . ':/workspace -v ~/prj/d07/zzcollab:/zzcollab -w /workspace'
-
-MAKEFILE REQUIREMENTS
+MAKEFILE CONFIGURATION
 ---------------------
 Your 'make r' in ~/prj/png1 should mount BOTH directories:
 
@@ -121,10 +112,10 @@ CONTAINER PATHS
 
 KEY CONCEPT
 -----------
-<Space>dr = "Force-associate this R file with existing Docker terminal"
+ZR = "Launch Docker R via make r"
 
-Use this when you launch png1 via 'make r' and want Vim to send
-code to that container. You only need to do this ONCE per file.
-After that, <CR> executes code in the png1 container automatically.
+Press ZR once to launch the png1 Docker container.
+After that, <CR> executes code in the container automatically.
+Terminal auto-named and associated with your R file.
 
 ================================================================================

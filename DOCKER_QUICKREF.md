@@ -4,7 +4,7 @@
 
 | Mapping | Action |
 |---------|--------|
-| `<LocalLeader>R` | Launch R in Docker container (new) |
+| `ZR` | Launch R in Docker via 'make r' (new) |
 | `<LocalLeader>dr` | Force-associate with existing Docker terminal |
 | `<LocalLeader>r` | Launch regular (non-Docker) R terminal |
 
@@ -12,20 +12,23 @@
 
 | Command | Action |
 |---------|--------|
-| `:RDockerTerminal` | Launch R in Docker container |
+| `:RDockerTerminal` | Launch R in Docker via 'make r' |
 | `:RDockerTerminalForce` | Force-associate with existing Docker terminal |
 
-## Configuration (in .vimrc)
+## Configuration
 
-```vim
-" Docker image (default: rocker/tidyverse:latest)
-let g:zzvim_r_docker_image = 'rocker/tidyverse:latest'
+**ZR now runs `make r` instead of building docker commands.**
 
-" Docker options (default: mount current directory)
-let g:zzvim_r_docker_options = '-v ' . getcwd() . ':/workspace -w /workspace'
+Configure your Docker setup in your Makefile:
 
-" R command in container (default: R --no-save --quiet)
-let g:zzvim_r_docker_command = 'R --no-save --quiet'
+```makefile
+# Example Makefile target
+r:
+	docker run -it --rm \
+		-v $(PWD):/workspace \
+		-v ~/prj/d07/zzcollab:/zzcollab \
+		-w /workspace \
+		png1 R --no-save --quiet
 ```
 
 ## Common Workflows
@@ -33,7 +36,7 @@ let g:zzvim_r_docker_command = 'R --no-save --quiet'
 ### New Docker Terminal
 ```vim
 vim analysis.R
-<LocalLeader>R      " Launch Docker R
+ZR                  " Launch Docker R via 'make r'
 <CR>                " Execute code
 ```
 
@@ -43,21 +46,6 @@ vim analysis.R
 vim analysis.R
 <LocalLeader>dr     " Force-associate
 <CR>                " Execute in existing terminal
-```
-
-### Custom Image
-```vim
-" In .vimrc:
-let g:zzvim_r_docker_image = 'rocker/r-ver:4.3.0'
-
-" Then use normally:
-<LocalLeader>R
-```
-
-### Mount Additional Directory
-```vim
-" In .vimrc:
-let g:zzvim_r_docker_options = '-v ~/data:/data -v ' . getcwd() . ':/workspace -w /workspace'
 ```
 
 ## All Existing Features Work
