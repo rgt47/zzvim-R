@@ -4,7 +4,7 @@ This document provides comprehensive information about the zzvim-R plugin, its c
 
 ## Document Status
 
-**Last Updated**: November 10, 2025
+**Last Updated**: November 27, 2025
 **Plugin Version**: 1.0.4+docker
 **Documentation Status**: Comprehensive accuracy review completed with 76-char line wrapping
 **Test Coverage**: Full test suite + clean execution validation with automated CI workflows
@@ -17,6 +17,7 @@ This document provides comprehensive information about the zzvim-R plugin, its c
 **Professional IDE Setup**: Complete R development environment with LSP, formatting, and diagnostics
 **Terminal Selection**: Intelligent detection and user selection of existing terminals
 **Docker Integration**: Full Docker container support with force-association capabilities
+**Competitive Analysis**: Honest research-focused comparisons with R.nvim and RStudio
 
 ## Plugin Overview
 
@@ -62,7 +63,8 @@ zzvim-R/
 ├── MULTI_FILE_WORKFLOW.md  # Multi-file R analysis workflow guide
 ├── CONTRIBUTING.md         # Contribution guidelines
 ├── docs/                    # Documentation and analysis
-│   └── zzvim-R-vs-R.nvim-comparison.md  # Competitive analysis with R.nvim
+│   ├── zzvim-R-vs-R.nvim-comparison.md  # Honest comparison with R.nvim
+│   └── zzvim-R-vs-RStudio-comparison.md # Honest comparison with RStudio
 ├── improvements.md         # Development improvements (dev only)
 ├── code_quality_report.md  # Code quality assessment (dev only)
 └── CLAUDE.md               # This file - development guide
@@ -2538,4 +2540,56 @@ For existing zzvim-R users:
 
 The Docker integration represents a significant evolution in zzvim-R's capabilities, enabling professional containerized R development workflows while maintaining the plugin's commitment to simplicity and efficiency.
 
-**Status**: Intelligent terminal selection successfully implemented, tested, and documented. Provides professional terminal management experience while preserving zzvim-R's core philosophy of lightweight, efficient R development tools with user-friendly design.
+## Competitive Analysis Update (November 27, 2025)
+
+### **Honest Research-Focused Comparison Documents**
+
+Both comparison documents (`docs/zzvim-R-vs-R.nvim-comparison.md` and `docs/zzvim-R-vs-RStudio-comparison.md`) have been completely rewritten with critical, honest assessments focused on research data analysis workflows.
+
+#### **Key Findings**
+
+**Critical Gap Identified**: Plot viewing is the #1 priority gap across both comparisons. Without integrated plot viewing, zzvim-R is not viable for visualization-heavy research work (~25% of typical research time).
+
+**Tier 1 Gaps (Blocking Issues)**:
+
+1. **Plot Viewing System** - Zero support currently, critical for research
+2. **Buffer-Based Help Display** - Help goes to terminal, disrupts workflow
+3. **Code Completion** - No built-in support, requires external plugins
+
+**Tier 2 Gaps (Competitive Parity)**:
+
+4. **Interactive Object Browser** - HUDs are text snapshots, not interactive
+5. **Enhanced R Markdown Support** - Basic chunks only, no rendering
+6. **Error Navigation** - No quickfix integration for R errors
+
+#### **Honest Assessment Summary**
+
+**vs R.nvim**:
+
+- R.nvim is more capable for research data analysis
+- zzvim-R advantages: Vim compatibility (R.nvim is Neovim-only), simpler setup, Docker integration
+- R.nvim advantages: Object browser, built-in completion, help integration
+
+**vs RStudio**:
+
+- RStudio wins 10 of 14 feature categories
+- zzvim-R advantages: Vim editing power, resource usage, SSH/remote work
+- RStudio advantages: Plot viewing, data exploration, completion, help, debugging, R Markdown
+
+#### **Target Users**
+
+zzvim-R is for users who:
+
+- Already know Vim well (not "want to learn")
+- Value editing efficiency over visual features
+- Work primarily via SSH on remote servers
+- Use Docker for reproducible environments
+- Accept losing plot viewing, debugging, visual data exploration
+
+#### **Roadmap for Competitiveness**
+
+**Phase 1** (Critical): Plot viewing, help in buffer, completion documentation
+**Phase 2** (Parity): Interactive object browser, R Markdown rendering, error navigation
+**Phase 3** (Polish): Session management, package dev tools
+
+**Documentation Impact**: Both comparison documents now serve as honest guides for potential users and as a development roadmap for addressing gaps.
