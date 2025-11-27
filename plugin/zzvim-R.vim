@@ -1480,45 +1480,49 @@ function! s:GetCodeBlock() abort
             " Skip Phase 1, fall through to Phase 2 for balanced parentheses counting
         else
             " Balanced or no parentheses - treat as infix expression
-            " Multi-line infix expression - read until we find a line that doesn't end with an operator
-        let end_line = current_line_num
-        while end_line < line('$')
-            let end_line += 1
-            let next_line = getline(end_line)
-            if next_line =~# '^\s*$' || next_line =~# '^\s*#'
-                " Skip empty lines and comments, continue searching
-                continue
-            else
-                " Found non-empty, non-comment line
-                " Check if this line also ends with an operator or comma (pipe chain continues)
-                if next_line =~# '[+\-*/^&|<>=!,]\s*$' || next_line =~# '%[^%]*%\s*$' || next_line =~# '<-\s*$' || next_line =~# '|>\s*$'
-                    " This line also ends with an operator, continue the chain
+            " Multi-line infix expression - read until we find a line that doesn't
+            " end with an operator AND all parentheses are balanced
+            let end_line = current_line_num
+            let paren_balance = 0  " Track cumulative parenthesis balance
+
+            " Count parens on the first line
+            let paren_balance += len(substitute(current_line, '[^(]', '', 'g'))
+            let paren_balance -= len(substitute(current_line, '[^)]', '', 'g'))
+
+            while end_line < line('$')
+                let end_line += 1
+                let next_line = getline(end_line)
+
+                if next_line =~# '^\s*$' || next_line =~# '^\s*#'
+                    " Skip empty lines and comments, continue searching
                     continue
-                else
-                    " This line doesn't end with an operator
-                    " But check if the NEXT line continues the pipe chain (for multi-line function calls)
-                    if end_line < line('$')
-                        let peek_line = getline(end_line + 1)
-                        " If next line is empty/comment, keep looking ahead
-                        let peek_line_num = end_line + 1
-                        while peek_line_num <= line('$') && (peek_line =~# '^\s*$' || peek_line =~# '^\s*#')
-                            let peek_line_num += 1
-                            if peek_line_num <= line('$')
-                                let peek_line = getline(peek_line_num)
-                            endif
-                        endwhile
-                        
-                        " If the next non-empty line ends with an operator or comma, continue the chain
-                        if peek_line_num <= line('$') && (peek_line =~# '[+\-*/^&|<>=!,]\s*$' || peek_line =~# '%[^%]*%\s*$' || peek_line =~# '<-\s*$' || peek_line =~# '|>\s*$')
-                            " Continue the chain - this was a multi-line function call
-                            continue
-                        endif
-                    endif
-                    " No continuation found, this is the end of the chain
-                    break
                 endif
-            endif
-        endwhile
+
+                " Update parenthesis balance for this line
+                let paren_balance += len(substitute(next_line, '[^(]', '', 'g'))
+                let paren_balance -= len(substitute(next_line, '[^)]', '', 'g'))
+
+                " Check if this line ends with an operator or comma (pipe chain continues)
+                let ends_with_operator = next_line =~# '[+\-*/^&|<>=!,]\s*$' ||
+                            \ next_line =~# '%[^%]*%\s*$' ||
+                            \ next_line =~# '<-\s*$' ||
+                            \ next_line =~# '|>\s*$'
+
+                if ends_with_operator
+                    " Line ends with operator, continue the chain
+                    continue
+                endif
+
+                " Line doesn't end with operator - but check if parens are balanced
+                if paren_balance > 0
+                    " Still have unclosed parentheses, must continue
+                    continue
+                endif
+
+                " Parens balanced and no trailing operator - this is the end
+                break
+            endwhile
+
             let s:last_block_end_line = end_line
             return getline(current_line_num, end_line)
         endif
