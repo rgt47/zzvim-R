@@ -1919,6 +1919,15 @@ endfunction
 " Public API Functions for Modular Components
 "------------------------------------------------------------------------------
 
+" Test wrapper functions - expose script-local functions for testing
+function! ZzvimRTestIsBlockStart(line) abort
+    return s:IsBlockStart(a:line)
+endfunction
+
+function! ZzvimRTestGetTextByType(selection_type) abort
+    return s:GetTextByType(a:selection_type)
+endfunction
+
 "------------------------------------------------------------------------------
 " Simple Object Inspection Functions
 "------------------------------------------------------------------------------
