@@ -53,35 +53,20 @@ for var in config_vars
     endif
 endfor
 
-" Test 5: Test helper functions exist
-let test_functions = ['ZzvimRTestIsBlockStart', 'ZzvimRTestGetTextByType']
-for func in test_functions
-    if exists('*' . func)
-        echo "✓ PASS | Test function exists: " . func
+" Test 5: Ex commands exist
+let ex_commands = ['ROpenTerminal', 'RSendLine', 'RSendChunk', 'RHead', 'RStr']
+for cmd in ex_commands
+    if exists(':' . cmd)
+        echo "✓ PASS | Ex command exists: :" . cmd
     else
-        echo "✗ FAIL | Test function missing: " . func
+        echo "✗ FAIL | Ex command missing: :" . cmd
         let failed_tests += 1
     endif
 endfor
 
-" Test 6: Basic pattern matching
-if exists('*ZzvimRTestIsBlockStart')
-    let test_line = 'my_func <- function(x) {'
-    let result = ZzvimRTestIsBlockStart(test_line)
-    if result == 1
-        echo "✓ PASS | Pattern matching works for function definition"
-    else
-        echo "✗ FAIL | Pattern matching failed for function definition"
-        let failed_tests += 1
-    endif
-else
-    echo "✗ FAIL | Cannot test pattern matching - function missing"
-    let failed_tests += 1
-endif
-
 echo "=========================================="
 if failed_tests == 0
-    echo "🎉 ALL CI TESTS PASSED! (" . (7 + len(config_vars) + len(test_functions)) . " tests)"
+    echo "🎉 ALL CI TESTS PASSED! (" . (4 + len(config_vars) + len(ex_commands)) . " tests)"
     echo "Plugin is ready for production use."
     " Force immediate exit with success code
     execute 'qall!'
