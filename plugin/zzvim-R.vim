@@ -101,221 +101,7 @@ scriptencoding utf-8
 "   Default: 0 (disabled)
 "   Example: let g:zzvim_r_debug = 1  " Enable for debugging
 "
-" KEY MAPPINGS REFERENCE:
-" ======================
-" VimScript Mapping Convention: <LocalLeader> is typically backslash (\) by 
-" default. Users can customize by setting: let maplocalleader = ","  
-" Mappings are buffer-local and only active in R/Rmd files (controlled by 
-" autocmd). All submissions use silent execution (no "Press ENTER" prompts).
-"
-" Smart Code Submission (Context-Aware with Enhanced Pattern Recognition):
-" -------------------------------------
-"   <CR> (Enter)      - Intelligent code submission based on cursor position
-"                      * On function definition: sends entire function
-"                      * On control structure (if/for/while): sends entire
-"                        block
-"                      * On regular line: sends current line only
-"                      * Inside function: sends individual line for
-"                        debugging
-"
-" Multi-Terminal Management:
-" -------------------------
-"   <LocalLeader>r    - Create buffer-specific R terminal session (vertical
-"                      split, each R file gets its own isolated terminal)
-"   ZR               - Launch R in Docker container via 'make r' command
-"                      (terminal auto-named R-<filename> for association)
-"   <LocalLeader>dr   - Force-associate with existing Docker terminal
-"                      (even if terminal name matches - allows reusing
-"                      manually created Docker terminals)
-"   <LocalLeader>w    - Open buffer-specific R terminal in new vertical split
-"                      window (preserves current buffer view)
-"   <LocalLeader>W    - Open buffer-specific R terminal in new horizontal split
-"                      window (preserves current buffer view)
-"   <LocalLeader>q    - Send 'Q' command to R (quit current buffer's R
-"                      session)
-"   <LocalLeader>c    - Send Ctrl-C interrupt signal (stop running commands)
-"
-" Code Enhancement:
-" ----------------
-"   <LocalLeader>o    - Insert R pipe operator (%>%) and create new line
-"                      Positions cursor for chaining operations
-"
-" R Markdown/Quarto Navigation:
-" ----------------------------
-"   <LocalLeader>j    - Jump to next code chunk (forward navigation)
-"   <LocalLeader>k    - Jump to previous code chunk (backward navigation)
-"   <LocalLeader>l    - Execute current chunk (submit to buffer-specific 
-"                      terminal)
-"   <LocalLeader>t    - Execute all previous chunks (reproducing analysis in
-"                      buffer-specific terminal up to cursor position)
-"
-" Object Inspection (Data Analysis):
-" ---------------------------------
-" These mappings execute R functions on the word under cursor
-" (place cursor on variable name, press mapping)
-"   <LocalLeader>h    - head() - Preview first few rows/elements
-"   <LocalLeader>u    - tail() - Preview last few rows/elements  
-"   <LocalLeader>s    - str() - Display object structure and data types
-"   <LocalLeader>d    - dim() - Show dimensions (rows, columns) of data
-"   <LocalLeader>p    - print() - Display complete object contents
-"   <LocalLeader>n    - names() - Show column/element names
-"   <LocalLeader>f    - length() - Count elements/observations
-"   <LocalLeader>g    - glimpse() - Modern tibble structure view (dplyr)
-"   <LocalLeader>b    - dt() - data.table print method
-"   <LocalLeader>y    - help() - Open R help documentation
-"
-" HUD (Heads-Up Display) Functions:
-" =================================
-" Advanced workspace and system information viewers with tabulated output
-" All HUD functions open in split windows with search capability (press '/')
-" Close any HUD window with 'q' or <ESC>
-"
-"   <LocalLeader>m    - Memory HUD - Show memory usage of all workspace objects
-"                      Displays objects sorted by size in MB with total
-"   <LocalLeader>e    - Data Frame HUD - Quick overview of all data frames
-"                      Shows dimensions (rows × cols) for each data frame
-"   <LocalLeader>z    - Package HUD - List currently loaded R packages
-"                      Shows loaded packages with total count
-"   <LocalLeader>v    - Data Viewer - RStudio-style data frame viewer
-"                      Place cursor on data frame name, creates tabulated view
-"   <LocalLeader>x    - Environment HUD - System environment variables
-"                      Alphabetically sorted with search functionality
-"   <LocalLeader>a    - R Options HUD - Current R session options
-"                      Shows all R options() with intelligent value formatting
-"   <LocalLeader>'    - Workspace Overview - Compact object listing
-"   <LocalLeader>i    - Object Inspector - Detailed object examination
-"   <LocalLeader><CR> - SendToR with Comments - Execute code and capture output
-"                      as comments in the source file
-"
-" EX COMMANDS REFERENCE:
-" =====================
-" These commands can be executed from Vim's command line (type : to enter 
-" command mode). Commands with [optional] arguments use word under cursor 
-" if no argument provided
-" All commands support tab completion for discoverability
-"
-" Session Management:
-" ------------------
-"     :ROpenTerminal           - Create buffer-specific R terminal (vertical 
-"                               split, isolated per R file)
-"                               Uses g:zzvim_r_terminal_width for window size
-"                               Executes g:zzvim_r_command to start R
-"
-" Code Submission (Multiple Methods with Silent Execution):
-" --------------------------------------------------------
-"     :RSendLine               - Send current line to buffer-specific R 
-"                               terminal, no user prompts
-"     :RSendSmart              - Intelligent context-aware submission with 
-"                               enhanced pattern recognition for both {} and () 
-"                               structures
-"     :RSendFunction           - Force submission of complete function block 
-"                               using enhanced brace/parenthesis-matching 
-"                               algorithm
-"     :RSendSelection          - Send visual selection to buffer-specific R 
-"                               terminal
-"                               Allows precise control over code boundaries
-"
-" Document Navigation (R Markdown/Quarto):
-" ----------------------------------------
-"     :RNextChunk              - Navigate to next code chunk
-"                               Uses g:zzvim_r_chunk_start pattern for 
-"                               detection
-"     :RPrevChunk              - Navigate to previous code chunk  
-"                               Handles cursor context to find correct chunk
-"     :RSendChunk              - Execute all code in current chunk using 
-"                               buffer-specific terminal, silent execution
-"     :RSendPreviousChunks     - Execute all chunks from start to current 
-"                               position in buffer-specific terminal for 
-"                               reproducible analysis
-"
-" Data Inspection (R Object Analysis):
-" ------------------------------------
-" Pattern: Commands accept optional argument, use word under cursor if none 
-" provided
-" Usage: :RHead mydata  OR  position cursor on variable and type :RHead
-"     :RHead [object]          - head(object) - Preview first rows/elements
-"     :RTail [object]          - tail(object) - Preview last rows/elements
-"     :RStr [object]           - str(object) - Examine object structure
-"     :RDim [object]           - dim(object) - Get dimensions (rows × 
-"                               columns)
-"     :RPrint [object]         - print(object) - Display complete object
-"     :RNames [object]         - names(object) - Show variable/column names
-"     :RLength [object]        - length(object) - Count elements
-"     :RGlimpse [object]       - glimpse(object) - dplyr-style structure view
-"     :RSummary [object]       - summary(object) - Statistical summary
-"     :RHelp [topic]           - help(topic) - Open R documentation
-"
-" Session Control:
-" ---------------
-"     :RQuit                   - Send 'Q' to R (graceful session termination)
-"     :RInterrupt              - Send Ctrl-C (interrupt running computation)
-"                               Useful for stopping infinite loops or long 
-"                               calculations
-"   
-" Advanced Workflow Commands:
-" --------------------------
-"     :RSend {code}            - Execute arbitrary R code string
-"                               Example: :RSend library(ggplot2)
-"     :RSource {file}          - Source (execute) external R script file
-"                               Example: :RSource 
-"                               ~/analysis/helper_functions.R
-"     :RLibrary {package}      - Load R package into session
-"                               Example: :RLibrary dplyr
-"     :RInstall {package}      - Install package from CRAN
-"                               Example: :RInstall tidyverse
-"
-" Data Management Commands:
-" ------------------------
-"     :RLoad {file}            - Load RDS file (prompts for variable name)
-"                               Reads saved R objects from disk
-"     :RSave {object} {file}   - Save R object to RDS file
-"                               Preserves object for later sessions
-"
-" Workspace Utilities:
-" -------------------
-"     :RSetwd [directory]      - Set R working directory
-"                               Defaults to Vim's current working directory if 
-"                               no arg
-"     :RGetwd                  - Display current R working directory
-"     :RLs                     - List all objects in R workspace (ls())
-"     :RRm                     - Remove all objects from workspace 
-"                               (rm(list=ls()))
-"
-" Terminal Association Utilities:
-" ------------------------------
-"     :RShowTerminal           - Show which terminal is associated with current
-"                               R buffer
-"     :RListTerminals          - List all R file-terminal associations
-"     :RSwitchToTerminal       - Switch to the terminal associated with current
-"                               R buffer
-"     :ROpenSplit              - Open buffer-specific R terminal in new split
-"                               window (horizontal or vertical)
-"
-" Docker Container Support:
-" ------------------------
-"     :RDockerTerminal         - Launch R in Docker via 'make r' (creates new)
-"                               Terminal auto-named R-<filename> for association
-"     :RDockerTerminalForce    - Force-associate with existing Docker terminal
-"                               Use this to connect to an already-running
-"                               Docker terminal even if properly named
-"
-" HUD (Heads-Up Display) Commands:
-" --------------------------------
-"     :RMemoryHUD              - Memory usage of all workspace objects
-"                               (sorted by size in MB with totals)
-"     :RDataFrameHUD           - Quick overview of all data frames  
-"                               (shows dimensions for each data frame)
-"     :RPackageHUD             - List currently loaded R packages
-"                               (with total package count)
-"     :RDataViewer             - RStudio-style data frame viewer
-"                               (tabulated view with column alignment) 
-"     :REnvironmentHUD         - System environment variables
-"                               (alphabetically sorted, searchable)
-"     :ROptionsHUD             - Current R session options
-"                               (formatted display of options() output)
-"     :RWorkspace              - Compact workspace object listing
-"     :RInspect [object]       - Detailed object examination
-"     :RSendWithComments       - Execute code and capture output as comments
+" For key mappings and Ex commands reference, see :help zzvim-R
 "
 " =============================================================================
 " PLUGIN IMPLEMENTATION BEGINS
@@ -442,12 +228,6 @@ let g:zzvim_r_debug = get(g:, 'zzvim_r_debug', 0)
 "           -v ~/prj/d07/zzcollab:/zzcollab \
 "           -w /workspace \
 "           png1 R --no-save --quiet
-
-" Legacy Docker configuration variables (unused)
-" Kept for backward compatibility - you can remove these from your .vimrc
-let g:zzvim_r_docker_image = get(g:, 'zzvim_r_docker_image', 'rocker/tidyverse:latest')
-let g:zzvim_r_docker_options = get(g:, 'zzvim_r_docker_options', '-v ' . getcwd() . ':/workspace -w /workspace')
-let g:zzvim_r_docker_command = get(g:, 'zzvim_r_docker_command', 'R --no-save --quiet')
 
 "------------------------------------------------------------------------------
 " Utility Functions
@@ -626,100 +406,65 @@ function! s:Error(msg) abort
     call s:Log(a:msg, 1)
 endfunction
 
+" Check if line ends with an R infix operator (pipe, arithmetic, assignment, etc.)
+" Used for multi-line expression detection
+function! s:EndsWithInfixOperator(line) abort
+    return a:line =~# '[+\-*/^&|<>=!,]\s*$' ||
+                \ a:line =~# '%[^%]*%\s*$' ||
+                \ a:line =~# '<-\s*$' ||
+                \ a:line =~# '|>\s*$'
+endfunction
+
+" Set up buffer for HUD/viewer displays with standard options
+" Note: Does not set readonly - call setlocal readonly after writing content
+function! s:SetupViewerBuffer() abort
+    setlocal buftype=nofile
+    setlocal bufhidden=wipe
+    setlocal noswapfile
+    setlocal nowrap
+    setlocal nonumber
+    setlocal norelativenumber
+    nnoremap <buffer> <silent> q :bwipe<CR>
+    nnoremap <buffer> <silent> <ESC> :bwipe<CR>
+endfunction
+
 " =============================================================================
 " CORE TERMINAL MANAGEMENT FUNCTIONS
 " =============================================================================
 
-" Create and Configure R Terminal Session
-" This function creates a persistent R terminal in a vertical split
+" Create and Configure R Terminal Session (local or Docker)
+" Unified terminal creation function for both local R and Docker R
+" Parameters:
+"   a:1 (optional) - terminal name override
+"   a:2 (optional) - for docker: force re-association (1 = force)
 " Returns: number - terminal buffer number or -1 if failed
 function! s:OpenRTerminal(...) abort
-    " Generate unique terminal name for this buffer
     let terminal_name = a:0 > 0 ? a:1 : s:GetTerminalName()
-    
-    " executable('R') checks if R command is available in system PATH
-    " Returns 1 if found, 0 if not found
+
     if !executable('R')
         call s:Error('R is not installed or not in PATH')
-        " Early return pattern - exit function if prerequisite not met
         return -1
     endif
 
-    " Create vertical terminal split and execute R startup command
-    " execute = run Ex command from string variable
-    " 'vertical term' = create vertical split with terminal
-    " g:zzvim_r_command contains full R startup command with arguments
     execute 'vertical term ' . g:zzvim_r_command
-    
-    " Resize terminal window using configured width or dynamic calculation
-    " Check if user has explicitly set terminal width, otherwise use dynamic sizing
-    if exists('g:zzvim_r_terminal_width') && g:zzvim_r_terminal_width > 0
-        " Use user-configured width
-        let terminal_width = g:zzvim_r_terminal_width
-    else
-        " Use dynamic width: half of current window width
-        let terminal_width = winwidth(0) / 2
-    endif
-    execute 'vertical resize ' . terminal_width
-
-    " Configure terminal buffer display options for better R interaction
-    " setlocal = buffer-local settings (only affect current buffer)
-    " norelativenumber/nonumber = hide line numbers (distracting in terminal)
-    " signcolumn=no = hide sign column (used for diagnostics, not needed in terminal)
-    setlocal norelativenumber nonumber signcolumn=no
-
-    " Store terminal buffer information for buffer association
-    " Get the terminal buffer number that was just created
-    let current_terminal = bufnr('%')
-    
-    " Set terminal name for identification
-    " Check if a buffer with this name already exists
-    if bufexists(terminal_name)
-        " Find an available name by adding a number
-        let counter = 1
-        while bufexists(terminal_name . '_' . counter)
-            let counter += 1
-        endwhile
-        let terminal_name = terminal_name . '_' . counter
-    endif
-    execute 'file ' . terminal_name
-    
-    " Set legacy tab-local variable for backward compatibility
-    let t:is_r_term = 1
-
-    " Return cursor focus to previous window (usually the editor)
-    " wincmd p = window command 'previous' (Ctrl-W p equivalent)
-    " Allows immediate code editing without manual window switching
-    wincmd p
-    
-    " Return the terminal buffer number for proper association
-    return current_terminal
+    return s:ConfigureTerminal(terminal_name, 0)
 endfunction
 
 " Create R Terminal in Docker Container using Makefile
-" Launches R in Docker via 'make r' command and names terminal appropriately
-" Parameters:
-"   a:1 (optional) - terminal name override
-"   a:2 (optional) - force re-association (1 = force, 0 = normal)
-" Returns: number - terminal buffer number or -1 if failed
 function! s:OpenDockerRTerminal(...) abort
-    " Generate unique terminal name for this buffer
     let terminal_name = a:0 > 0 ? a:1 : s:GetTerminalName()
     let force_associate = a:0 > 1 ? a:2 : 0
 
-    " Check if make is available
     if !executable('make')
         call s:Error('make is not installed or not in PATH')
         return -1
     endif
 
-    " If force_associate is enabled and terminal with this name exists, use it
+    " Force-associate with existing terminal if requested
     if force_associate
         let terminal_buffers = s:compat_term_list()
         for buf_id in terminal_buffers
-            let buf_name = bufname(buf_id)
-            if buf_name ==# terminal_name
-                " Found existing terminal with correct name - associate with it
+            if bufname(buf_id) ==# terminal_name
                 let b:r_terminal_id = buf_id
                 let b:r_is_docker = 1
                 echom 'Force-associated with existing Docker terminal: ' . terminal_name
@@ -728,10 +473,13 @@ function! s:OpenDockerRTerminal(...) abort
         endfor
     endif
 
-    " Create vertical terminal split and execute 'make r'
     execute 'vertical term make r'
+    return s:ConfigureTerminal(terminal_name, 1)
+endfunction
 
-    " Resize terminal window using configured width or dynamic calculation
+" Configure terminal after creation (shared between local and Docker)
+function! s:ConfigureTerminal(terminal_name, is_docker) abort
+    " Resize terminal window
     if exists('g:zzvim_r_terminal_width') && g:zzvim_r_terminal_width > 0
         let terminal_width = g:zzvim_r_terminal_width
     else
@@ -739,37 +487,30 @@ function! s:OpenDockerRTerminal(...) abort
     endif
     execute 'vertical resize ' . terminal_width
 
-    " Configure terminal buffer display options
     setlocal norelativenumber nonumber signcolumn=no
-
-    " Store terminal buffer information for buffer association
     let current_terminal = bufnr('%')
 
-    " Set terminal name for identification
-    " Check if a buffer with this name already exists
-    if bufexists(terminal_name)
-        " Find an available name by adding a number
+    " Handle terminal name collision
+    let final_name = a:terminal_name
+    if bufexists(final_name)
         let counter = 1
-        while bufexists(terminal_name . '_' . counter)
+        while bufexists(final_name . '_' . counter)
             let counter += 1
         endwhile
-        let terminal_name = terminal_name . '_' . counter
+        let final_name = final_name . '_' . counter
     endif
-    execute 'file ' . terminal_name
+    execute 'file ' . final_name
 
-    " Mark this as a Docker terminal for future reference
-    let b:r_is_docker = 1
-
-    " Set legacy tab-local variable for backward compatibility
+    if a:is_docker
+        let b:r_is_docker = 1
+    endif
     let t:is_r_term = 1
-
-    " Return cursor focus to previous window
     wincmd p
 
-    " Associate new terminal with this buffer
-    let b:r_terminal_id = current_terminal
+    if a:is_docker
+        let b:r_terminal_id = current_terminal
+    endif
 
-    " Return the terminal buffer number for proper association
     return current_terminal
 endfunction
 
@@ -1442,8 +1183,7 @@ function! s:IsBlockStart(line) abort
     endif
     
     " Multi-line expressions - lines ending with infix operators or commas
-    if a:line =~# '[+\-*/^&|<>=!,]\s*$' || a:line =~# '%[^%]*%\s*$' ||
-                \ a:line =~# '<-\s*$' || a:line =~# '|>\s*$'
+    if s:EndsWithInfixOperator(a:line)
         return 1
     endif
     
@@ -1467,9 +1207,9 @@ function! s:GetCodeBlock() abort
     let current_line_num = line('.')  " Starting line number
     let current_line = getline('.')   " Current line content
     
-    " Phase 1: Check for infix expressions first (no balanced delimiters)  
+    " Phase 1: Check for infix expressions first (no balanced delimiters)
     " But exclude lines with unbalanced parentheses (those should use Phase 2)
-    let has_infix_ending = (current_line =~# '[+\-*/^&|<>=!,]\s*$' || current_line =~# '%[^%]*%\s*$' || current_line =~# '<-\s*$' || current_line =~# '|>\s*$')
+    let has_infix_ending = s:EndsWithInfixOperator(current_line)
     
     if has_infix_ending
         " Check if line has unbalanced parentheses - if so, use Phase 2 instead
@@ -1503,10 +1243,7 @@ function! s:GetCodeBlock() abort
                 let paren_balance -= len(substitute(next_line, '[^)]', '', 'g'))
 
                 " Check if this line ends with an operator or comma (pipe chain continues)
-                let ends_with_operator = next_line =~# '[+\-*/^&|<>=!,]\s*$' ||
-                            \ next_line =~# '%[^%]*%\s*$' ||
-                            \ next_line =~# '<-\s*$' ||
-                            \ next_line =~# '|>\s*$'
+                let ends_with_operator = s:EndsWithInfixOperator(next_line)
 
                 if ends_with_operator
                     " Line ends with operator, continue the chain
@@ -2182,52 +1919,6 @@ endfunction
 " Public API Functions for Modular Components
 "------------------------------------------------------------------------------
 
-" Note: Public API functions moved to autoload/ for proper namespace handling
-
-"------------------------------------------------------------------------------
-" Testing Functions (Public wrappers for script-local functions)
-"------------------------------------------------------------------------------
-
-" Public wrapper for testing s:IsBlockStart()
-function! ZzvimRTestIsBlockStart(line) abort
-    return s:IsBlockStart(a:line)
-endfunction
-
-" Public wrapper for testing s:GetTextByType()
-function! ZzvimRTestGetTextByType(selection_type) abort
-    return s:GetTextByType(a:selection_type)
-endfunction
-
-" Public wrapper for testing s:GetCodeBlock()
-function! ZzvimRTestGetCodeBlock() abort
-    return s:GetCodeBlock()
-endfunction
-
-" Public wrapper for testing s:GetTerminalName()
-function! ZzvimRTestGetTerminalName() abort
-    return s:GetTerminalName()
-endfunction
-
-" Public wrapper for testing s:GetBufferTerminal()
-function! ZzvimRTestGetBufferTerminal() abort
-    return s:GetBufferTerminal()
-endfunction
-
-" Public wrapper for testing s:IsInsideFunction()
-function! ZzvimRTestIsInsideFunction() abort
-    return s:IsInsideFunction()
-endfunction
-
-" Public wrapper for testing s:IsIncompleteStatement()
-function! ZzvimRTestIsIncompleteStatement() abort
-    return s:IsIncompleteStatement()
-endfunction
-
-" Public wrapper for testing s:MoveCursorAfterSubmission()
-function! ZzvimRTestMoveCursorAfterSubmission(selection_type, line_count) abort
-    return s:MoveCursorAfterSubmission(a:selection_type, a:line_count)
-endfunction
-
 "------------------------------------------------------------------------------
 " Simple Object Inspection Functions
 "------------------------------------------------------------------------------
@@ -2328,46 +2019,21 @@ function! s:RDataViewer() abort
     try
         " Open new split window with the space-delimited data
         execute 'split ' . fnameescape(data_file)
-        
-        " Set buffer properties for data viewing
-        setlocal buftype=nofile
-        setlocal bufhidden=wipe
-        setlocal noswapfile
-        setlocal readonly
-        setlocal nowrap
-        
-        " Set appropriate filetype for syntax highlighting
+        call s:SetupViewerBuffer()
         setlocal filetype=
-        
-        " Rename buffer to show the data frame name
         execute 'file ' . fnameescape(viewer_buffer)
-        
-        " Phase 4: Apply tabulate plugin if available
-        if exists(':Tabularize')
-            " Use Tabularize plugin to align space-separated columns
-            silent! %Tabularize / /
-            echom "Data viewer: Applied Tabularize space alignment for " . obj_name
-        elseif exists(':EasyAlign')
-            " Alternative: use vim-easy-align for space alignment
-            silent! %EasyAlign */ /
-            echom "Data viewer: Applied EasyAlign space alignment for " . obj_name
-        else
-            " Basic manual column alignment if no plugin available
-            echom "Data viewer: " . obj_name . " (install Tabularize plugin for better column alignment)"
-        endif
-        
-        " Set up convenient key mappings for the viewer buffer
-        nnoremap <buffer> <silent> q :bwipe<CR>
-        nnoremap <buffer> <silent> <ESC> :bwipe<CR>
-        
+
+        " Apply tabulate plugin if available
+        call s:ApplyTabulation()
+        setlocal readonly
+
         " Move to top of data (skip header)
         normal! gg
         if line('$') > 1
             normal! j
         endif
-        
-        echom "Data viewer: Press 'q' or <ESC> to close viewer for " . obj_name
-        
+        echom "Data viewer: Press 'q' or <ESC> to close (" . obj_name . ")"
+
     catch
         call s:Error("Failed to open data viewer: " . v:exception)
     finally
@@ -2411,54 +2077,19 @@ function! s:REnvironmentHUD() abort
     endif
     
     " Phase 3: Open environment data in new buffer
-    let viewer_buffer = 'environment_variables.txt'
-    
     try
-        " Open new split window with the environment data
         execute 'split ' . fnameescape(env_file)
-        
-        " Set buffer properties for environment viewing
-        setlocal buftype=nofile
-        setlocal bufhidden=wipe
-        setlocal noswapfile
-        setlocal readonly
-        setlocal nowrap
-        
-        " Set appropriate filetype
+        call s:SetupViewerBuffer()
         setlocal filetype=
-        
-        " Rename buffer to show it's environment variables
-        execute 'file ' . fnameescape(viewer_buffer)
-        
-        " Phase 4: Apply tabulate plugin if available
-        if exists(':Tabularize')
-            " Use Tabularize plugin to align space-separated columns
-            silent! %Tabularize / /
-            echo "Environment HUD: Applied Tabularize alignment for environment variables"
-        elseif exists(':EasyAlign')
-            " Alternative: use vim-easy-align for space alignment
-            silent! %EasyAlign */ /
-            echo "Environment HUD: Applied EasyAlign alignment for environment variables"
-        else
-            " Basic display if no plugin available
-            echo "Environment HUD: Showing environment variables (install Tabularize plugin for better alignment)"
-        endif
-        
-        " Set up convenient key mappings for the viewer buffer
-        nnoremap <buffer> <silent> q :bwipe<CR>
-        nnoremap <buffer> <silent> <ESC> :bwipe<CR>
-        
-        " Add search functionality for finding specific variables
-        " Note: Normal / search is automatically available - this line is redundant and removed
-        
-        " Move to top of data (skip header)
+        execute 'file environment_variables.txt'
+        call s:ApplyTabulation()
+        setlocal readonly
         normal! gg
         if line('$') > 1
             normal! j
         endif
-        
-        echo "Environment HUD: Press 'q' or <ESC> to close, '/' to search variables"
-        
+        echo "Environment HUD: Press 'q' or <ESC> to close, '/' to search"
+
     catch
         call s:Error("Failed to open environment variables viewer: " . v:exception)
     finally
@@ -2507,54 +2138,19 @@ function! s:ROptionsHUD() abort
     endif
     
     " Phase 3: Open R options data in new buffer
-    let viewer_buffer = 'r_options.txt'
-    
     try
-        " Open new split window with the R options data
         execute 'split ' . fnameescape(options_file)
-        
-        " Set buffer properties for options viewing
-        setlocal buftype=nofile
-        setlocal bufhidden=wipe
-        setlocal noswapfile
-        setlocal readonly
-        setlocal nowrap
-        
-        " Set appropriate filetype
+        call s:SetupViewerBuffer()
         setlocal filetype=
-        
-        " Rename buffer to show it's R options
-        execute 'file ' . fnameescape(viewer_buffer)
-        
-        " Phase 4: Apply tabulate plugin if available
-        if exists(':Tabularize')
-            " Use Tabularize plugin to align space-separated columns
-            silent! %Tabularize / /
-            echo "R Options HUD: Applied Tabularize alignment for R options"
-        elseif exists(':EasyAlign')
-            " Alternative: use vim-easy-align for space alignment
-            silent! %EasyAlign */ /
-            echo "R Options HUD: Applied EasyAlign alignment for R options"
-        else
-            " Basic display if no plugin available
-            echo "R Options HUD: Showing R options (install Tabularize plugin for better alignment)"
-        endif
-        
-        " Set up convenient key mappings for the viewer buffer
-        nnoremap <buffer> <silent> q :bwipe<CR>
-        nnoremap <buffer> <silent> <ESC> :bwipe<CR>
-        
-        " Add search functionality for finding specific options
-        " Note: Normal / search is automatically available - this line is redundant and removed
-        
-        " Move to top of data (skip header)
+        execute 'file r_options.txt'
+        call s:ApplyTabulation()
+        setlocal readonly
         normal! gg
         if line('$') > 1
             normal! j
         endif
-        
-        echo "R Options HUD: Press 'q' or <ESC> to close, '/' to search options"
-        
+        echo "R Options HUD: Press 'q' or <ESC> to close, '/' to search"
+
     catch
         call s:Error("Failed to open R options viewer: " . v:exception)
     finally
@@ -2637,37 +2233,15 @@ endfunction
 
 " Helper: Create individual HUD tab with data
 function! s:CreateHUDTab(tab_name, file_suffix, data_generator, source_file, r_terminal_id) abort
-    " Create new tab
     tabnew
-    
-    " Set buffer name for identification with source file context
     let l:buffer_name = 'HUD_' . a:source_file . '_' . a:tab_name
     execute 'file ' . l:buffer_name
-    
-    " Associate this buffer with the R terminal
     let b:r_terminal_id = a:r_terminal_id
-    
-    " Configure buffer properties (but not readonly yet)
-    setlocal buftype=nofile
-    setlocal bufhidden=wipe
-    setlocal noswapfile  
-    setlocal nowrap
-    setlocal nonumber
-    setlocal norelativenumber
-    
-    " Generate and display the HUD data
+    call s:SetupViewerBuffer()
     call a:data_generator()
-    
-    " Now set readonly after data is generated
     setlocal readonly
-    
-    " Set up refresh keymap
     nnoremap <buffer> <silent> <LocalLeader>0 :call <SID>RHUDDashboard()<CR>
-    
-    " Move cursor to beginning
     normal! gg
-    
-    " Set tab title (Vim/Neovim compatible)
     if exists('+showtabline')
         execute 'set showtabline=2'
     endif
