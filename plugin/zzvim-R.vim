@@ -441,6 +441,38 @@ endfunction
 function! s:OpenRTerminal(...) abort
     let terminal_name = a:0 > 0 ? a:1 : s:GetTerminalName()
 
+    " Check if inside a zzcollab workspace
+    " If so, use Docker R terminal instead of local R
+    if s:IsInsideZzcollab()
+        return s:OpenDockerRTerminal(terminal_name)
+    endif
+
+    if !executable('R')
+        call s:Error('R is not installed or not in PATH')
+        return -1
+    endif
+
+    execute 'vertical term ' . g:zzvim_r_command
+    return s:ConfigureTerminal(terminal_name, 0)
+endfunction
+
+" Check if current directory is inside a zzcollab workspace
+" Walks up directory tree looking for DESCRIPTION or .zzcollab_project marker
+function! s:IsInsideZzcollab() abort
+    let dir = getcwd()
+    while dir != '/'
+        if filereadable(dir . '/DESCRIPTION') || filereadable(dir . '/.zzcollab_project')
+            return 1
+        endif
+        let dir = fnamemodify(dir, ':h')
+    endwhile
+    return 0
+endfunction
+
+" Force open local/host R terminal (bypass zzcollab workspace detection)
+function! s:OpenLocalRTerminal(...) abort
+    let terminal_name = a:0 > 0 ? a:1 : s:GetTerminalName()
+
     if !executable('R')
         call s:Error('R is not installed or not in PATH')
         return -1
@@ -1486,6 +1518,7 @@ if !g:zzvim_r_disable_mappings
     augroup zzvim_RMarkdown
         autocmd!
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>r  :call <SID>OpenRTerminal()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>R  :call <SID>OpenLocalRTerminal()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> ZR  :call <SID>OpenDockerRTerminal()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>dr :call <SID>OpenDockerRTerminal(s:GetTerminalName(), 1)<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>w :call <SID>ROpenSplitCommand('vertical')<CR>
@@ -1537,6 +1570,7 @@ endif
 command! -bar ROpenTerminal call s:OpenRTerminal()
 command! -bar RDockerTerminal call s:OpenDockerRTerminal()
 command! -bar RDockerTerminalForce call s:OpenDockerRTerminal(s:GetTerminalName(), 1)
+command! -bar RTerminalLocal call s:OpenLocalRTerminal()
 command! -bar RSendLine call s:SendToR('line')
 command! -bar RSendSelection call s:SendToR('selection')
 command! -bar RSendFunction call s:SendToR('function')
