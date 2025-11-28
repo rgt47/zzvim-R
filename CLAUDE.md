@@ -2211,13 +2211,17 @@ Enter number (or 0 to cancel): _
 
 **Status**: Intelligent terminal selection successfully implemented, tested, and documented. Provides professional terminal management experience while preserving zzvim-R's core philosophy of lightweight, efficient R development tools with user-friendly design.
 
-## Docker Container Integration (November 10, 2025)
+## Docker Container Integration (November 10, 2025, Updated November 28, 2025)
 
 ### **Major Feature Addition: Full Docker Container Support**
 
-A comprehensive Docker integration system has been implemented, enabling users to run R in isolated Docker containers while maintaining all existing plugin functionality. The implementation uses a **Makefile-based approach** with the **ZR key mapping** (Shift+Z then Shift+R) for easy Docker R launching, and includes a critical "force-association" feature that allows connecting to existing Docker terminals (e.g., launched via Makefile) even when properly named.
+A comprehensive Docker integration system has been implemented, enabling users to run R in isolated Docker containers while maintaining all existing plugin functionality. The implementation uses a **Makefile-based approach** with **smart workspace detection** that automatically chooses Docker vs local R based on your working directory.
 
-**Key Implementation Change**: The system now runs `make r` directly instead of building docker commands from vim configuration variables, making Docker configuration more transparent and easier to share across teams.
+**Key Implementation Change (November 28, 2025)**:
+- Smart zzcollab workspace detection: `<LocalLeader>r` now automatically uses Docker R when inside a zzcollab workspace (detected by `DESCRIPTION` or `.zzcollab_project` file)
+- Uses `mr r` shell function instead of `make r` directly, allowing Docker launching from subdirectories
+- Removed redundant `ZR` mapping (smart detection handles this automatically)
+- Added `<LocalLeader>R` to force local/host R terminal when needed
 
 #### **Feature Overview**
 
@@ -2233,19 +2237,31 @@ The Docker integration provides containerized R environments with:
 
 **Core Functions:**
 
-1. **`s:OpenDockerRTerminal()`** (lines 697-785 in plugin/zzvim-R.vim)
-   - Main Docker terminal creation function that executes `make r`
+1. **`s:OpenRTerminal()`** - Smart terminal selection
+   - Checks `s:IsInsideZzcollab()` to detect zzcollab workspace
+   - If inside zzcollab → delegates to `s:OpenDockerRTerminal()`
+   - If outside zzcollab → opens local R terminal
+
+2. **`s:IsInsideZzcollab()`** - Workspace detection
+   - Walks up directory tree from current working directory
+   - Looks for `DESCRIPTION` or `.zzcollab_project` marker files
+   - Returns 1 if inside zzcollab workspace, 0 otherwise
+
+3. **`s:OpenDockerRTerminal()`** - Docker terminal creation
+   - Executes `zsh -ic "mr r"` to launch Docker via shell function
+   - `mr` function finds Makefile from subdirectories
    - Parameters:
      - `a:1` (optional) - terminal name override
      - `a:2` (optional) - force re-association (1 = force, 0 = normal)
-   - Make availability check with clear error messaging
-   - Executes Makefile command: Runs `make r` to launch Docker container
    - Standard terminal behavior: Uses vertical split with dynamic/configured width
    - Terminal naming: Follows same convention as regular terminals (`R-filename`)
    - Buffer marking: `b:r_is_docker = 1` identifies Docker terminals
-   - Automatic buffer association via `b:r_terminal_id`
 
-2. **Configuration via Makefile** (recommended approach)
+4. **`s:OpenLocalRTerminal()`** - Force local R terminal
+   - Bypasses zzcollab workspace detection
+   - Opens host R terminal regardless of working directory
+
+**Configuration via Makefile** (recommended approach)
    ```makefile
    # Example Makefile in project directory
    r:
@@ -2263,17 +2279,20 @@ The Docker integration provides containerized R environments with:
    let g:zzvim_r_docker_command = 'R --no-save --quiet'
    ```
 
-3. **Ex Commands** (lines 1796-1797)
-   ```vim
-   command! -bar RDockerTerminal call s:OpenDockerRTerminal()
-   command! -bar RDockerTerminalForce call s:OpenDockerRTerminal(s:GetTerminalName(), 1)
-   ```
+**Ex Commands:**
+```vim
+command! -bar ROpenTerminal call s:OpenRTerminal()       " Smart: Docker if zzcollab, else local
+command! -bar RTerminalLocal call s:OpenLocalRTerminal() " Force local R terminal
+command! -bar RDockerTerminal call s:OpenDockerRTerminal()
+command! -bar RDockerTerminalForce call s:OpenDockerRTerminal(s:GetTerminalName(), 1)
+```
 
-4. **Key Mappings** (line 1747)
-   ```vim
-   ZR               " Launch Docker R via 'make r' (Shift+Z then Shift+R)
-   <LocalLeader>dr  " Force-associate with existing Docker terminal
-   ```
+**Key Mappings:**
+```vim
+<LocalLeader>r   " Smart: Docker if zzcollab workspace, else local R
+<LocalLeader>R   " Force local/host R terminal (bypass zzcollab detection)
+<LocalLeader>dr  " Force-associate with existing Docker terminal
+```
 
 #### **Force-Association Feature**
 
@@ -2287,16 +2306,20 @@ The Docker integration provides containerized R environments with:
 
 **Usage Example**:
 ```vim
-" Option 1: Launch from Vim (recommended)
+" Option 1: Smart detection (recommended)
+" When inside a zzcollab workspace:
 vim analysis.R
-ZR            " Launches Docker R via 'make r'
+<Space>r      " Automatically launches Docker R via 'mr r'
 <CR>          " Execute code
 
 " Option 2: External terminal + force-associate
-" Terminal 1: make r
+" Terminal 1: make r (or mr r)
 " Terminal 2: vim analysis.R
-<Space>dr     " Force-associate with make r terminal
+<Space>dr     " Force-associate with existing Docker terminal
 <CR>          " Execute code
+
+" Option 3: Force local R even inside zzcollab
+<Space>R      " Opens host R, bypassing zzcollab detection
 ```
 
 #### **Use Cases and Workflows**
@@ -2325,16 +2348,22 @@ r:
         png1 R --no-save --quiet
 ```
 
-**Workflow Option 1 (recommended):**
-1. `vim analysis.R`
-2. `ZR` (launches Docker R via make r)
-3. `<CR>` (execute code)
+**Workflow Option 1 (recommended - smart detection):**
+1. `cd ~/prj/png1/analysis/scripts`
+2. `vim analysis.R`
+3. `<Space>r` (auto-detects zzcollab, launches Docker R via `mr r`)
+4. `<CR>` (execute code)
 
 **Workflow Option 2 (external terminal):**
 1. Terminal 1: `cd ~/prj/png1 && make r`
 2. Terminal 2: `vim analysis.R`
 3. In Vim: `<Space>dr` (force-associate)
 4. Execute code: `<CR>`
+
+**Workflow Option 3 (force local R):**
+1. `vim analysis.R`
+2. `<Space>R` (force local R, bypass zzcollab detection)
+3. `<CR>` (execute code)
 
 R code can access both directories:
 ```r
@@ -2345,7 +2374,7 @@ data <- read_csv("data/input.csv")   # Workspace data
 **Use Case 2: Multiple Files, Shared Container**
 
 1. `vim -p analysis1.R analysis2.R` (open multiple files in tabs)
-2. In first tab: `ZR` (launches Docker R)
+2. In first tab: `<Space>r` (auto-launches Docker R)
 3. In second tab: `<Space>dr` → select same terminal
 4. Both files share the Docker environment
 
@@ -2444,14 +2473,14 @@ Comprehensive documentation created for Docker integration:
 #### **User Experience**
 
 **Workflow Flexibility**:
-- **Recommended**: Launch directly from Vim with `ZR` (runs `make r` automatically)
-- **Alternative**: Launch via Makefile (`make r`) + force-associate (`<Space>dr`)
-- **Flexible**: Mix of both approaches per file as needed
+- **Recommended**: Use `<Space>r` - automatically detects zzcollab workspace and uses Docker
+- **Alternative**: Launch via Makefile (`make r` or `mr r`) + force-associate (`<Space>dr`)
+- **Override**: Use `<Space>R` to force local R even inside zzcollab workspace
 
 **Key Mappings** (with `<Space>` as LocalLeader):
-- `ZR` - Launch Docker R via make r ⭐ PRIMARY METHOD
+- `<Space>r` - Smart: Docker if zzcollab workspace, else local R ⭐ PRIMARY METHOD
+- `<Space>R` - Force local/host R terminal (bypass zzcollab detection)
 - `<Space>dr` - Force-associate with existing Docker terminal
-- `<Space>r` - Launch regular (non-Docker) R terminal
 
 **Professional Benefits**:
 - **Reproducible environments**: Specific R versions and package configurations
@@ -2523,9 +2552,13 @@ Comprehensive documentation created for Docker integration:
 For existing zzvim-R users:
 
 1. **No changes required**: All existing functionality preserved
-2. **Optional feature**: Docker support is opt-in via new key mapping
-3. **Configuration**: Create Makefile with 'r' target (see examples in docs)
-4. **Usage**: Use `ZR` for Docker, `<Space>r` for regular R
+2. **Smart detection**: `<Space>r` now auto-detects zzcollab workspace
+3. **Configuration**: Create Makefile with 'r' target + `mr` shell function for subdirectory support
+4. **Usage**:
+   - `<Space>r` - Smart (Docker if zzcollab, else local R)
+   - `<Space>R` - Force local R
+   - `<Space>dr` - Force-associate with existing Docker terminal
+5. **Removed**: `ZR` mapping (no longer needed with smart detection)
 
 #### **Success Criteria Met**
 
