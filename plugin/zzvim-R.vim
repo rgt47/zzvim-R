@@ -473,7 +473,8 @@ function! s:OpenDockerRTerminal(...) abort
         endfor
     endif
 
-    execute 'vertical term make r'
+    " Use 'mr r' shell function which finds Makefile from subdirectories
+    execute 'vertical term zsh -ic "mr r"'
     return s:ConfigureTerminal(terminal_name, 1)
 endfunction
 
