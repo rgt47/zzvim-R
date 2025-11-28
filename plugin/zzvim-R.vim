@@ -459,14 +459,20 @@ endfunction
 " Check if current directory is inside a zzcollab workspace
 " Walks up directory tree looking for DESCRIPTION or .zzcollab_project marker
 function! s:IsInsideZzcollab() abort
+    return !empty(s:GetProjectRoot())
+endfunction
+
+" Get the project root directory (where DESCRIPTION or .zzcollab_project is)
+" Returns empty string if not inside a project
+function! s:GetProjectRoot() abort
     let dir = getcwd()
     while dir != '/'
         if filereadable(dir . '/DESCRIPTION') || filereadable(dir . '/.zzcollab_project')
-            return 1
+            return dir
         endif
         let dir = fnamemodify(dir, ':h')
     endwhile
-    return 0
+    return ''
 endfunction
 
 " Force open local/host R terminal (bypass zzcollab workspace detection)
@@ -848,13 +854,18 @@ function! s:SendToR(selection_type, ...) abort
     endif
     
     " Phase 2: Consistent Code Transmission via Local Temp File
-    " Use fixed local filename for clean source command visibility
-    let temp_file = '.zzvim_r_temp.R'
-    call writefile(text_lines, temp_file)
-    
-    " Execute local temp file with clean source command and code echo
+    " Write to project root so Docker container can find it
+    " (R's working directory in container is the mounted project root)
+    let temp_filename = '.zzvim_r_temp.R'
+    let project_root = s:GetProjectRoot()
+    if empty(project_root)
+        let project_root = getcwd()
+    endif
+    call writefile(text_lines, project_root . '/' . temp_filename)
+
+    " Execute with relative path (works from project root in both host and container)
     " Shows: source(".zzvim_r_temp.R", echo=T) and displays the executed code
-    call s:Send_to_r('source("' . temp_file . '", echo=T)', 1)
+    call s:Send_to_r('source("' . temp_filename . '", echo=T)', 1)
     
     " Phase 3: Determine actual submission type for cursor movement
     let actual_type = a:selection_type
