@@ -1,22 +1,22 @@
 # zzvim-R
 
-Advanced R integration for Vim and Neovim with smart code execution and multi-terminal support.
+R integration plugin for Vim and Neovim providing code execution, terminal management, and R Markdown support.
 
 ## Features
 
-- **Smart Code Execution**: Automatically detects R functions, control structures, and pipe chains
+- **Code Execution**: Detects R functions, control structures, and pipe chains for automatic code block submission
 - **Multi-Terminal Sessions**: Buffer-specific R terminals with isolated session management
-- **Silent Execution**: Streamlined code submission without user prompts
-- **R Markdown Support**: Navigate and execute chunks with `<LocalLeader>j/k/l`
-- **Object Inspection**: Data analysis tools with `<LocalLeader>h/s/d/p` shortcuts
-- **HUD Dashboard**: Unified workspace overview with `<LocalLeader>0` providing 5 tabs of workspace information
-- **Data Viewer**: RStudio-style data frame viewer with `<LocalLeader>v`
-- **Workspace Intelligence**: Memory usage, package status, and environment variable monitoring
-- **Visual Selection**: Submit selected code blocks to R
-- **Pattern Recognition**: Supports complex R constructs including nested braces and pipes
-- **Optional IDE Features**: CoC integration for LSP completion and diagnostics
-- **AI-Assisted Development**: GitHub Copilot support for code suggestions
-- **Progressive Enhancement**: Modular feature addition as required
+- **Non-Interactive Submission**: Code execution without prompt dialogs
+- **R Markdown Support**: Chunk navigation and execution with `<LocalLeader>j/k/l`
+- **Object Inspection**: Functions for workspace examination with `<LocalLeader>h/s/d/p` shortcuts
+- **Workspace Display**: Tabbed view of workspace information including memory usage, data frames, and packages
+- **Data Frame Display**: Formatted display of data frame contents with `<LocalLeader>v`
+- **Workspace Monitoring**: Display of object memory usage, loaded packages, and environment variables
+- **Visual Selection**: Code submission from selected regions
+- **Pattern Support**: Recognition of R constructs including nested delimiters and infix operators
+- **LSP Integration**: Optional support for CoC or native LSP completion and diagnostics
+- **Copilot Support**: Integration with GitHub Copilot for code suggestions
+- **Configurable Behavior**: Customizable feature activation and key mappings
 
 ## Quick Start
 
@@ -110,7 +110,7 @@ If you plan to use any LSP-based completion option, install the R language serve
 install.packages("languageserver")
 ```
 
-This enables advanced features like completion, diagnostics, and go-to-definition.
+This provides code completion, diagnostic messages, and definition navigation.
 
 ## Configuration
 
@@ -233,28 +233,26 @@ let g:copilot_filetypes = {'r': v:true, 'rmd': v:true, 'qmd': v:true}
 
 ### Performance Comparison
 
-| Configuration | Memory Usage | Features | Best For |
+| Configuration | Memory Usage | Features | Characteristics |
 |---------------|-------------|----------|----------|
-| Base zzvim-R | ~2MB | Smart patterns, terminal integration | Performance-critical, simple setups |
-| + CoC | ~15MB | LSP features, completion, diagnostics | Cross-editor compatibility |
-| + nvim-cmp | ~10MB | Native LSP + advanced completion | Modern Neovim users |
-| + Native LSP | ~5MB | Basic LSP features | Minimal Neovim setup |
-| + Any option + Copilot | +5MB | Full IDE + AI assistance | Maximum productivity |
+| Base zzvim-R | ~2MB | Code execution, terminal integration | Minimal dependencies |
+| + CoC | ~15MB | LSP services, completion, diagnostics | Vim and Neovim compatible |
+| + nvim-cmp | ~10MB | Native LSP completion | Neovim-specific |
+| + Native LSP | ~5MB | LSP services | Minimal Neovim setup |
+| + Any option + Copilot | +5MB | AI-assisted completion | Optional enhancement |
 
-*Compare to: RStudio (200-500MB), VS Code (100-300MB), R.nvim (50-100MB)*
+Reference memory usage of comparable tools: RStudio (200-500MB), VS Code (100-300MB), R.nvim (50-100MB)
 
-## Why zzvim-R?
+## Technical Characteristics
 
-- **Smart Code Detection**: Intelligent R code analysis with immediate execution
-- **Lightweight Architecture**: Minimal memory footprint compared to comprehensive IDEs
-- **Terminal-Native**: Functions effectively in SSH environments and containers
-- **Framework Flexibility**: Supports CoC, nvim-cmp, or native LSP integration
-- **Editor Compatibility**: Works with both Vim and Neovim (unlike R.nvim)
-- **Standard Protocols**: LSP-based completion (versus R.nvim's custom TCP)
-- **Progressive Enhancement**: Modular feature addition as required
-- **Educational Value**: VimScript learning integrated with practical tool usage
-- **Modern R Support**: Optimized for tidyverse, pipes, and contemporary workflows
-- **Balanced Approach**: Vim efficiency with optional modern IDE capabilities
+- **Architecture**: Single-file plugin (2,500 lines VimScript) with pattern-based code detection
+- **Resource Usage**: Approximately 2-10 MB depending on optional components
+- **Remote Access**: Compatible with SSH sessions and containerized environments
+- **Editor Support**: Compatible with Vim 8.0+ and Neovim
+- **Completion Options**: Optional integration with CoC, nvim-cmp, or native LSP
+- **Code Detection**: Pattern recognition for R syntax including functions, control structures, and pipes
+- **Documentation**: Inline comments (400+), help file, and usage guides
+- **Dependencies**: Requires R, Vim terminal support; no external Python or Node.js dependencies
 
 ## Usage Examples
 
@@ -290,53 +288,46 @@ data(mtcars)
 mtcars
 ```
 
-### HUD Dashboard - Workspace Intelligence
+### Workspace Display Functions
 
-The HUD (Heads-Up Display) Dashboard provides comprehensive workspace overview in a single keystroke:
+Workspace information can be displayed in tabbed format:
 
 ```r
-# Load some data and packages for demonstration  
+# Load sample data and packages
 library(dplyr)
 library(ggplot2)
 data(iris)
 data(mtcars)
 
-# Press <LocalLeader>0 to open HUD Dashboard
-# Creates 5 tabs with workspace information:
+# Press <LocalLeader>0 to open workspace tabs
+# Displays 5 tabs with workspace state:
 ```
 
-**HUD Dashboard Features:**
-- `<LocalLeader>0` - Open all 5 HUD tabs simultaneously
-- Memory Tab: Object memory usage sorted by size
-- DataFrames Tab: All data frames with dimensions
-- Packages Tab: Currently loaded packages
-- Environment Tab: System environment variables
-- Options Tab: Current R session options
+**Available Display Functions:**
+- `<LocalLeader>0` - Open all workspace tabs
+- `<LocalLeader>m` - Object memory usage
+- `<LocalLeader>e` - Data frame listing with dimensions
+- `<LocalLeader>z` - Loaded package information
+- `<LocalLeader>x` - Environment variables
+- `<LocalLeader>a` - R session options
 
-**Navigation:**
-- `gt` / `gT` - Navigate between HUD tabs
+**Tab Navigation:**
+- `gt` / `gT` - Navigate between tabs
 - `:q` - Close individual tabs
-- `<LocalLeader>0` - Refresh all tabs with current data
+- `<LocalLeader>0` - Update all tabs with current workspace state
 
-**Individual HUD Functions:**
+**Data Frame Display:**
 ```r
-# For focused analysis, use individual HUD displays:
-# <LocalLeader>m - Memory usage overview
-# <LocalLeader>e - Data frames inventory  
-# <LocalLeader>z - Package status
-# <LocalLeader>x - Environment variables
-# <LocalLeader>a - R options
-
-# Enhanced object inspection:
-# <LocalLeader>v - RStudio-style data viewer (position cursor on data frame name)
+# Display data frame contents in formatted table
+# <LocalLeader>v - Position cursor on data frame name, executes display
 ```
 
-**Use Cases:**
-- **Multi-dataset analysis**: Quick data frame inventory
-- **Memory optimization**: Identify memory-heavy objects
-- **Package debugging**: Resolve package conflicts  
-- **Environment diagnostics**: System configuration validation
-- **Performance monitoring**: Track workspace state during analysis
+**Common Use Cases:**
+- Display memory usage of workspace objects
+- View dimensions of loaded data frames
+- Verify loaded packages and versions
+- Check system environment configuration
+- Monitor R session options
 
 ### R Markdown
 ```markdown

@@ -1,4 +1,4 @@
-*zzvim-r.txt*  Advanced R Integration Plugin for Vim
+*zzvim-r.txt*  R Integration Plugin for Vim
 
 Author:  zzvim-R Development Team <email>
 License: GPL-3.0
@@ -24,68 +24,45 @@ CONTENTS                                                        *zzvim-r-content
 ============================================================================
 1. INTRODUCTION                                            *zzvim-r-introduction*
 
-zzvim-R is an advanced integrated development environment for R programming
-in Vim, providing seamless bidirectional communication between Vim's editing
-environment and R's computational engine. This sophisticated integration
-tool facilitates literate programming, exploratory data analysis, and
-reproducible
-research methodologies.
+zzvim-R provides integration between Vim and R, enabling code execution and
+workspace management from within the editor. The plugin allows users to send
+commands to an R terminal, navigate R Markdown chunks, and inspect R objects
+directly from Vim. The plugin supports R script files (.R) as well as R
+Markdown (.rmd) and Quarto (.qmd) documents.
 
-The plugin provides integration between Vim and R, allowing users to send
-commands to an R terminal, navigate R Markdown chunks, and perform common R
-operations directly from Vim. The plugin supports R script files (.R) as
-well
-as R Markdown (.rmd) and Quarto (.qmd) documents.
-
-Key capabilities include:
-- Smart code execution with pattern recognition
-- Multi-terminal session management with buffer-specific R sessions
+Key capabilities:
+- Code execution with pattern-based detection
+- Multi-terminal session management with buffer-specific sessions
 - R Markdown/Quarto chunk navigation
-- Object inspection shortcuts
-- Context-aware submission mechanisms with silent execution
-- Enhanced pattern recognition for complex R constructs
+- Object inspection functions
+- Non-interactive code submission
+- Pattern recognition for R language constructs
 
 ============================================================================
 2. ABSTRACT                                                  *zzvim-r-abstract*
 
-The zzvim-R plugin represents a comprehensive solution for statistical
-computing and data science workflows within the Vim text editor ecosystem.
-This sophisticated integration tool facilitates seamless bidirectional
-communication between Vim's editing environment and R's computational
-engine, thereby establishing a unified platform for literate programming,
-exploratory
-data analysis, and reproducible research methodologies.
-
-Contemporary data science and statistical computing increasingly demand
-integrated development environments that can accommodate the complex workflows
-characteristic of modern analytical practice. The zzvim-R plugin addresses
-this methodological imperative by providing a robust framework for R
-programming within Vim's highly customizable text editing environment.
+zzvim-R enables R programming workflows within the Vim text editor. The plugin
+supports interactive code execution, multi-file project management, and R
+Markdown document editing. It is designed for users who prefer Vim for code
+editing and require R integration without leaving the editor.
 
 ==============================================================================
 3. REQUIREMENTS                                            *zzvim-r-requirements*
 
-The plugin requires:
-    * Vim 8.0 or newer with the +terminal feature
-    * R installed and available in your PATH
+Requirements:
+    * Vim 8.0 or newer with +terminal feature
+    * R installed and accessible in PATH
 
-Minimum System Specifications:
-- Vim Version: Minimum requirement of Vim 8.0 or newer with integrated 
-  terminal emulation capabilities (+terminal feature)
-- R Statistical Environment: Current R installation (version 3.6 or higher 
-  recommended) accessible via system PATH
-- Operating System: Cross-platform compatibility across Unix-like systems 
-  (Linux, macOS) and Windows environments
-- Memory Requirements: Minimum 512MB RAM for basic operations, 2GB+ 
-  recommended for large dataset manipulation
+System Specifications:
+- Vim: Version 8.0 or newer (terminal feature required)
+- R: Version 3.6 or higher recommended
+- Operating System: Linux, macOS, Windows
+- RAM: 512MB minimum; 2GB+ recommended for large datasets
 
-Dependency Analysis:
-1. Terminal Emulation Infrastructure: Leverages Vim's native terminal
-   capabilities for establishing persistent R sessions
-2. Inter-Process Communication: Utilizes Vim's job control mechanisms for
-   reliable data exchange
-3. File System Integration: Employs temporary file strategies for handling
-   large code blocks and ensuring data integrity
+Dependencies:
+- Vim terminal emulation for R session management
+- Vim job control for process communication
+- Temporary file handling for code submission
 
 System Compatibility Verification: >
     :echo has('terminal')          " Verify terminal support

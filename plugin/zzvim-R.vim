@@ -9,17 +9,16 @@ scriptencoding utf-8
 "
 " PLUGIN OVERVIEW:
 " ================
-" This plugin creates a seamless integration between Vim and R, transforming
-" Vim into a powerful R development environment. It provides:
-" 
-" 1. Smart Code Submission: Intelligently detects and sends R code blocks
-"    with silent execution (no "Press ENTER" prompts)
-" 2. Multi-Terminal Management: Buffer-specific R terminal sessions for 
-"    complete workflow isolation between different R files
-" 3. Chunk Navigation: Navigate between R Markdown/Quarto code chunks
-" 4. Object Inspection: Quick access to R's data examination functions
-" 5. Enhanced Pattern Recognition: Detects R language constructs including
-"    both brace {} and parenthesis () matching with nested structures
+" This plugin provides integration between Vim and R. It implements:
+"
+" 1. Code Submission: Pattern-based detection and submission of R code blocks
+"    with non-interactive execution
+" 2. Multi-Terminal Management: Buffer-specific R terminal sessions with
+"    isolated session management between files
+" 3. Chunk Navigation: Navigation between R Markdown/Quarto code chunks
+" 4. Object Inspection: Functions for examining R workspace objects
+" 5. Pattern Recognition: Recognition of R language constructs including
+"    functions, control structures, and nested delimiters
 "
 " ARCHITECTURE:
 " =============
@@ -27,10 +26,10 @@ scriptencoding utf-8
 " separation:
 " - Configuration management and validation with safe defaults
 " - Multi-terminal session management with buffer-specific association
-" - Enhanced pattern detection for R code structures (braces/parentheses)
-" - Optimized text extraction and processing functions  
-" - Silent execution user interface (commands and key mappings)
-" - Comprehensive testing infrastructure for all functionality
+" - Pattern detection for R code structures (braces/parentheses)
+" - Text extraction and processing functions
+" - Code submission user interface (commands and key mappings)
+" - Testing infrastructure for all functionality
 "
 " CONFIGURATION VARIABLES:
 " ========================
@@ -72,7 +71,7 @@ scriptencoding utf-8
 "   Example: let g:zzvim_r_disable_mappings = 1
 "
 " g:zzvim_r_map_submit         (string)
-"   Key sequence for smart code submission in normal mode.
+"   Key sequence for code submission in normal mode.
 "   Default: '<CR>' (Enter key)
 "   Example: let g:zzvim_r_map_submit = '<Leader>r'  " Use leader+r instead
 "
@@ -680,8 +679,8 @@ endfunction
 " =============================================================================
 " R MARKDOWN/QUARTO CHUNK NAVIGATION SYSTEM
 " =============================================================================
-" These functions enable seamless navigation between code chunks in literate
-" programming documents, essential for interactive data analysis workflows
+" These functions provide navigation between code chunks in literate
+" programming documents
 
 " Navigate to Next Code Chunk (Forward Direction)
 " Finds the next chunk boundary and positions cursor inside for editing
@@ -754,8 +753,8 @@ function! s:MovePrevChunk() abort
     " This finds the chunk start we're currently in or just passed
     let current_chunk_start = search(chunk_start_pattern, 'bcnW')
     
-    " Smart Context Handling Based on Cursor Position
-    " Algorithm determines whether we're inside a chunk or between chunks
+    " Context Handling Based on Cursor Position
+    " Determines whether we're inside a chunk or between chunks
     if current_chunk_start > 0
         " Case 1: We're inside a chunk - need to exit before finding previous
         if current_line_num > current_chunk_start
@@ -845,18 +844,17 @@ endfunction
 " Function removed - s:RCommandWithArg used directly for efficiency
 
 "------------------------------------------------------------------------------
-" Function: Generalized text sending to R with smart detection
+" Function: Generalized text sending to R with pattern detection
 "------------------------------------------------------------------------------
 " =============================================================================
-" GENERALIZED INTELLIGENT CODE SUBMISSION SYSTEM
+" GENERALIZED CODE SUBMISSION SYSTEM
 " =============================================================================
-" This is the main orchestrating function that coordinates smart code 
-" detection
-" and submission. It represents the core innovation of the plugin.
+" This is the main orchestrating function that coordinates code detection
+" and submission
 
-" Universal Code Submission Function with Enhanced Smart Detection
-" Handles all types of code submission through unified interface with silent 
-" execution and buffer-specific terminal routing
+" Code Submission Function
+" Handles all types of code submission through unified interface with
+" buffer-specific terminal routing
 " Parameters:
 "   a:selection_type (string) - Type: '', 'line', 'function', 'chunk', 
 "                               'selection'
@@ -864,7 +862,7 @@ endfunction
 " Returns: nothing (void) - uses silent execution, no user prompts
 
 function! s:SendToR(selection_type, ...) abort
-    " Phase 1: Text Extraction with Intelligent Detection
+    " Phase 1: Text Extraction and Pattern Detection
     let text_lines = s:GetTextByType(a:selection_type)
     
     " Input Validation - Ensure we have content to send
@@ -902,12 +900,12 @@ function! s:SendToR(selection_type, ...) abort
     
     " Phase 3: Determine actual submission type for cursor movement
     let actual_type = a:selection_type
-    " Check if we sent multiple lines with smart detection - likely a block
+    " Check if we sent multiple lines with pattern detection - likely a block
     if empty(a:selection_type) && len(text_lines) > 1
         let actual_type = 'function'
     endif
     
-    " Phase 4: Intelligent Cursor Movement Based on Actual Submission Type
+    " Phase 4: Cursor Movement Based on Actual Submission Type
     call s:MoveCursorAfterSubmission(actual_type, len(text_lines))
 endfunction
 
@@ -921,7 +919,7 @@ function! s:MoveToNextNonComment() abort
     call cursor(min([next_line, line('$')]), 1)
 endfunction
 
-" Intelligent Cursor Movement After Code Submission
+" Cursor Movement After Code Submission
 " Moves cursor to appropriate position based on what was submitted
 " Parameters:
 "   a:selection_type (string) - Type of submission that occurred
@@ -1055,17 +1053,16 @@ function! s:SendToRWithComments(selection_type) abort
     call s:MoveCursorAfterSubmission(actual_type, len(text_lines))
 endfunction
 
-" Smart Text Extraction Dispatcher with Pattern Recognition
-" Central intelligence function with enhanced pattern recognition
-" Determines what code to extract based on context using sophisticated 
-" algorithms for both brace {} and parenthesis () matching
+" Text Extraction Dispatcher
+" Determines what code to extract based on context using pattern recognition
+" for both brace {} and parenthesis () matching
 " Parameters:
 "   a:selection_type (string) - Explicit type or empty for auto-detection
 " Returns: List of lines ready for R execution in buffer-specific terminal
 function! s:GetTextByType(selection_type) abort
-    " Intelligent Auto-Detection Mode
+    " Auto-Detection Mode
     " When no explicit type specified, analyze current line for code patterns
-    " This enables the smart <CR> key behavior
+    " This enables context-aware <CR> key behavior
     if empty(a:selection_type)
         " First check if we're inside a function definition
         if s:IsInsideFunction()
@@ -1105,7 +1102,7 @@ function! s:GetTextByType(selection_type) abort
         " Force function extraction even if pattern detection fails
         return s:GetCodeBlock()
     else
-        " Default Fallback: Single Line or Smart Detection
+        " Default Fallback: Single Line or Automatic Detection
         " Return current line as single-element list
         " This handles simple assignments, function calls, and individual statements
         return [getline('.')]
@@ -1114,10 +1111,10 @@ endfunction
 
 "------------------------------------------------------------------------------
 " =============================================================================
-" INTELLIGENT R CODE PATTERN DETECTION ENGINE
+" R CODE PATTERN DETECTION
 " =============================================================================
-" These functions implement the core intelligence for recognizing R language
-" constructs and determining optimal code submission boundaries
+" These functions recognize R language constructs and determine optimal
+" code submission boundaries
 
 " Check if current line is part of an incomplete multi-line statement
 " Detects continuation lines that shouldn't be executed independently
@@ -1219,14 +1216,14 @@ function! s:IsInsideFunction() abort
 endfunction
 
 " Detect R Code Block Starting Patterns
-" Enhanced Pattern Recognition for R Language Constructs
+" Pattern Recognition for R Language Constructs
 " Analyzes a line to determine if it begins a multi-line code structure
 " Supports both brace {} and parenthesis () matching with nested structures
 " Parameters:
 "   a:line (string) - Line of code to analyze
 " Returns: 1 if line starts a block, 0 otherwise
 function! s:IsBlockStart(line) abort
-    " Optimized pattern detection using multiple efficient checks
+    " Pattern detection using multiple checks
     " Return 1 if line starts a block that needs special handling
     
     " Function definitions (most specific - contains both 'function' and parentheses)
@@ -1288,8 +1285,8 @@ function! s:IsBlockStart(line) abort
     return 0
 endfunction
 
-" Extract Complete Code Block Using Enhanced Brace/Parenthesis Matching
-" Implements sophisticated balanced character algorithm for exact boundaries
+" Extract Complete Code Block Using Brace/Parenthesis Matching
+" Implements balanced character algorithm for exact boundaries
 " Handles nested structures: functions within functions, nested if statements
 " Supports both brace {} and parenthesis () detection with configurable types
 " Returns: List of lines comprising the complete code block
