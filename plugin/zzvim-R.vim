@@ -2542,3 +2542,9 @@ function! s:ApplyTabulation() abort
         endtry
     endif
 endfunction
+
+" ============================================================================
+" Terminal Graphics Setup (Kitty/iTerm2 Plot Display)
+" ============================================================================
+" Initialize terminal graphics support for R plot display in Kitty and iTerm2
+call zzvimr#terminal_graphics#init()

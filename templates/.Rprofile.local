@@ -1,0 +1,335 @@
+# ============================================================================
+# Terminal Graphics Support - Kitty and iTerm2
+# ============================================================================
+# This file provides automatic plot display in modern terminal emulators.
+# It sources automatically if present in zzcollab workspaces.
+# Copy to workspace root: cp ~/.Rprofile.local .Rprofile.local
+
+# ============================================================================
+# Terminal Detection
+# ============================================================================
+.terminal_type <- function() {
+  if (Sys.getenv("KITTY_WINDOW_ID") != "") {
+    return("kitty")
+  } else if (Sys.getenv("ITERM_SESSION_ID") != "" ||
+             grepl("iTerm", Sys.getenv("TERM_PROGRAM"), ignore.case = TRUE)) {
+    return("iterm2")
+  } else {
+    return("none")
+  }
+}
+
+.terminal <- .terminal_type()
+
+# Only activate on supported macOS or Linux terminals
+if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
+
+  # ========================================================================
+  # Configuration
+  # ========================================================================
+  assign(".plot_width", 900, envir = .GlobalEnv)
+  assign(".plot_height", 700, envir = .GlobalEnv)
+  assign(".plot_res", 96, envir = .GlobalEnv)
+  assign(".plot_align", "right", envir = .GlobalEnv)
+  assign(".plot_file", NULL, envir = .GlobalEnv)
+  assign(".plot_history", list(), envir = .GlobalEnv)
+  assign(".plot_history_idx", 0, envir = .GlobalEnv)
+  assign(".use_relative_sizing", FALSE, envir = .GlobalEnv)
+  assign(".width_pct", 0.4, envir = .GlobalEnv)
+  assign(".height_pct", 0.75, envir = .GlobalEnv)
+
+  # ========================================================================
+  # Device Creation
+  # ========================================================================
+  .create_plot_device <- function() {
+    pf <- get(".plot_file", envir = .GlobalEnv)
+    if (!is.null(pf) && file.exists(pf)) {
+      unlink(pf)
+    }
+
+    pf <- tempfile(pattern = "plot_", fileext = ".png")
+    assign(".plot_file", pf, envir = .GlobalEnv)
+
+    # If using relative sizing, recalculate
+    use_relative <- get(".use_relative_sizing", envir = .GlobalEnv)
+    if (use_relative) {
+      cols_str <- system("tput cols", intern = TRUE, ignore.stderr = TRUE)
+      lines_str <- system("tput lines", intern = TRUE, ignore.stderr = TRUE)
+
+      if (length(cols_str) > 0 && length(lines_str) > 0) {
+        cols <- as.numeric(cols_str[1])
+        lines <- as.numeric(lines_str[1])
+        width_pct <- get(".width_pct", envir = .GlobalEnv)
+        height_pct <- get(".height_pct", envir = .GlobalEnv)
+
+        width <- floor(cols * 8 * width_pct)
+        height <- floor(lines * 16 * height_pct)
+      } else {
+        width <- get(".plot_width", envir = .GlobalEnv)
+        height <- get(".plot_height", envir = .GlobalEnv)
+      }
+    } else {
+      width <- get(".plot_width", envir = .GlobalEnv)
+      height <- get(".plot_height", envir = .GlobalEnv)
+    }
+
+    res <- get(".plot_res", envir = .GlobalEnv)
+    grDevices::png(filename = pf, width = width, height = height, res = res)
+  }
+
+  assign(".create_plot_device", .create_plot_device, envir = .GlobalEnv)
+
+  # ========================================================================
+  # Display Plot
+  # ========================================================================
+  .display_plot <- function(pf) {
+    if (!is.null(pf) && file.exists(pf)) {
+      align <- get(".plot_align", envir = .GlobalEnv)
+      terminal <- get(".terminal", envir = .GlobalEnv)
+
+      # Display using terminal-specific command
+      if (terminal == "kitty") {
+        system(paste("kitty +kitten icat --align=", align, " ", pf, sep = ""),
+               ignore.stderr = TRUE)
+      } else if (terminal == "iterm2") {
+        # iTerm2: imgcat doesn't support alignment, displays centered by default
+        system(paste("imgcat", pf), ignore.stderr = TRUE)
+      }
+
+      # Store terminal size for resize detection
+      .store_terminal_size()
+
+      # Add to history
+      history <- get(".plot_history", envir = .GlobalEnv)
+      history[[length(history) + 1]] <- pf
+      assign(".plot_history", history, envir = .GlobalEnv)
+      assign(".plot_history_idx", length(history), envir = .GlobalEnv)
+    }
+  }
+
+  assign(".display_plot", .display_plot, envir = .GlobalEnv)
+
+  # ========================================================================
+  # Terminal Size Management
+  # ========================================================================
+  .store_terminal_size <- function() {
+    cols_str <- system("tput cols", intern = TRUE, ignore.stderr = TRUE)
+    lines_str <- system("tput lines", intern = TRUE, ignore.stderr = TRUE)
+
+    if (length(cols_str) > 0 && length(lines_str) > 0) {
+      assign(".last_cols", as.numeric(cols_str[1]), envir = .GlobalEnv)
+      assign(".last_lines", as.numeric(lines_str[1]), envir = .GlobalEnv)
+    }
+  }
+
+  assign(".store_terminal_size", .store_terminal_size, envir = .GlobalEnv)
+
+  # ========================================================================
+  # Override dev.off for automatic display
+  # ========================================================================
+  dev.off_original <- grDevices::dev.off
+  assign("dev.off", function(...) {
+    result <- dev.off_original(...)
+    pf <- get(".plot_file", envir = .GlobalEnv)
+    .GlobalEnv$.display_plot(pf)
+    invisible(result)
+  }, envir = .GlobalEnv)
+
+  # ========================================================================
+  # Plot Functions
+  # ========================================================================
+  # Base R plots with auto-display
+  zzplot <- function(...) {
+    .GlobalEnv$.create_plot_device()
+    plot(...)
+    dev.off()
+  }
+
+  # ggplot2 plots with auto-display
+  zzggplot <- function(p) {
+    .GlobalEnv$.create_plot_device()
+    print(p)
+    dev.off()
+  }
+
+  assign("zzplot", zzplot, envir = .GlobalEnv)
+  assign("zzggplot", zzggplot, envir = .GlobalEnv)
+
+  # ========================================================================
+  # Export Functions
+  # ========================================================================
+  save_plot <- function(filename) {
+    pf <- get(".plot_file", envir = .GlobalEnv)
+    if (!is.null(pf) && file.exists(pf)) {
+      file.copy(pf, filename, overwrite = TRUE)
+      cat(paste("Plot saved to:", filename, "\n"))
+    }
+  }
+
+  plot_to_pdf <- function(filename) {
+    pf <- get(".plot_file", envir = .GlobalEnv)
+    if (!is.null(pf) && file.exists(pf)) {
+      if (!requireNamespace("png", quietly = TRUE)) {
+        cat("Installing 'png' package...\n")
+        install.packages("png", quiet = TRUE)
+      }
+
+      img <- png::readPNG(pf)
+      pdf(filename, width = 9, height = 7)
+      grid::grid.raster(img)
+      grDevices::dev.off()
+      cat(paste("PDF saved to:", filename, "\n"))
+    }
+  }
+
+  assign("save_plot", save_plot, envir = .GlobalEnv)
+  assign("plot_to_pdf", plot_to_pdf, envir = .GlobalEnv)
+
+  # ========================================================================
+  # Plot History Navigation
+  # ========================================================================
+  plot_prev <- function() {
+    history <- get(".plot_history", envir = .GlobalEnv)
+    idx <- get(".plot_history_idx", envir = .GlobalEnv)
+
+    if (length(history) == 0) {
+      cat("No plot history\n")
+      return(invisible(NULL))
+    }
+
+    idx <- max(1, idx - 1)
+    assign(".plot_history_idx", idx, envir = .GlobalEnv)
+    cat(paste("Plot", idx, "of", length(history), "\n"))
+    .GlobalEnv$.display_plot(history[[idx]])
+  }
+
+  plot_next <- function() {
+    history <- get(".plot_history", envir = .GlobalEnv)
+    idx <- get(".plot_history_idx", envir = .GlobalEnv)
+
+    if (length(history) == 0) {
+      cat("No plot history\n")
+      return(invisible(NULL))
+    }
+
+    idx <- min(length(history), idx + 1)
+    assign(".plot_history_idx", idx, envir = .GlobalEnv)
+    cat(paste("Plot", idx, "of", length(history), "\n"))
+    .GlobalEnv$.display_plot(history[[idx]])
+  }
+
+  plot_history <- function() {
+    history <- get(".plot_history", envir = .GlobalEnv)
+    idx <- get(".plot_history_idx", envir = .GlobalEnv)
+
+    if (length(history) == 0) {
+      cat("No plot history\n")
+      return(invisible(NULL))
+    }
+
+    cat(paste("Plot history:", length(history), "plots\n"))
+    cat(paste("Current: Plot", idx, "\n\n"))
+    for (i in seq_along(history)) {
+      marker <- if (i == idx) "* " else "  "
+      cat(paste(marker, "[", i, "]", " ", history[[i]], "\n", sep = ""))
+    }
+  }
+
+  assign("plot_prev", plot_prev, envir = .GlobalEnv)
+  assign("plot_next", plot_next, envir = .GlobalEnv)
+  assign("plot_history", plot_history, envir = .GlobalEnv)
+
+  # ========================================================================
+  # Configuration Functions
+  # ========================================================================
+  set_plot_size <- function(width = 900, height = 700, res = 96) {
+    assign(".plot_width", width, envir = .GlobalEnv)
+    assign(".plot_height", height, envir = .GlobalEnv)
+    assign(".plot_res", res, envir = .GlobalEnv)
+    cat(paste("Plot size set to", width, "x", height, "@ ", res, "dpi\n", sep = ""))
+  }
+
+  set_plot_align <- function(align = "right") {
+    valid_aligns <- c("left", "center", "right")
+    if (!(align %in% valid_aligns)) {
+      cat(paste("Valid alignments:", paste(valid_aligns, collapse = ", "), "\n"))
+      return(invisible(NULL))
+    }
+    # Note: iTerm2 doesn't support alignment, only Kitty does
+    assign(".plot_align", align, envir = .GlobalEnv)
+    cat(paste("Plot alignment set to:", align, "\n"))
+  }
+
+  set_plot_size_relative <- function(width_pct = 0.4, height_pct = 0.75) {
+    assign(".use_relative_sizing", TRUE, envir = .GlobalEnv)
+    assign(".width_pct", width_pct, envir = .GlobalEnv)
+    assign(".height_pct", height_pct, envir = .GlobalEnv)
+    assign(".plot_align", "right", envir = .GlobalEnv)
+
+    cols_str <- system("tput cols", intern = TRUE, ignore.stderr = TRUE)
+    lines_str <- system("tput lines", intern = TRUE, ignore.stderr = TRUE)
+
+    if (length(cols_str) > 0 && length(lines_str) > 0) {
+      cols <- as.numeric(cols_str[1])
+      lines <- as.numeric(lines_str[1])
+      width <- floor(cols * 8 * width_pct)
+      height <- floor(lines * 16 * height_pct)
+      cat(paste("Relative sizing enabled:", width, "x", height, "px\n"))
+      cat(paste("(", width_pct * 100, "% x ", height_pct * 100, "% of terminal)\n", sep = ""))
+      cat("Plots will auto-resize when terminal is resized\n")
+    }
+  }
+
+  plot_redisplay_if_resized <- function() {
+    cols_str <- system("tput cols", intern = TRUE, ignore.stderr = TRUE)
+    lines_str <- system("tput lines", intern = TRUE, ignore.stderr = TRUE)
+
+    if (length(cols_str) == 0 || length(lines_str) == 0) {
+      cat("Could not determine terminal size\n")
+      return(invisible(NULL))
+    }
+
+    cols <- as.numeric(cols_str[1])
+    lines <- as.numeric(lines_str[1])
+    last_cols <- get(".last_cols", envir = .GlobalEnv)
+    last_lines <- get(".last_lines", envir = .GlobalEnv)
+
+    if (is.null(last_cols) || is.null(last_lines)) {
+      cat("No previous plot to redisplay\n")
+      return(invisible(NULL))
+    }
+
+    if (cols != last_cols || lines != last_lines) {
+      cat(paste("Terminal resized from", last_cols, "x", last_lines, "to", cols, "x", lines, "\n"))
+      cat("Redisplaying current plot...\n")
+
+      pf <- get(".plot_file", envir = .GlobalEnv)
+      if (!is.null(pf) && file.exists(pf)) {
+        .GlobalEnv$.display_plot(pf)
+      }
+    }
+  }
+
+  assign("set_plot_size", set_plot_size, envir = .GlobalEnv)
+  assign("set_plot_align", set_plot_align, envir = .GlobalEnv)
+  assign("set_plot_size_relative", set_plot_size_relative, envir = .GlobalEnv)
+  assign("plot_redisplay_if_resized", plot_redisplay_if_resized, envir = .GlobalEnv)
+
+  # ========================================================================
+  # Startup Message
+  # ========================================================================
+  cat("✓ Terminal graphics enabled (", toupper(.terminal), ")\n", sep = "")
+  cat("\nQuick reference:\n")
+  cat("  - zzplot(...)              : Base R plots with auto-display\n")
+  cat("  - zzggplot(p)              : ggplot2 plots with auto-display\n")
+  cat("  - plot_history()           : View plot history\n")
+  cat("  - plot_prev() / plot_next(): Navigate history\n")
+  cat("  - save_plot(file)          : Save current plot as PNG\n")
+  cat("  - plot_to_pdf(file)        : Save current plot as PDF\n")
+  cat("  - set_plot_size(w,h,dpi)   : Fixed dimensions\n")
+  cat("  - set_plot_size_relative() : Size by % of terminal (default: 40% x 75%)\n")
+  if (.terminal == "kitty") {
+    cat("  - set_plot_align(a)        : Alignment (left/center/right)\n")
+  }
+  cat("  - plot_redisplay_if_resized(): Redisplay after terminal resize\n\n")
+}
