@@ -45,7 +45,7 @@ zzvim-R is a lightweight plugin supporting both Vim and Neovim:
 | **Object Browser** | Text HUDs | Interactive tree | R.nvim | **High** - constant use |
 | **Code Completion** | External only | Built-in | R.nvim | **High** - constant use |
 | **Help Integration** | Terminal only | Buffer display | R.nvim | **High** - constant use |
-| **Plot Viewing** | None | Basic | R.nvim | **Critical** - daily use |
+| **Plot Viewing** | External graphics devices | External graphics devices | Equal | Medium - both use R's native devices |
 | **Debugging** | None | Basic | R.nvim | Medium - occasional use |
 | **R Markdown** | Basic chunks | Advanced | R.nvim | **High** - literate programming |
 | **Docker Support** | Full | None | zzvim-R | Medium - reproducibility |
@@ -137,16 +137,17 @@ A typical research data analysis session involves:
 
 **zzvim-R**:
 
-- **No plot viewing capability whatsoever**
-- Relies entirely on external tools (X11, RStudio viewer, browser)
-- No feedback loop within editor
-- **Critical Gap**: This is a major workflow disruption
+- Uses R's native graphics devices (Quartz on macOS, X11 on Linux, Windows device on Windows)
+- Plots appear in separate OS windows managed by R's graphics system
+- No integrated plot viewing within the editor
 
 **R.nvim**:
 
-- Basic plot viewing support
-- Integration with external viewers
-- **Advantage**: At least addresses the need
+- Uses identical approach to zzvim-R (R's native graphics devices)
+- Plots appear in separate OS windows managed by R's graphics system
+- No integrated plot viewing within the editor
+
+**Assessment**: Both plugins have equivalent plotting support. Neither provides integrated graphics display—both delegate to R's standard graphics devices. Relative to RStudio's integrated plot pane, both terminal editors have the same limitation. Users manage plots the same way in both environments (Quartz/X11/Windows windows).
 
 #### Debugging
 
@@ -169,34 +170,9 @@ A typical research data analysis session involves:
 
 These features are **blocking issues** for serious research adoption:
 
-#### 1. Plot Viewing System
+**Note on Plot Viewing**: Both zzvim-R and R.nvim use identical plotting mechanisms—R's native graphics devices (Quartz, X11, Windows). Neither provides integrated plot viewing within the editor. This is a limitation relative to RStudio, not a differentiator between these plugins. Plotting support is equivalent between zzvim-R and R.nvim.
 
-**Current State**: Nothing. Zero plot support.
-
-**What's Needed**:
-```vim
-" Minimum viable implementation
-<LocalLeader>gp    " Open last plot in system viewer
-<LocalLeader>gl    " List recent plots
-<LocalLeader>gs    " Save current plot to file
-:RPlotViewer       " Open persistent plot viewer window
-
-" Advanced (nice to have)
-- Plot history navigation
-- Side-by-side plot comparison
-- Direct PNG/SVG embedding in terminal (kitty, iTerm2)
-```
-
-**Implementation Approach**:
-
-- Capture R's `dev.copy()` or `ggsave()` output to temp files
-- Open with system viewer or terminal image protocol
-- Track plot history for navigation
-
-**Effort**: Medium-High
-**Impact**: Critical - researchers cannot work without seeing plots
-
-#### 2. Integrated Code Completion
+#### 1. Integrated Code Completion
 
 **Current State**: Relies entirely on external plugins.
 
@@ -221,7 +197,7 @@ These features are **blocking issues** for serious research adoption:
 **Alternative**: Document CoC/nvim-cmp setup as first-class workflow, not
 afterthought. Provide tested configuration in documentation.
 
-#### 3. Buffer-Based Help Display
+#### 2. Buffer-Based Help Display
 
 **Current State**: Help goes to terminal, disrupts workflow.
 
@@ -251,7 +227,7 @@ K                  " (optional) Override K for R help
 
 These features differentiate capable tools from basic ones:
 
-#### 4. Interactive Object Browser
+#### 3. Interactive Object Browser
 
 **Current State**: HUD functions are text snapshots, not interactive.
 
@@ -278,7 +254,7 @@ These features differentiate capable tools from basic ones:
 **Effort**: Medium-High
 **Impact**: High - researchers constantly explore data structures
 
-#### 5. Enhanced R Markdown Support
+#### 4. Enhanced R Markdown Support
 
 **Current State**: Basic chunk navigation and execution.
 
@@ -302,7 +278,7 @@ These features differentiate capable tools from basic ones:
 **Effort**: Medium
 **Impact**: High - literate programming is standard in research
 
-#### 6. Error Navigation
+#### 5. Error Navigation
 
 **Current State**: Errors display in terminal with no editor integration.
 
@@ -329,7 +305,7 @@ These features differentiate capable tools from basic ones:
 
 ### Tier 3: Nice to Have for Advanced Users
 
-#### 7. Session Management
+#### 6. Session Management
 
 **Current State**: No session persistence.
 
@@ -343,7 +319,7 @@ These features differentiate capable tools from basic ones:
 **Effort**: Low
 **Impact**: Medium - useful for long-running analyses
 
-#### 8. Package Development Integration
+#### 7. Package Development Integration
 
 **Current State**: Nothing for package developers.
 
@@ -359,7 +335,7 @@ These features differentiate capable tools from basic ones:
 **Effort**: Low (just wrappers)
 **Impact**: Low-Medium - subset of users who develop packages
 
-#### 9. Remote/SSH Support
+#### 8. Remote/SSH Support
 
 **Current State**: Nothing for remote R sessions.
 
@@ -372,7 +348,7 @@ These features differentiate capable tools from basic ones:
 **Effort**: High
 **Impact**: Medium - important for HPC users
 
-#### 10. Debugging Integration
+#### 9. Debugging Integration
 
 **Current State**: Only `browser()` support.
 
