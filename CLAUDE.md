@@ -15,28 +15,28 @@ This document provides comprehensive information about the zzvim-R plugin, its c
 **R Markdown Integration**: Fixed chunk execution with proper code echo and cursor advancement
 **Cross-Platform Support**: Full Vim/Neovim compatibility with unified API
 **Professional IDE Setup**: Complete R development environment with LSP, formatting, and diagnostics
-**Terminal Selection**: Intelligent detection and user selection of existing terminals
+**Terminal Selection**: Terminal detection and user selection of existing terminals
 **Docker Integration**: Full Docker container support with force-association capabilities
 **Temp File Strategy**: Improved with relative paths, branding, and validation (December 2025)
 **Competitive Analysis**: Honest research-focused comparisons with R.nvim and RStudio
 
 ## Plugin Overview
 
-zzvim-R is a Vim plugin that provides R integration for Vim/Neovim, enabling integrated development workflows for R programming. The plugin focuses on smart code execution with pattern-based detection and follows a simple, single-file architecture.
+zzvim-R is a Vim plugin that provides R integration for Vim/Neovim, enabling integrated development workflows for R programming. The plugin focuses on code execution with pattern-based detection and follows a simple, single-file architecture.
 
 ### Key Features
 
-- **Smart Code Execution**: Intelligent detection of R functions, control structures, and code blocks with silent execution (no "Press ENTER" prompts)
-- **Multi-Terminal Management**: Buffer-specific R terminal sessions with complete workflow isolation between different R files
-- **Intelligent Terminal Selection**: Automatic detection of existing terminals with user prompt to associate or create new
-- **Docker Container Support**: Full integration with Docker containers for isolated R environments with force-association capabilities
-- **Advanced Window Management**: Flexible terminal split windows (vertical/horizontal) with configurable sizing
-- **Terminal Association Visibility**: Comprehensive commands to view and manage R file ↔ terminal associations
+- **Code Execution**: Pattern-based detection of R functions, control structures, and code blocks with non-interactive execution (no "Press ENTER" prompts)
+- **Multi-Terminal Management**: Buffer-specific R terminal sessions with workflow isolation between different R files
+- **Terminal Selection**: Automatic detection of existing terminals with user prompt to associate or create new
+- **Docker Container Support**: Integration with Docker containers for isolated R environments with force-association capabilities
+- **Window Management**: Flexible terminal split windows (vertical/horizontal) with configurable sizing
+- **Terminal Association Visibility**: Commands to view and manage R file ↔ terminal associations
 - **Chunk Navigation**: Navigate between R Markdown code chunks with buffer-specific execution
-- **Enhanced Pattern Recognition**: Advanced detection of R language constructs including both brace {} and parenthesis () matching
-- **Clean Code Execution**: Professional terminal output with intelligent code transmission (no source() clutter)
-- **Object Inspection**: Compact R expressions for workspace browsing and object examination
-- **Flexible Key Mappings**: Smart `<CR>` behavior adapts to context with extensive customization options
+- **Pattern Recognition**: Detection of R language constructs including both brace {} and parenthesis () matching
+- **Code Execution Output**: Clean terminal output with code transmission (no source() clutter)
+- **Object Inspection**: R expressions for workspace browsing and object examination
+- **Key Mappings**: Context-aware `<CR>` behavior with customization options
 
 ## Project Structure
 
@@ -88,7 +88,7 @@ The plugin uses a simple, single-file architecture with clear functional separat
 
 ### **Key Design Principles**
 
-1. **Pattern-Based Intelligence**: Automatic detection of R code structures
+1. **Pattern-Based Detection**: Automatic detection of R code structures
 2. **Consistent Temp File Approach**: All code submission uses temporary files
 3. **Context-Aware Behavior**: `<CR>` key adapts to cursor position
 4. **Error Handling**: Robust position restoration and error messaging
@@ -111,7 +111,7 @@ The plugin uses a simple, single-file architecture with clear functional separat
 - **`s:GetTerminalName()`**: Generate unique terminal names for buffer-specific association
 - **`s:GetAllTerminals()`**: Detect all existing terminal buffers with status information
 - **`s:PromptTerminalSelection(terminals)`**: Interactive prompt for terminal selection or creation
-- **`s:GetBufferTerminal()`**: Find or create buffer-specific R terminal with intelligent detection and user prompting
+- **`s:GetBufferTerminal()`**: Find or create buffer-specific R terminal with terminal detection and user prompting
 - **`s:OpenRTerminal()`**: Create and manage R terminal sessions
 - **`s:Send_to_r(cmd, stay_on_line)`**: Send commands to buffer-specific R terminal with silent execution
 - **`s:SendControlKeys(key)`**: Send control sequences to terminal
@@ -127,12 +127,12 @@ The plugin uses a simple, single-file architecture with clear functional separat
 - **`s:MovePrevChunk()`**: Navigate to previous R Markdown chunk  
 - **`s:SubmitChunk()`**: Execute current chunk (uses generalized system with buffer-specific terminal)
 
-### **6. Enhanced Pattern Recognition and Cursor Management**
+### **6. Pattern Recognition and Cursor Management**
 - **`s:IsIncompleteStatement()`**: Detect continuation lines to prevent incomplete code submission
-- **`s:IsInsideFunction()`**: Optimized function boundary detection with performance limits
-- **`s:MoveCursorAfterSubmission(selection_type, line_count)`**: Intelligent cursor positioning after code submission
-- **Enhanced `s:IsBlockStart(line)`**: Improved pattern recognition with continuation line exclusion
-- **Enhanced `s:GetCodeBlock()`**: Sophisticated brace/parenthesis matching with proper state management
+- **`s:IsInsideFunction()`**: Function boundary detection with performance limits
+- **`s:MoveCursorAfterSubmission(selection_type, line_count)`**: Cursor positioning after code submission
+- **`s:IsBlockStart(line)`**: Pattern recognition with continuation line exclusion
+- **`s:GetCodeBlock()`**: Brace/parenthesis matching with proper state management
 
 ### **7. Object Inspection**
 - **`s:RAction(action, stay_on_line)`**: Execute R functions on word under cursor in buffer-specific terminal
@@ -140,9 +140,9 @@ The plugin uses a simple, single-file architecture with clear functional separat
 
 ## Key Mappings System
 
-The plugin provides an intelligent key mapping system with smart context detection:
+The plugin provides a key mapping system with context-aware detection:
 
-### **Smart `<CR>` Behavior (Context-Aware)**
+### **Context-Aware `<CR>` Behavior**
 
 **Normal Mode**: `<CR>` calls `s:SmartSubmit()` which automatically detects:
 - **Function definitions**: `my_func <- function(x) {` → sends entire function block
@@ -180,10 +180,10 @@ The plugin provides an intelligent key mapping system with smart context detecti
 - **`<LocalLeader>q`**: Send Q to R (quit buffer-specific session)
 - **`<LocalLeader>c`**: Send Ctrl-C to R (interrupt buffer-specific session)
 
-### **Generalized Send Functions (Advanced)**
+### **Generalized Send Functions**
 - **`<LocalLeader>sf`**: Force send function block
 - **`<LocalLeader>sl`**: Force send current line only
-- **`<LocalLeader>sa`**: Smart auto-detection (same as `<CR>`)
+- **`<LocalLeader>sa`**: Auto-detection (same as `<CR>`)
 
 ### **Other Operations**
 - **`<LocalLeader>o`**: Add pipe operator (`%>%`) and new line
@@ -228,19 +228,19 @@ Major code cleanup and API streamlining:
 
 ### Version 1.0 (Generalized SendToR System + Comprehensive Documentation)
 
-Major architectural improvement implementing intelligent code detection:
+Architectural improvement implementing pattern-based code detection:
 
 1. **Generalized SendToR Function**: Created `s:SendToR(selection_type)` as unified dispatcher
-2. **Smart Pattern Detection**: Implemented `s:IsBlockStart()` for automatic R code structure recognition
+2. **Pattern Detection**: Implemented `s:IsBlockStart()` for automatic R code structure recognition
 3. **Brace Matching Algorithm**: Added `s:GetCodeBlock()` for accurate code block extraction
-4. **Context-Aware `<CR>` Key**: Enhanced `<CR>` to intelligently detect and send appropriate code units
+4. **Context-Aware `<CR>` Key**: `<CR>` detects and sends appropriate code units
 5. **Unified Temp File Approach**: All code submission uses consistent temporary file method
 6. **Backward Compatibility**: Existing functions updated to use new system while preserving behavior
 7. **Additional Key Mappings**: Added `<LocalLeader>sf/sl/sa` for explicit control
 
 ### Version 1.0.1+ (Multi-Terminal Architecture + Advanced Window Management)
 
-**MAJOR ENHANCEMENT**: Comprehensive multi-terminal system with advanced window management:
+**Enhancement**: Multi-terminal system with window management:
 
 #### **Multi-Terminal Foundation (Claude Session Enhancement 1)**
 1. **Buffer-Specific Terminal Association**: Each R file gets its own isolated terminal session
@@ -249,15 +249,15 @@ Major architectural improvement implementing intelligent code detection:
    - Terminal naming scheme: `R-filename` (e.g., `analysis.R` → `R-analysis`)
    - Complete workflow isolation between different R files
 
-2. **Enhanced Pattern Recognition**: Extended smart detection to support both brace `{}` and parenthesis `()` matching
+2. **Pattern Recognition**: Extended detection to support both brace `{}` and parenthesis `()` matching
    - Generalized `s:GetCodeBlock()` for configurable character matching
-   - Sophisticated nested structure handling for complex R constructs
-   - Advanced algorithm supporting function calls like `p_load(dplyr, ggplot2)`
+   - Nested structure handling for complex R constructs
+   - Support for function calls like `p_load(dplyr, ggplot2)`
 
-3. **Silent Execution Implementation**: Eliminated "Press ENTER" prompts for streamlined workflows
-   - All code submission operations now use silent execution
+3. **Non-Interactive Execution**: Eliminated "Press ENTER" prompts for streamlined workflows
+   - All code submission operations now use non-interactive execution
    - Removed user-facing command line prompts and messages
-   - Enhanced user experience with integrated code-to-result pipelines
+   - Improved user experience with integrated code-to-result pipelines
 
 #### **Terminal Visibility & Management (Claude Session Enhancement 2)**
 1. **Comprehensive Terminal Association Commands**: 
@@ -265,16 +265,16 @@ Major architectural improvement implementing intelligent code detection:
    - **`:RListTerminals`**: Visual overview of all R file ↔ terminal associations  
    - **`:RSwitchToTerminal`**: Quick navigation to buffer-specific terminal
 
-2. **Advanced Window Management**:
+2. **Window Management**:
    - **`:ROpenSplit [type]`**: Open buffer-specific R terminal in new split window
    - Support for both vertical and horizontal split orientations
    - **`<LocalLeader>w`**: Key mapping for vertical split terminal
    - **`<LocalLeader>W`**: Key mapping for horizontal split terminal
    - Configurable split sizing with `g:zzvim_r_terminal_height` (default: 15)
 
-3. **Smart Window Detection**: 
-   - Automatic detection of existing terminal windows
-   - Intelligent switching vs. creation logic
+3. **Window Detection**:
+   - Detection of existing terminal windows
+   - Terminal switching vs. creation logic
    - Preservation of current buffer view during terminal operations
 
 #### **Pattern Recognition & Architecture Refinement (Claude Session Enhancement 3)**
@@ -285,7 +285,7 @@ Major architectural improvement implementing intelligent code detection:
    - **Continuation line exclusion**: Prevents submission of lines like `       dplyr)` that cause syntax errors
 
 2. **Architecture and Cursor Management**:
-   - **`s:MoveCursorAfterSubmission()`**: Dedicated function for intelligent cursor positioning
+   - **`s:MoveCursorAfterSubmission()`**: Dedicated function for cursor positioning
    - **Separation of concerns**: Text extraction functions no longer handle cursor movement
    - **Proper cursor advancement**: After submitting code blocks, cursor moves to appropriate next position
    - **State management**: Script-local variables for tracking block boundaries
@@ -293,19 +293,19 @@ Major architectural improvement implementing intelligent code detection:
 3. **Performance and Reliability Enhancements**:
    - **Search limits**: Bounded searches prevent expensive operations on large files
    - **Early termination**: Quick bailout conditions for edge cases and malformed code
-   - **Enhanced error handling**: Proper cursor position restoration on failures
-   - **Edge case coverage**: Comprehensive boundary checks for file start/end
+   - **Error handling**: Proper cursor position restoration on failures
+   - **Edge case coverage**: Boundary checks for file start/end
 
 **Key Benefits**:
-- **Intelligent Workflow**: `<CR>` automatically detects functions, control structures, or individual lines with enhanced accuracy
+- **Code Execution**: `<CR>` automatically detects functions, control structures, or individual lines with accurate pattern recognition
 - **Character Limit Handling**: Temp file approach handles any code size consistently
-- **Comprehensive Pattern Recognition**: Recognizes all R language constructs including `function()`, `if()`, `for()`, `while()`, standalone `{}` blocks, multi-line function calls `()`, indexing operations `[]`, and all infix operators (`+`, `<-`, `|>`, `%>%`, etc.)
+- **Pattern Recognition**: Recognizes all R language constructs including `function()`, `if()`, `for()`, `while()`, standalone `{}` blocks, multi-line function calls `()`, indexing operations `[]`, and all infix operators (`+`, `<-`, `|>`, `%>%`, etc.)
 - **Debugging Friendly**: Lines inside functions still execute individually with proper cursor advancement
 - **Performance Optimized**: Fast pattern detection with bounded searches and early termination
-- **Error Prevention**: Smart detection prevents submission of incomplete statements
+- **Error Prevention**: Pattern detection prevents submission of incomplete statements
 - **Extensible Architecture**: Clean separation of concerns makes adding new features easier
 
-#### **Comprehensive Delimiter Support (Claude Session Enhancement 4)**
+#### **Delimiter Support (Claude Session Enhancement 4)**
 1. **Complete R Block Delimiter System**:
    - **`[]` bracket support**: Multi-line indexing operations with balanced bracket counting
    - **All infix operators**: Comprehensive coverage of R's infix operator syntax

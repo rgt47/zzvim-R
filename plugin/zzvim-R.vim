@@ -1561,7 +1561,7 @@ function! s:GetPreviousChunks() abort
 endfunction
 
 "------------------------------------------------------------------------------
-" Function: Smart submission - uses generalized function with auto-detection
+" Function: Code submission - uses generalized function with auto-detection
 "------------------------------------------------------------------------------
 
 
@@ -2030,7 +2030,7 @@ function! s:RWorkspaceOverview() abort
                 \ 'cat("=================\n")}', 1)
 endfunction
 
-" Inspect object at cursor or by name - replaces complex smart inspection  
+" Inspect object at cursor or by name  
 function! s:RInspectObject(...) abort
     let obj = a:0 > 0 ? a:1 : expand('<cword>')
     if empty(obj) | echom "No object specified" | return | endif
