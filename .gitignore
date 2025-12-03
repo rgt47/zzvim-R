@@ -32,6 +32,13 @@ test2.R
 temp.R
 *.tmp
 
+# zzvim-R temporary files (auto-generated, auto-deleted by R)
+# Pattern: .z + timestamp + extension (e.g., .z1234.R)
+.z[0-9]*.R
+.z[0-9]*.txt
+.zc[0-9]*.R
+.zo[0-9]*.txt
+
 # Development documentation (keep in repo but don't package)
 code_quality_report.md
 improvements.md

@@ -465,13 +465,33 @@ endfunction
 " Get the project root directory (where DESCRIPTION or .zzcollab_project is)
 " Returns empty string if not inside a project
 function! s:GetProjectRoot() abort
+    " Check for user-configured project root first
+    if exists('g:zzvim_r_project_root') && !empty(g:zzvim_r_project_root)
+        return g:zzvim_r_project_root
+    endif
+
+    " Walk up directory tree looking for project markers
     let dir = getcwd()
     while dir != '/'
+        " Check for zzvim-specific markers (R packages and zzcollab workspaces)
         if filereadable(dir . '/DESCRIPTION') || filereadable(dir . '/.zzcollab_project')
             return dir
         endif
+
+        " Check for version control indicators (common project roots)
+        if isdirectory(dir . '/.git')
+            return dir
+        endif
+
+        " Check for common project files
+        if filereadable(dir . '/setup.py') || filereadable(dir . '/package.json') ||
+           \ filereadable(dir . '/Makefile') || filereadable(dir . '/pyproject.toml')
+            return dir
+        endif
+
         let dir = fnamemodify(dir, ':h')
     endwhile
+
     return ''
 endfunction
 
@@ -853,19 +873,32 @@ function! s:SendToR(selection_type, ...) abort
         return
     endif
     
-    " Phase 2: Consistent Code Transmission via Local Temp File
+    " Phase 2: Consistent Code Transmission via Project Root Temp File
     " Write to project root so Docker container can find it
     " (R's working directory in container is the mounted project root)
-    let temp_filename = '.zzvim_r_temp.R'
+    " Use unique filenames to avoid collisions between concurrent executions
+    let timestamp = string(localtime())[-4:]  " Last 4 digits of unix timestamp
+    let temp_filename = '.z' . timestamp . '.R'
     let project_root = s:GetProjectRoot()
     if empty(project_root)
         let project_root = getcwd()
     endif
-    call writefile(text_lines, project_root . '/' . temp_filename)
 
-    " Execute with relative path (works from project root in both host and container)
-    " Shows: source(".zzvim_r_temp.R", echo=T) and displays the executed code
-    call s:Send_to_r('source("' . temp_filename . '", echo=T)', 1)
+    " Verify project root is writable before attempting to write temp file
+    if !filewritable(project_root)
+        call s:Error("Cannot write to project directory: " . project_root)
+        return
+    endif
+
+    let temp_file = project_root . '/' . temp_filename
+    call writefile(text_lines, temp_file)
+
+    " Execute with R handling deletion (option C: cleanest)
+    " Use absolute path to ensure source() works regardless of R's working directory
+    " After source() succeeds, R deletes the temp file with unlink()
+    " Shows: source("/absolute/path/.z1234.R", echo=T) and displays the executed code
+    let r_cmd = 'source("' . temp_file . '", echo=T); unlink("' . temp_file . '")'
+    call s:Send_to_r(r_cmd, 1)
     
     " Phase 3: Determine actual submission type for cursor movement
     let actual_type = a:selection_type
@@ -950,18 +983,34 @@ function! s:SendToRWithComments(selection_type) abort
         let end_line = start_line + len(text_lines) - 1
     endif
     
-    " Phase 3: Create temp file with code wrapped in capture.output()
-    let temp_file = '.zzvim_r_temp_capture.R'
-    let temp_output_file = '.zzvim_r_output.txt'
-    
+    " Phase 3: Create temp files with code wrapped in capture.output()
+    " Use unique filenames and project root (for Docker compatibility)
+    let timestamp = string(localtime())[-4:]
+    let temp_filename = '.zc' . timestamp . '.R'
+    let temp_output_filename = '.zo' . timestamp . '.txt'
+    let project_root = s:GetProjectRoot()
+    if empty(project_root)
+        let project_root = getcwd()
+    endif
+
+    " Verify project root is writable before attempting to write temp files
+    if !filewritable(project_root)
+        call s:Error("Cannot write to project directory: " . project_root)
+        return
+    endif
+
+    let temp_file = project_root . '/' . temp_filename
+    let temp_output_file = project_root . '/' . temp_output_filename
+
     " Build capture.output() command
+    " Use absolute paths so R can find the files regardless of working directory
     let capture_lines = ['writeLines(capture.output({']
     let capture_lines = capture_lines + text_lines
     let capture_lines = capture_lines + ['}), "' . temp_output_file . '")']
-    
+
     call writefile(capture_lines, temp_file)
-    
-    " Phase 4: Execute the wrapped code
+
+    " Phase 4: Execute the wrapped code with absolute path
     call s:Send_to_r('source("' . temp_file . '")', 1)
     
     " Brief delay to ensure output file is written
