@@ -878,7 +878,7 @@ function! s:SendToR(selection_type, ...) abort
     " (R's working directory in container is the mounted project root)
     " Use unique filenames to avoid collisions between concurrent executions
     let timestamp = string(localtime())[-4:]  " Last 4 digits of unix timestamp
-    let temp_filename = '.z' . timestamp . '.R'
+    let temp_filename = '.zz' . timestamp . '.R'
     let project_root = s:GetProjectRoot()
     if empty(project_root)
         let project_root = getcwd()
@@ -894,10 +894,10 @@ function! s:SendToR(selection_type, ...) abort
     call writefile(text_lines, temp_file)
 
     " Execute with R handling deletion (option C: cleanest)
-    " Use absolute path to ensure source() works regardless of R's working directory
+    " Use relative path for Docker compatibility (R's cwd is project root)
     " After source() succeeds, R deletes the temp file with unlink()
-    " Shows: source("/absolute/path/.z1234.R", echo=T) and displays the executed code
-    let r_cmd = 'source("' . temp_file . '", echo=T); unlink("' . temp_file . '")'
+    " Shows: source(".zz1234.R", echo=T) and displays the executed code
+    let r_cmd = 'source("' . temp_filename . '", echo=T); unlink("' . temp_filename . '")'
     call s:Send_to_r(r_cmd, 1)
     
     " Phase 3: Determine actual submission type for cursor movement
@@ -986,8 +986,8 @@ function! s:SendToRWithComments(selection_type) abort
     " Phase 3: Create temp files with code wrapped in capture.output()
     " Use unique filenames and project root (for Docker compatibility)
     let timestamp = string(localtime())[-4:]
-    let temp_filename = '.zc' . timestamp . '.R'
-    let temp_output_filename = '.zo' . timestamp . '.txt'
+    let temp_filename = '.zzc' . timestamp . '.R'
+    let temp_output_filename = '.zzo' . timestamp . '.txt'
     let project_root = s:GetProjectRoot()
     if empty(project_root)
         let project_root = getcwd()
@@ -1003,15 +1003,15 @@ function! s:SendToRWithComments(selection_type) abort
     let temp_output_file = project_root . '/' . temp_output_filename
 
     " Build capture.output() command
-    " Use absolute paths so R can find the files regardless of working directory
+    " Use relative paths for Docker compatibility (R's cwd is project root)
     let capture_lines = ['writeLines(capture.output({']
     let capture_lines = capture_lines + text_lines
-    let capture_lines = capture_lines + ['}), "' . temp_output_file . '")']
+    let capture_lines = capture_lines + ['}), "' . temp_output_filename . '")']
 
     call writefile(capture_lines, temp_file)
 
-    " Phase 4: Execute the wrapped code with absolute path
-    call s:Send_to_r('source("' . temp_file . '")', 1)
+    " Phase 4: Execute the wrapped code with relative path
+    call s:Send_to_r('source("' . temp_filename . '")', 1)
     
     " Brief delay to ensure output file is written
     sleep 100m
