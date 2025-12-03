@@ -6,6 +6,40 @@ All notable changes to the zzvim-R plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2025-12-03
+
+### Major Release
+First official release of zzvim-R with production-ready features and quality standards.
+
+### Added
+- **Robust Temp File Strategy**:
+  - Unique timestamp-based filenames preventing collision conflicts
+  - R-side cleanup via `unlink()` after code execution
+  - Docker-compatible relative path handling
+  - Project root detection with priority-based marker checking
+  - Writability validation before file operations
+
+### Changed
+- Repository cleanup: Removed development artifacts from tracking
+- Consistent versioning across plugin and documentation
+- Organized test files in dedicated `test_files/` directory
+
+### Quality Improvements
+- Clean repository structure ready for distribution
+- All 12 CI tests passing on Vim/Neovim across platforms
+- Professional release package composition
+- Comprehensive documentation (README, help file, contributing guide)
+
+### Features Complete
+- 50 Ex commands with comprehensive R development coverage
+- 59 key mappings for efficient workflows
+- Multi-terminal support with buffer-specific sessions
+- Docker container integration with force-association
+- HUD dashboard with 5 workspace information panels
+- R Markdown/Quarto chunk navigation and execution
+- Object inspection suite (head, str, dim, names, etc.)
+- Smart code execution with context awareness
+
 ## [1.1.0] - 2025-09-06
 
 ### Added

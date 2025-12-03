@@ -5,7 +5,7 @@ This document provides comprehensive information about the zzvim-R plugin, its c
 ## Document Status
 
 **Last Updated**: December 3, 2025
-**Plugin Version**: 1.0.5+docker+improved-temps
+**Plugin Version**: 1.0
 **Documentation Status**: Comprehensive accuracy review completed with 76-char line wrapping
 **Test Coverage**: Full test suite + clean execution validation with automated CI workflows
 **Release Readiness**: Production ready with clean terminal output and professional UX
