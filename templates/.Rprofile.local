@@ -316,6 +316,31 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
   assign("plot_redisplay_if_resized", plot_redisplay_if_resized, envir = .GlobalEnv)
 
   # ========================================================================
+  # Fullscreen/Maximize Plot
+  # ========================================================================
+  plot_maximize <- function() {
+    pf <- get(".plot_file", envir = .GlobalEnv)
+    if (is.null(pf) || !file.exists(pf)) {
+      cat("No plot to maximize\n")
+      return(invisible(NULL))
+    }
+
+    terminal <- get(".terminal", envir = .GlobalEnv)
+    if (terminal == "kitty") {
+      # Open current plot in a fullscreen Kitty window in background
+      system(paste("(kitty @ launch --type window --cwd /tmp kitty +kitten icat ", pf, ") &", sep = ""),
+             ignore.stderr = TRUE, wait = FALSE)
+      cat("Plot opened in fullscreen window (close with Ctrl+Shift+Q or use Ctrl+Shift+] to switch)\n")
+    } else if (terminal == "iterm2") {
+      # For iTerm2, just redisplay at larger size using the image viewer
+      system(paste("open -a Preview ", pf), ignore.stderr = TRUE)
+      cat("Plot opened in Preview (macOS default image viewer)\n")
+    }
+  }
+
+  assign("plot_maximize", plot_maximize, envir = .GlobalEnv)
+
+  # ========================================================================
   # Startup Message
   # ========================================================================
   cat("✓ Terminal graphics enabled (", toupper(.terminal), ")\n", sep = "")
@@ -331,5 +356,6 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
   if (.terminal == "kitty") {
     cat("  - set_plot_align(a)        : Alignment (left/center/right)\n")
   }
+  cat("  - plot_maximize()          : Open current plot in fullscreen window\n")
   cat("  - plot_redisplay_if_resized(): Redisplay after terminal resize\n\n")
 }
