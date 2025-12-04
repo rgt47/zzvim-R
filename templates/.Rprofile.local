@@ -318,11 +318,35 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
   # ========================================================================
   # Fullscreen/Maximize Plot
   # ========================================================================
-  plot_split <- function() {
+  plot_split <- function(scale = 1) {
     pf <- get(".plot_file", envir = .GlobalEnv)
     if (is.null(pf) || !file.exists(pf)) {
       cat("No plot to display\n")
       return(invisible(NULL))
+    }
+
+    # If scale != 1, create a scaled version of the plot
+    display_file <- pf
+    if (scale != 1) {
+      if (!requireNamespace("png", quietly = TRUE)) {
+        cat("Installing 'png' package for scaled display...\n")
+        install.packages("png", quiet = TRUE)
+      }
+
+      # Read the current plot
+      img <- png::readPNG(pf)
+      dims <- dim(img)
+      new_width <- floor(dims[2] * scale)
+      new_height <- floor(dims[1] * scale)
+
+      # Create scaled version
+      scaled_file <- tempfile(pattern = "plot_scaled_", fileext = ".png")
+      png(scaled_file, width = new_width, height = new_height, res = 96)
+      par(mar = c(0, 0, 0, 0))
+      grid::grid.raster(img)
+      dev.off()
+
+      display_file <- scaled_file
     }
 
     terminal <- get(".terminal", envir = .GlobalEnv)
@@ -331,7 +355,7 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
       # tail -f /dev/null keeps pane open without showing a shell prompt
       shell_cmd <- sprintf(
         "exec bash -c 'kitty @ launch --location=vsplit -- sh -c \"kitty +kitten icat %s; tail -f /dev/null\"' &",
-        shQuote(pf)
+        shQuote(display_file)
       )
       # Suppress both the return code and any error messages
       tryCatch(
@@ -341,7 +365,7 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
       cat("Plot opened in split pane (use Ctrl+Shift+] to focus plot, Ctrl+Shift+[ to return to R)\n")
     } else if (terminal == "iterm2") {
       # For iTerm2, open with system viewer
-      system2("open", pf, wait = FALSE)
+      system2("open", display_file, wait = FALSE)
       cat("Plot opened in default image viewer\n")
     }
     invisible(NULL)
