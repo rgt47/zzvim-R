@@ -321,14 +321,19 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
   plot_split <- function() {
     pf <- get(".plot_file", envir = .GlobalEnv)
     if (is.null(pf) || !file.exists(pf)) {
-      cat("No plot to maximize\n")
+      cat("No plot to display\n")
       return(invisible(NULL))
     }
 
     terminal <- get(".terminal", envir = .GlobalEnv)
     if (terminal == "kitty") {
-      # Open current plot in a split pane (right side)
-      system2("kitty", c("@", "launch", "--location=vsplit", "--", "kitty", "+kitten", "icat", pf), wait = FALSE)
+      # Use shell wrapper to properly create split pane with kitty
+      # tail -f /dev/null keeps pane open without showing a shell prompt
+      shell_cmd <- sprintf(
+        "exec bash -c 'kitty @ launch --location=vsplit -- sh -c \"kitty +kitten icat %s; tail -f /dev/null\"' &",
+        shQuote(pf)
+      )
+      invisible(system(shell_cmd, ignore.stderr = TRUE))
       cat("Plot opened in split pane (use Ctrl+Shift+] to focus plot, Ctrl+Shift+[ to return to R)\n")
     } else if (terminal == "iterm2") {
       # For iTerm2, open with system viewer
