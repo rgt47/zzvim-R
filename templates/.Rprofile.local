@@ -34,9 +34,9 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
   assign(".plot_file", NULL, envir = .GlobalEnv)
   assign(".plot_history", list(), envir = .GlobalEnv)
   assign(".plot_history_idx", 0, envir = .GlobalEnv)
-  assign(".use_relative_sizing", FALSE, envir = .GlobalEnv)
-  assign(".width_pct", 0.4, envir = .GlobalEnv)
-  assign(".height_pct", 0.75, envir = .GlobalEnv)
+  assign(".use_relative_sizing", TRUE, envir = .GlobalEnv)
+  assign(".width_pct", 0.75, envir = .GlobalEnv)
+  assign(".height_pct", 1.0, envir = .GlobalEnv)
 
   # ========================================================================
   # Device Creation
