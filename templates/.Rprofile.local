@@ -328,12 +328,12 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
     terminal <- get(".terminal", envir = .GlobalEnv)
     if (terminal == "kitty") {
       # Open current plot in a fullscreen Kitty window in background
-      system(paste("(kitty @ launch --type window --cwd /tmp kitty +kitten icat ", pf, ") &", sep = ""),
-             ignore.stderr = TRUE, wait = FALSE)
+      cmd <- paste("nohup kitty @ launch --type window kitty +kitten icat '", pf, "' > /dev/null 2>&1", sep = "")
+      system(cmd, wait = FALSE)
       cat("Plot opened in fullscreen window (close with Ctrl+Shift+Q or use Ctrl+Shift+] to switch)\n")
     } else if (terminal == "iterm2") {
       # For iTerm2, just redisplay at larger size using the image viewer
-      system(paste("open -a Preview ", pf), ignore.stderr = TRUE)
+      system(paste("open -a Preview '", pf, "'", sep = ""))
       cat("Plot opened in Preview (macOS default image viewer)\n")
     }
   }
@@ -343,19 +343,27 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
   # ========================================================================
   # Startup Message
   # ========================================================================
-  cat("✓ Terminal graphics enabled (", toupper(.terminal), ")\n", sep = "")
-  cat("\nQuick reference:\n")
-  cat("  - zzplot(...)              : Base R plots with auto-display\n")
-  cat("  - zzggplot(p)              : ggplot2 plots with auto-display\n")
-  cat("  - plot_history()           : View plot history\n")
-  cat("  - plot_prev() / plot_next(): Navigate history\n")
-  cat("  - save_plot(file)          : Save current plot as PNG\n")
-  cat("  - plot_to_pdf(file)        : Save current plot as PDF\n")
-  cat("  - set_plot_size(w,h,dpi)   : Fixed dimensions\n")
-  cat("  - set_plot_size_relative() : Size by % of terminal (default: 75% x 100%)\n")
+  startup_msg <- c(
+    paste("✓ Terminal graphics enabled (", toupper(.terminal), ")", sep = ""),
+    "",
+    "Quick reference:",
+    "  zzplot(...)                : Base R plots with auto-display",
+    "  zzggplot(p)                : ggplot2 plots with auto-display",
+    "  plot_history()             : View plot history",
+    "  plot_prev() / plot_next()  : Navigate history",
+    "  save_plot(file)            : Save current plot as PNG",
+    "  plot_to_pdf(file)          : Save current plot as PDF",
+    "  set_plot_size(w,h,dpi)     : Fixed dimensions",
+    "  set_plot_size_relative()   : Size by % of terminal (default: 75% x 100%)"
+  )
   if (.terminal == "kitty") {
-    cat("  - set_plot_align(a)        : Alignment (left/center/right)\n")
+    startup_msg <- c(startup_msg, "  set_plot_align(a)          : Alignment (left/center/right)")
   }
-  cat("  - plot_maximize()          : Open current plot in fullscreen window\n")
-  cat("  - plot_redisplay_if_resized(): Redisplay after terminal resize\n\n")
+  startup_msg <- c(
+    startup_msg,
+    "  plot_maximize()            : Open current plot in fullscreen window",
+    "  plot_redisplay_if_resized(): Redisplay after terminal resize",
+    ""
+  )
+  cat(paste(startup_msg, collapse = "\n"))
 }
