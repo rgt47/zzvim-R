@@ -327,14 +327,14 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
 
     terminal <- get(".terminal", envir = .GlobalEnv)
     if (terminal == "kitty") {
-      # Open current plot in a fullscreen Kitty window in background
-      cmd <- paste("nohup kitty @ launch --type window kitty +kitten icat '", pf, "' > /dev/null 2>&1", sep = "")
+      # Open current plot in a fullscreen Kitty window
+      cmd <- paste("kitty @ launch --type window --hold -- sh -c \"kitty +kitten icat '", pf, "'\"", sep = "")
       system(cmd, wait = FALSE)
       cat("Plot opened in fullscreen window (close with Ctrl+Shift+Q or use Ctrl+Shift+] to switch)\n")
     } else if (terminal == "iterm2") {
-      # For iTerm2, just redisplay at larger size using the image viewer
-      system(paste("open -a Preview '", pf, "'", sep = ""))
-      cat("Plot opened in Preview (macOS default image viewer)\n")
+      # For iTerm2, open with system viewer
+      system(paste("open '", pf, "'", sep = ""), wait = FALSE)
+      cat("Plot opened in default image viewer\n")
     }
   }
 
