@@ -327,7 +327,7 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
   cat("  - save_plot(file)          : Save current plot as PNG\n")
   cat("  - plot_to_pdf(file)        : Save current plot as PDF\n")
   cat("  - set_plot_size(w,h,dpi)   : Fixed dimensions\n")
-  cat("  - set_plot_size_relative() : Size by % of terminal (default: 40% x 75%)\n")
+  cat("  - set_plot_size_relative() : Size by % of terminal (default: 75% x 100%)\n")
   if (.terminal == "kitty") {
     cat("  - set_plot_align(a)        : Alignment (left/center/right)\n")
   }
