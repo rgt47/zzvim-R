@@ -333,7 +333,11 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
         "exec bash -c 'kitty @ launch --location=vsplit -- sh -c \"kitty +kitten icat %s; tail -f /dev/null\"' &",
         shQuote(pf)
       )
-      invisible(system(shell_cmd, ignore.stderr = TRUE))
+      # Suppress both the return code and any error messages
+      tryCatch(
+        invisible(system(shell_cmd, ignore.stderr = TRUE)),
+        error = function(e) invisible(NULL)
+      )
       cat("Plot opened in split pane (use Ctrl+Shift+] to focus plot, Ctrl+Shift+[ to return to R)\n")
     } else if (terminal == "iterm2") {
       # For iTerm2, open with system viewer
