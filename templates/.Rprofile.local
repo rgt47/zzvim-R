@@ -376,27 +376,29 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
   # ========================================================================
   # Startup Message
   # ========================================================================
-  startup_msg <- c(
-    paste("✓ Terminal graphics enabled (", toupper(.terminal), ")", sep = ""),
-    "",
-    "Quick reference:",
-    "  zzplot(...)                : Base R plots with auto-display",
-    "  zzggplot(p)                : ggplot2 plots with auto-display",
-    "  plot_history()             : View plot history",
-    "  plot_prev() / plot_next()  : Navigate history",
-    "  save_plot(file)            : Save current plot as PNG",
-    "  plot_to_pdf(file)          : Save current plot as PDF",
-    "  set_plot_size(w,h,dpi)     : Fixed dimensions",
-    "  set_plot_size_relative()   : Size by % of terminal (default: 75% x 100%)"
-  )
-  if (.terminal == "kitty") {
-    startup_msg <- c(startup_msg, "  set_plot_align(a)          : Alignment (left/center/right)")
+  if (interactive()) {
+    startup_msg <- c(
+      paste("✓ Terminal graphics enabled (", toupper(.terminal), ")", sep = ""),
+      "",
+      "Quick reference:",
+      "  zzplot(...)                : Base R plots with auto-display",
+      "  zzggplot(p)                : ggplot2 plots with auto-display",
+      "  plot_history()             : View plot history",
+      "  plot_prev() / plot_next()  : Navigate history",
+      "  save_plot(file)            : Save current plot as PNG",
+      "  plot_to_pdf(file)          : Save current plot as PDF",
+      "  set_plot_size(w,h,dpi)     : Fixed dimensions",
+      "  set_plot_size_relative()   : Size by % of terminal (default: 75% x 100%)"
+    )
+    if (.terminal == "kitty") {
+      startup_msg <- c(startup_msg, "  set_plot_align(a)          : Alignment (left/center/right)")
+    }
+    startup_msg <- c(
+      startup_msg,
+      "  plot_split()               : Open current plot in split pane",
+      "  plot_redisplay_if_resized(): Redisplay after terminal resize",
+      ""
+    )
+    cat(paste(startup_msg, collapse = "\n"))
   }
-  startup_msg <- c(
-    startup_msg,
-    "  plot_split()               : Open current plot in split pane",
-    "  plot_redisplay_if_resized(): Redisplay after terminal resize",
-    ""
-  )
-  cat(paste(startup_msg, collapse = "\n"))
 }
