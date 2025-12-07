@@ -1360,15 +1360,39 @@ function! s:GetCodeBlock() abort
     let block_type = ''  " Will be 'brace', 'paren', or 'bracket'
     let block_line = current_line_num
     let found_opening = 0
-    
+
     " Efficient Single-Pass Character Detection
     let has_paren = current_line =~ '('
     let has_brace = current_line =~ '{'
     let has_bracket = current_line =~ '\['
-    
+
+    " SPECIAL CASE: Multi-Line Function Definitions
+    " Function definitions like: var <- function(args)
+    "                              body
+    "                            }
+    " Have parentheses on line 1 but opening brace on a later line.
+    " Must always use brace matching for function definitions, not parenthesis matching.
+    if current_line =~# 'function\s*('
+        let block_type = 'brace'
+        if has_brace
+            " Brace on current line - use normal processing
+            let found_opening = 1
+        else
+            " Brace on a later line - search for it within reasonable distance
+            let search_line = current_line_num + 1
+            let search_limit = current_line_num + 10  " Allow up to 10 lines for function signature
+            while search_line <= line('$') && search_line <= search_limit
+                if getline(search_line) =~ '{'
+                    let block_line = search_line
+                    let found_opening = 1
+                    break
+                endif
+                let search_line += 1
+            endwhile
+        endif
     " First Priority: Check current line for parentheses (function calls)
     " This prevents parenthesis blocks inside functions from being treated as brace blocks
-    if has_paren && !has_brace && !has_bracket
+    elseif has_paren && !has_brace && !has_bracket
         let block_type = 'paren'
         let found_opening = 1
         " For parentheses, the opening character is typically on the current line
@@ -1389,7 +1413,7 @@ function! s:GetCodeBlock() abort
             let line_has_brace = line_content =~ '{'
             let line_has_paren = line_content =~ '('
             let line_has_bracket = line_content =~ '\['
-            
+
             " For forward search, prioritize parentheses, then brackets, then braces
             if line_has_paren
                 let found_opening = 1
