@@ -462,7 +462,8 @@ function! s:IsInsideZzcollab() abort
 endfunction
 
 " Get the project root directory (where DESCRIPTION or .zzcollab_project is)
-" Returns empty string if not inside a project
+" Returns empty string if not inside a zzcollab-specific project
+" Only checks for R package (DESCRIPTION) or zzcollab workspace markers
 function! s:GetProjectRoot() abort
     " Check for user-configured project root first
     if exists('g:zzvim_r_project_root') && !empty(g:zzvim_r_project_root)
@@ -470,21 +471,12 @@ function! s:GetProjectRoot() abort
     endif
 
     " Walk up directory tree looking for project markers
+    " Only checks for DESCRIPTION (R package) or .zzcollab_project (zzcollab workspace)
     let dir = getcwd()
     while dir != '/'
         " Check for zzvim-specific markers (R packages and zzcollab workspaces)
+        " Do NOT check for .git, Makefile, setup.py, etc. to avoid false positives
         if filereadable(dir . '/DESCRIPTION') || filereadable(dir . '/.zzcollab_project')
-            return dir
-        endif
-
-        " Check for version control indicators (common project roots)
-        if isdirectory(dir . '/.git')
-            return dir
-        endif
-
-        " Check for common project files
-        if filereadable(dir . '/setup.py') || filereadable(dir . '/package.json') ||
-           \ filereadable(dir . '/Makefile') || filereadable(dir . '/pyproject.toml')
             return dir
         endif
 
