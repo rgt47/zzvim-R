@@ -461,22 +461,21 @@ function! s:IsInsideZzcollab() abort
     return !empty(s:GetProjectRoot())
 endfunction
 
-" Get the project root directory (where DESCRIPTION or .zzcollab_project is)
-" Returns empty string if not inside a zzcollab-specific project
-" Only checks for R package (DESCRIPTION) or zzcollab workspace markers
+" Get the project root directory (where .zzcollab directory exists)
+" Returns empty string if not inside a zzcollab workspace
+" Only checks for .zzcollab directory (unique signature of zzcollab workspaces)
 function! s:GetProjectRoot() abort
     " Check for user-configured project root first
     if exists('g:zzvim_r_project_root') && !empty(g:zzvim_r_project_root)
         return g:zzvim_r_project_root
     endif
 
-    " Walk up directory tree looking for project markers
-    " Only checks for DESCRIPTION (R package) or .zzcollab_project (zzcollab workspace)
+    " Walk up directory tree looking for .zzcollab directory
+    " Only marks a directory as zzcollab if .zzcollab directory exists
     let dir = getcwd()
     while dir != '/'
-        " Check for zzvim-specific markers (R packages and zzcollab workspaces)
-        " Do NOT check for .git, Makefile, setup.py, etc. to avoid false positives
-        if filereadable(dir . '/DESCRIPTION') || filereadable(dir . '/.zzcollab_project')
+        " Check for .zzcollab directory (unique zzcollab workspace marker)
+        if isdirectory(dir . '/.zzcollab')
             return dir
         endif
 
