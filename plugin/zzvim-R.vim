@@ -442,7 +442,9 @@ function! s:OpenRTerminal(...) abort
 
     " Check if inside a zzcollab workspace
     " If so, use Docker R terminal instead of local R
-    if s:IsInsideZzcollab()
+    let l:project_root = s:GetProjectRoot()
+    if !empty(l:project_root)
+        echom '[zzvim-R] Detected zzcollab workspace at: ' . l:project_root
         return s:OpenDockerRTerminal(terminal_name)
     endif
 
