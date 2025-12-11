@@ -443,17 +443,9 @@ function! s:OpenRTerminal(...) abort
     " Check if inside a zzcollab workspace
     " If so, use Docker R terminal instead of local R
     let l:project_root = s:GetProjectRoot()
-    echom '[zzvim-R DEBUG] Current working directory: ' . getcwd()
-    echom '[zzvim-R DEBUG] Project root detected: ' . (empty(l:project_root) ? '(none)' : l:project_root)
-
     if !empty(l:project_root)
-        echom '[zzvim-R] Detected zzcollab workspace at: ' . l:project_root
-        echom '[zzvim-R DEBUG] Launching Docker R terminal'
         return s:OpenDockerRTerminal(terminal_name)
     endif
-
-    echom '[zzvim-R DEBUG] No zzcollab workspace detected, using local R'
-    echom '[zzvim-R DEBUG] Command to execute: ' . g:zzvim_r_command
 
     if !executable('R')
         call s:Error('R is not installed or not in PATH')
@@ -476,26 +468,21 @@ endfunction
 function! s:GetProjectRoot() abort
     " Check for user-configured project root first
     if exists('g:zzvim_r_project_root') && !empty(g:zzvim_r_project_root)
-        echom '[zzvim-R DEBUG] Using configured project root: ' . g:zzvim_r_project_root
         return g:zzvim_r_project_root
     endif
 
     " Walk up directory tree looking for .zzcollab_manifest.json file
     " Only marks a directory as zzcollab if .zzcollab_manifest.json file exists
     let dir = getcwd()
-    echom '[zzvim-R DEBUG] Starting search from: ' . dir
     while dir != '/'
-        let manifest_path = dir . '/.zzcollab_manifest.json'
-        if filereadable(manifest_path)
-            echom '[zzvim-R DEBUG] Found manifest at: ' . manifest_path
+        " Check for .zzcollab_manifest.json file (unique zzcollab workspace marker)
+        if filereadable(dir . '/.zzcollab_manifest.json')
             return dir
         endif
-        echom '[zzvim-R DEBUG] No manifest at: ' . manifest_path
 
         let dir = fnamemodify(dir, ':h')
     endwhile
 
-    echom '[zzvim-R DEBUG] No zzcollab workspace found in hierarchy'
     return ''
 endfunction
 
@@ -1605,7 +1592,7 @@ if !g:zzvim_r_disable_mappings
         autocmd!
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>r  :call <SID>OpenRTerminal()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>R  :call <SID>OpenLocalRTerminal()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>dr :call <SID>OpenDockerRTerminal(s:GetTerminalName(), 1)<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>D  :call <SID>OpenDockerRTerminal(s:GetTerminalName(), 1)<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>w :call <SID>ROpenSplitCommand('vertical')<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>W :call <SID>ROpenSplitCommand('horizontal')<CR>
         autocmd FileType r,rmd,qmd xnoremap <buffer> <silent> <CR>    :<C-u>call <SID>SendToR('selection')<CR>
