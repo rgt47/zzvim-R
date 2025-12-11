@@ -456,7 +456,7 @@ function! s:OpenRTerminal(...) abort
 endfunction
 
 " Check if current directory is inside a zzcollab workspace
-" Walks up directory tree looking for DESCRIPTION or .zzcollab_project marker
+" Walks up directory tree looking for .zzcollab directory (unique zzcollab signature)
 function! s:IsInsideZzcollab() abort
     return !empty(s:GetProjectRoot())
 endfunction
