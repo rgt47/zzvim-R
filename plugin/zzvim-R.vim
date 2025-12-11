@@ -458,26 +458,26 @@ function! s:OpenRTerminal(...) abort
 endfunction
 
 " Check if current directory is inside a zzcollab workspace
-" Walks up directory tree looking for .zzcollab directory (unique zzcollab signature)
+" Walks up directory tree looking for .zzcollab_manifest.json file (unique zzcollab signature)
 function! s:IsInsideZzcollab() abort
     return !empty(s:GetProjectRoot())
 endfunction
 
-" Get the project root directory (where .zzcollab directory exists)
+" Get the project root directory (where .zzcollab_manifest.json marker exists)
 " Returns empty string if not inside a zzcollab workspace
-" Only checks for .zzcollab directory (unique signature of zzcollab workspaces)
+" Only checks for .zzcollab_manifest.json file (unique signature of zzcollab workspaces)
 function! s:GetProjectRoot() abort
     " Check for user-configured project root first
     if exists('g:zzvim_r_project_root') && !empty(g:zzvim_r_project_root)
         return g:zzvim_r_project_root
     endif
 
-    " Walk up directory tree looking for .zzcollab directory
-    " Only marks a directory as zzcollab if .zzcollab directory exists
+    " Walk up directory tree looking for .zzcollab_manifest.json file
+    " Only marks a directory as zzcollab if .zzcollab_manifest.json file exists
     let dir = getcwd()
     while dir != '/'
-        " Check for .zzcollab directory (unique zzcollab workspace marker)
-        if isdirectory(dir . '/.zzcollab')
+        " Check for .zzcollab_manifest.json file (unique zzcollab workspace marker)
+        if filereadable(dir . '/.zzcollab_manifest.json')
             return dir
         endif
 
