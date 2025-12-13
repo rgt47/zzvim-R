@@ -1590,6 +1590,8 @@ endfunction
 if !g:zzvim_r_disable_mappings
     augroup zzvim_RMarkdown
         autocmd!
+        " Initialize terminal graphics setup only when opening R code files
+        autocmd FileType r,rmd,qmd call zzvimr#terminal_graphics#init()
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>r  :call <SID>OpenRTerminal()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>R  :call <SID>OpenLocalRTerminal()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>D  :call <SID>OpenDockerRTerminal(s:GetTerminalName(), 1)<CR>
@@ -2562,5 +2564,5 @@ endfunction
 " ============================================================================
 " Terminal Graphics Setup (Kitty/iTerm2 Plot Display)
 " ============================================================================
-" Initialize terminal graphics support for R plot display in Kitty and iTerm2
-call zzvimr#terminal_graphics#init()
+" Terminal graphics initialization is now handled by FileType autocmd above
+" Only runs when opening R, Rmd, or Qmd files, not on plugin load
