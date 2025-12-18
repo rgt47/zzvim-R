@@ -89,11 +89,20 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
 
       # Display using terminal-specific command
       if (terminal == "kitty") {
-        system(paste("kitty +kitten icat --align=", align, " ", pf, sep = ""),
-               ignore.stderr = TRUE)
+        # Try inline first (works in native kitty terminal)
+        result <- suppressWarnings(
+          system(paste("kitty +kitten icat --align=", align, " ", shQuote(pf), sep = ""),
+                 ignore.stderr = TRUE, ignore.stdout = TRUE)
+        )
+        # If failed (e.g., inside vim terminal), open in new kitty window
+        if (result != 0) {
+          system(paste("kitty @ launch --type=window --keep-focus",
+                       "kitty +kitten icat --hold", shQuote(pf)),
+                 ignore.stderr = TRUE)
+        }
       } else if (terminal == "iterm2") {
         # iTerm2: imgcat doesn't support alignment, displays centered by default
-        system(paste("imgcat", pf), ignore.stderr = TRUE)
+        system(paste("imgcat", shQuote(pf)), ignore.stderr = TRUE)
       }
 
       # Store terminal size for resize detection
