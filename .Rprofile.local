@@ -97,7 +97,7 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
         # If failed (e.g., inside vim terminal), open in new kitty window
         if (result != 0) {
           system(paste("kitty @ launch --type=window --keep-focus",
-                       "kitty +kitten icat --hold", shQuote(pf)),
+                       "kitty +kitten icat --hold --scale-up", shQuote(pf)),
                  ignore.stderr = TRUE)
         }
       } else if (terminal == "iterm2") {
