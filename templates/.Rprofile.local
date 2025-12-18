@@ -325,6 +325,41 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
   assign("plot_redisplay_if_resized", plot_redisplay_if_resized, envir = .GlobalEnv)
 
   # ========================================================================
+  # Zoom Functions (for teaching/presentations)
+  # ========================================================================
+  plot_zoom <- function() {
+    pf <- get(".plot_file", envir = .GlobalEnv)
+    if (is.null(pf) || !file.exists(pf)) {
+      cat("No plot to display\n")
+      return(invisible(NULL))
+    }
+    system2("open", pf, wait = FALSE)
+    cat("Opened in Preview - use Cmd++ to zoom, Cmd+0 to fit\n")
+    invisible(NULL)
+  }
+
+  plot_zoom_kitty <- function() {
+    pf <- get(".plot_file", envir = .GlobalEnv)
+    if (is.null(pf) || !file.exists(pf)) {
+      cat("No plot to display\n")
+      return(invisible(NULL))
+    }
+    terminal <- get(".terminal", envir = .GlobalEnv)
+    if (terminal != "kitty") {
+      cat("plot_zoom_kitty() requires Kitty terminal\n")
+      return(invisible(NULL))
+    }
+    system(paste("kitty @ launch --type=os-window",
+                 "kitty +kitten icat --hold --scale-up", shQuote(pf)),
+           ignore.stderr = TRUE)
+    cat("Opened in new Kitty window (scaled up)\n")
+    invisible(NULL)
+  }
+
+  assign("plot_zoom", plot_zoom, envir = .GlobalEnv)
+  assign("plot_zoom_kitty", plot_zoom_kitty, envir = .GlobalEnv)
+
+  # ========================================================================
   # Fullscreen/Maximize Plot
   # ========================================================================
   plot_split <- function(scale = 1) {
@@ -405,6 +440,8 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
     startup_msg <- c(
       startup_msg,
       "  plot_split()               : Open current plot in split pane",
+      "  plot_zoom()                : Open in Preview (Cmd++ to zoom)",
+      "  plot_zoom_kitty()          : Open in new Kitty window (scaled)",
       "  plot_redisplay_if_resized(): Redisplay after terminal resize",
       ""
     )
