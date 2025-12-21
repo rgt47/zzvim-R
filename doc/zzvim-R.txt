@@ -205,9 +205,30 @@ tools.
 
 Core Operational Commands                            *zzvim-r-commands-core*
 
+Terminal Launch Commands:                          *zzvim-r-commands-terminal*
+
 :ROpenTerminal                                                *:ROpenTerminal*
     Establish buffer-specific R computational environment.
-    Submit the current line to R terminal.
+    Auto-detects zzcollab workspace and uses Docker if present.
+
+:RDockerTerminal                                            *:RDockerTerminal*
+    Launch R in Docker container via `make r`.
+    Requires Makefile with `r:` target configured for Docker.
+
+:RTerminalLocal                                              *:RTerminalLocal*
+    Launch R on host with renv (normal startup).
+    Sources .Rprofile for renv activation.
+
+:RTerminalVanilla                                          *:RTerminalVanilla*
+    Launch R on host without renv (vanilla mode).
+    Uses `R --vanilla` which skips .Rprofile and .Renviron.
+    Useful for debugging or system R without project isolation.
+
+:RDockerTerminalForce                                  *:RDockerTerminalForce*
+    Force-associate current buffer with existing Docker terminal.
+    Use when terminal was created manually outside zzvim-R.
+
+Code Submission Commands:                        *zzvim-r-commands-submission*
 
 :RSendLine                                                        *:RSendLine*
     Submit current line with context awareness (silent execution).
@@ -396,7 +417,11 @@ Primary Interaction Layer (Normal Mode)           *zzvim-r-mappings-primary*
 
 Normal Mode:
     <CR>              Submit current line to R (smart context-aware dispatch)
-    <localleader>r    Create buffer-specific R terminal (replaces current window)
+
+R Terminal Launch:                                *zzvim-r-mappings-terminal*
+    <localleader>r    Container R (via make r, with renv)
+    <localleader>rr   Host R with renv (normal startup, sources .Rprofile)
+    <localleader>rh   Host R without renv (vanilla mode, skips .Rprofile)
     <localleader>w    Open R terminal in new vertical split window
     <localleader>W    Open R terminal in new horizontal split window
     <localleader>o    Add pipe operator (%>%) and new line

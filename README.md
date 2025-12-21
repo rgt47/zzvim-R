@@ -30,7 +30,10 @@ R integration plugin for Vim and Neovim providing code execution, terminal manag
 | Key | Action |
 |-----|--------|
 | `<CR>` | Smart code submission (context-aware) |
-| `<LocalLeader>r` | Open buffer-specific R terminal |
+| **R Terminal Launch** |
+| `<LocalLeader>r` | Container R (via `make r`, with renv) |
+| `<LocalLeader>rr` | Host R with renv (normal startup) |
+| `<LocalLeader>rh` | Host R without renv (vanilla mode) |
 | `<LocalLeader>w` | Open R terminal in vertical split |
 | **HUD & Workspace** |
 | `<LocalLeader>0` | HUD Dashboard - open all 5 workspace tabs |

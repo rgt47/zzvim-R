@@ -499,6 +499,21 @@ function! s:OpenLocalRTerminal(...) abort
     return s:ConfigureTerminal(terminal_name, 0)
 endfunction
 
+" Create R Terminal on Host without renv (vanilla mode)
+" Uses R --vanilla which skips all startup files (.Rprofile, .Renviron)
+" Useful for debugging or when you want system R without project isolation
+function! s:OpenLocalRTerminalVanilla(...) abort
+    let terminal_name = a:0 > 0 ? a:1 : s:GetTerminalName()
+
+    if !executable('R')
+        call s:Error('R is not installed or not in PATH')
+        return -1
+    endif
+
+    execute 'vertical term R --vanilla'
+    return s:ConfigureTerminal(terminal_name, 0)
+endfunction
+
 " Create R Terminal in Docker Container using Makefile
 function! s:OpenDockerRTerminal(...) abort
     let terminal_name = a:0 > 0 ? a:1 : s:GetTerminalName()
@@ -1592,9 +1607,15 @@ if !g:zzvim_r_disable_mappings
         autocmd!
         " Initialize terminal graphics setup only when opening R code files
         autocmd FileType r,rmd,qmd call zzvimr#terminal_graphics#init()
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>r  :call <SID>OpenRTerminal()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>R  :call <SID>OpenLocalRTerminal()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>D  :call <SID>OpenDockerRTerminal(s:GetTerminalName(), 1)<CR>
+        " R Terminal Launch Mappings:
+        "   <localleader>r  - Container R (via make r, with renv)
+        "   <localleader>rr - Host R with renv (normal startup, sources .Rprofile)
+        "   <localleader>rh - Host R without renv (vanilla, skips .Rprofile)
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>r   :call <SID>OpenDockerRTerminal()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>rr  :call <SID>OpenLocalRTerminal()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>rh  :call <SID>OpenLocalRTerminalVanilla()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>R   :call <SID>OpenLocalRTerminal()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>D   :call <SID>OpenDockerRTerminal(s:GetTerminalName(), 1)<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>w :call <SID>ROpenSplitCommand('vertical')<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>W :call <SID>ROpenSplitCommand('horizontal')<CR>
         autocmd FileType r,rmd,qmd xnoremap <buffer> <silent> <CR>    :<C-u>call <SID>SendToR('selection')<CR>
@@ -1645,6 +1666,7 @@ command! -bar ROpenTerminal call s:OpenRTerminal()
 command! -bar RDockerTerminal call s:OpenDockerRTerminal()
 command! -bar RDockerTerminalForce call s:OpenDockerRTerminal(s:GetTerminalName(), 1)
 command! -bar RTerminalLocal call s:OpenLocalRTerminal()
+command! -bar RTerminalVanilla call s:OpenLocalRTerminalVanilla()
 command! -bar RSendLine call s:SendToR('line')
 command! -bar RSendSelection call s:SendToR('selection')
 command! -bar RSendFunction call s:SendToR('function')

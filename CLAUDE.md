@@ -107,8 +107,10 @@ zzvim-R/
 - **Regular lines**: Sends current line only
 - **Visual Mode**: Sends visual selection
 
-### Multi-Terminal Management
-- `<LocalLeader>r`: Create buffer-specific R terminal
+### R Terminal Launch
+- `<LocalLeader>r`: Container R (via `make r`, with renv)
+- `<LocalLeader>rr`: Host R with renv (normal startup)
+- `<LocalLeader>rh`: Host R without renv (vanilla mode)
 - `<LocalLeader>w`: Open R terminal in vertical split
 - `<LocalLeader>W`: Open R terminal in horizontal split
 - `<CR>`: Smart submission (context-aware)
