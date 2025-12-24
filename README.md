@@ -56,7 +56,7 @@ R integration plugin for Vim and Neovim providing code execution, terminal manag
 #### Vim-Plug
 ```vim
 " Add to your ~/.vimrc or ~/.config/nvim/init.vim
-Plug 'your-username/zzvim-r.vim'
+Plug 'rgt47/zzvim-R'
 
 " Then run
 :PlugInstall
@@ -65,7 +65,7 @@ Plug 'your-username/zzvim-r.vim'
 #### Vundle
 ```vim
 " Add to your ~/.vimrc
-Plugin 'your-username/zzvim-r.vim'
+Plugin 'rgt47/zzvim-R'
 
 " Then run
 :PluginInstall
@@ -74,18 +74,18 @@ Plugin 'your-username/zzvim-r.vim'
 #### Pathogen
 ```bash
 cd ~/.vim/bundle
-git clone https://github.com/your-username/zzvim-r.vim.git
+git clone https://github.com/rgt47/zzvim-R.git
 ```
 
 #### Manual Installation
 ```bash
 # Vim
 mkdir -p ~/.vim/pack/plugins/start/
-git clone https://github.com/your-username/zzvim-r.vim.git ~/.vim/pack/plugins/start/zzvim-r.vim
+git clone https://github.com/rgt47/zzvim-R.git ~/.vim/pack/plugins/start/zzvim-R
 
 # Neovim
 mkdir -p ~/.local/share/nvim/site/pack/plugins/start/
-git clone https://github.com/your-username/zzvim-r.vim.git ~/.local/share/nvim/site/pack/plugins/start/zzvim-r.vim
+git clone https://github.com/rgt47/zzvim-R.git ~/.local/share/nvim/site/pack/plugins/start/zzvim-R
 
 # Generate help tags
 vim -c 'helptags ALL' -c 'quit'
@@ -357,7 +357,7 @@ For complete documentation with all commands, advanced workflows, and troublesho
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/your-username/zzvim-r.vim/issues)
+- **Issues**: [GitHub Issues](https://github.com/rgt47/zzvim-R/issues)
 - **Documentation**: `:help zzvim-r` (comprehensive help file)
 - **Compatibility**: Works with R scripts (.R), R Markdown (.Rmd), and Quarto (.qmd)
 
