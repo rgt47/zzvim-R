@@ -3,15 +3,17 @@
 ## Overview
 
 zzvim-R automatically sets up R plot display in modern terminal emulators:
-- **Kitty** - Full support with alignment control
-- **iTerm2** - Full support (macOS only)
+- **Kitty** - Full support with alignment control (Linux, macOS)
+- **Ghostty** - Full support via Kitty graphics protocol (Linux, macOS)
+- **WezTerm** - Full support via Kitty graphics protocol (Linux, macOS, Windows)
+- **iTerm2** - Full support via imgcat (macOS only)
 - Other terminals - Gracefully degrades without errors
 
 Plots display inline in your terminal during R development, eliminating the need for separate plot windows.
 
 ## How It Works
 
-When you open vim in a Kitty or iTerm2 terminal within an R project:
+When you open vim in a supported terminal within an R project:
 
 1. **Automatic Detection** - zzvim-R detects which terminal emulator is running
 2. **Project Detection** - Checks if you're in an R project (has `.Rprofile` or `DESCRIPTION`)
@@ -111,6 +113,18 @@ This means:
 - **Alignment**: Supports left/center/right alignment via `--align` flag
 - **Platforms**: Linux, macOS
 
+### Ghostty
+- **Detection**: Checks `GHOSTTY_RESOURCES_DIR` or `TERM=xterm-ghostty`
+- **Display**: Uses Kitty graphics protocol (`kitty +kitten icat`)
+- **Alignment**: Supports left/center/right alignment via `--align` flag
+- **Platforms**: Linux, macOS
+
+### WezTerm
+- **Detection**: Checks `WEZTERM_EXECUTABLE` or `TERM_PROGRAM=WezTerm`
+- **Display**: Uses Kitty graphics protocol (`kitty +kitten icat`)
+- **Alignment**: Supports left/center/right alignment via `--align` flag
+- **Platforms**: Linux, macOS, Windows
+
 ### iTerm2
 - **Detection**: Checks `ITERM_SESSION_ID` or `TERM_PROGRAM=iTerm.app`
 - **Display**: Uses `imgcat` command (built into iTerm2)
@@ -120,7 +134,7 @@ This means:
 ### Other Terminals
 - **Graceful Degradation**: If terminal not detected, no error
 - **Fallback**: R works normally without plot display
-- **Future Support**: Easy to extend for other terminals (WezTerm, etc.)
+- **Extensible**: Detection function can be extended for additional terminals
 
 ## Customization
 

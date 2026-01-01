@@ -1,15 +1,30 @@
 " ============================================================================
 " Terminal Graphics Setup for zzvim-R
 " ============================================================================
-" Handles automatic setup of Kitty and iTerm2 plot display for R development
+" Handles automatic setup of inline plot display for R development
+" Supports: Kitty, Ghostty, WezTerm, iTerm2
 " Injects terminal graphics configuration into .Rprofile.local
 " Works with zzcollab workspaces and standalone R projects
 
 " Detect terminal type
+" Returns 'kitty' for terminals supporting Kitty graphics protocol
+" Returns 'iterm2' for iTerm2 (uses imgcat)
+" Returns 'none' for unsupported terminals
 function! zzvimr#terminal_graphics#detect_terminal() abort
+    " Kitty - native Kitty graphics protocol
     if !empty($KITTY_WINDOW_ID)
         return 'kitty'
-    elseif !empty($ITERM_SESSION_ID) || stridx($TERM_PROGRAM, 'iTerm') >= 0
+    endif
+    " Ghostty - supports Kitty graphics protocol
+    if !empty($GHOSTTY_RESOURCES_DIR) || $TERM ==# 'xterm-ghostty'
+        return 'kitty'
+    endif
+    " WezTerm - supports Kitty graphics protocol
+    if !empty($WEZTERM_EXECUTABLE) || stridx($TERM_PROGRAM, 'WezTerm') >= 0
+        return 'kitty'
+    endif
+    " iTerm2 - uses imgcat for inline images (macOS only)
+    if !empty($ITERM_SESSION_ID) || stridx($TERM_PROGRAM, 'iTerm') >= 0
         return 'iterm2'
     endif
     return 'none'
