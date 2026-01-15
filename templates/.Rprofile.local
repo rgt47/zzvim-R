@@ -94,9 +94,9 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
           system(paste("kitty +kitten icat --align=", align, " ", shQuote(pf), sep = ""),
                  ignore.stderr = TRUE, ignore.stdout = TRUE)
         )
-        # If failed (e.g., inside vim terminal), open in new kitty window
+        # If failed (e.g., inside vim terminal), open in new kitty vsplit
         if (result != 0) {
-          system(paste("kitty @ launch --type=window --keep-focus",
+          system(paste("kitty @ launch --location=vsplit --keep-focus",
                        "kitty +kitten icat --hold --scale-up", shQuote(pf)),
                  ignore.stderr = TRUE)
         }
