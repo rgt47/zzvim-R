@@ -37,8 +37,12 @@ endfunction
 
 " Get the path to .Rprofile.local template (in the plugin directory)
 function! zzvimr#terminal_graphics#get_template_path() abort
-    " Find the plugin's autoload directory
-    let l:plugin_dir = fnamemodify(resolve(expand('<sfile>:p:h')), ':h:h')
+    " Use the actual path of this script file, not <sfile> which can be
+    " unreliable when called indirectly. We know this file is at:
+    " <plugin_root>/autoload/zzvimr/terminal_graphics.vim
+    " So we go up 3 levels to get to plugin_root.
+    let l:this_file = expand('<script>:p')
+    let l:plugin_dir = fnamemodify(l:this_file, ':h:h:h')
     let l:template_path = l:plugin_dir . '/templates/.Rprofile.local'
     return l:template_path
 endfunction
