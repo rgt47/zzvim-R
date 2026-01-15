@@ -1689,10 +1689,11 @@ function! s:DisplayDockerPlot() abort
     endif
     let s:plot_file_mtime = l:mtime
 
-    " Display using kitty remote control to launch icat in a new window
-    " This works from vim because it uses kitty's socket, not a TTY
+    " Display using kitty remote control to launch icat in a vsplit
+    " Use --match to target the current window's tab for the split
     if !empty($KITTY_WINDOW_ID)
-        call system('kitty @ launch --location=vsplit --keep-focus kitty +kitten icat --hold ' . shellescape(l:plot_file))
+        let l:cmd = 'kitty @ launch --match=id:' . $KITTY_WINDOW_ID . ' --location=vsplit --keep-focus kitty +kitten icat --hold ' . shellescape(l:plot_file)
+        call system(l:cmd)
     endif
 endfunction
 
