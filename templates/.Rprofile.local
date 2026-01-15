@@ -19,6 +19,10 @@
   }
 }
 
+.is_docker <- function() {
+  Sys.getenv("ZZCOLLAB_CONTAINER") == "true"
+}
+
 .terminal <- .terminal_type()
 
 # Only activate on supported macOS or Linux terminals
@@ -86,23 +90,33 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
     if (!is.null(pf) && file.exists(pf)) {
       align <- get(".plot_align", envir = .GlobalEnv)
       terminal <- get(".terminal", envir = .GlobalEnv)
+      in_docker <- .is_docker()
 
-      # Display using terminal-specific command
-      if (terminal == "kitty") {
-        # Try inline first (works in native kitty terminal)
-        result <- suppressWarnings(
-          system(paste("kitty +kitten icat --align=", align, " ", shQuote(pf), sep = ""),
-                 ignore.stderr = TRUE, ignore.stdout = TRUE)
-        )
-        # If failed (e.g., inside vim terminal), open in new kitty vsplit
-        if (result != 0) {
-          system(paste("kitty @ launch --location=vsplit --keep-focus",
-                       "kitty +kitten icat --hold --scale-up", shQuote(pf)),
-                 ignore.stderr = TRUE)
+      # Docker mode: save to .plots/ for host-side vim watcher to display
+      if (in_docker) {
+        plots_dir <- ".plots"
+        if (!dir.exists(plots_dir)) dir.create(plots_dir, showWarnings = FALSE)
+        target_file <- file.path(plots_dir, "current.png")
+        file.copy(pf, target_file, overwrite = TRUE)
+        # Vim's plot watcher will detect and display via kitty icat
+      } else {
+        # Host mode: display directly using terminal-specific command
+        if (terminal == "kitty") {
+          # Try inline first (works in native kitty terminal)
+          result <- suppressWarnings(
+            system(paste("kitty +kitten icat --align=", align, " ", shQuote(pf), sep = ""),
+                   ignore.stderr = TRUE, ignore.stdout = TRUE)
+          )
+          # If failed (e.g., inside vim terminal), open in new kitty vsplit
+          if (result != 0) {
+            system(paste("kitty @ launch --location=vsplit --keep-focus",
+                         "kitty +kitten icat --hold --scale-up", shQuote(pf)),
+                   ignore.stderr = TRUE)
+          }
+        } else if (terminal == "iterm2") {
+          # iTerm2: imgcat doesn't support alignment, displays centered by default
+          system(paste("imgcat", shQuote(pf)), ignore.stderr = TRUE)
         }
-      } else if (terminal == "iterm2") {
-        # iTerm2: imgcat doesn't support alignment, displays centered by default
-        system(paste("imgcat", shQuote(pf)), ignore.stderr = TRUE)
       }
 
       # Store terminal size for resize detection

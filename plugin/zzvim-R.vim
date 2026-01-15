@@ -1658,8 +1658,68 @@ if !g:zzvim_r_disable_mappings
 endif
 
 "------------------------------------------------------------------------------
+" Docker Plot Watcher
+"------------------------------------------------------------------------------
+" Watches .plots/current.png for changes and displays via kitty icat
+" This enables inline plot display when R runs inside Docker container
+
+let s:plot_file_mtime = 0
+
+function! s:DisplayDockerPlot() abort
+    let l:plot_file = getcwd() . '/.plots/current.png'
+    if !filereadable(l:plot_file)
+        return
+    endif
+
+    " Check if file was modified
+    let l:mtime = getftime(l:plot_file)
+    if l:mtime <= s:plot_file_mtime
+        return
+    endif
+    let s:plot_file_mtime = l:mtime
+
+    " Display using kitty icat (host-side)
+    if !empty($KITTY_WINDOW_ID)
+        call system('kitty +kitten icat --align=right ' . shellescape(l:plot_file))
+    endif
+endfunction
+
+function! s:OpenDockerPlotInPreview() abort
+    let l:plot_file = getcwd() . '/.plots/current.png'
+    if filereadable(l:plot_file)
+        call system('open ' . shellescape(l:plot_file))
+        echom "Opened plot in Preview"
+    else
+        call s:Error("No plot file found at .plots/current.png")
+    endif
+endfunction
+
+function! s:StartPlotWatcher() abort
+    " Set up a timer to check for plot updates every 500ms
+    if exists('s:plot_watcher_timer')
+        call timer_stop(s:plot_watcher_timer)
+    endif
+    let s:plot_watcher_timer = timer_start(500, {-> s:DisplayDockerPlot()}, {'repeat': -1})
+    echom "Plot watcher started"
+endfunction
+
+function! s:StopPlotWatcher() abort
+    if exists('s:plot_watcher_timer')
+        call timer_stop(s:plot_watcher_timer)
+        unlet s:plot_watcher_timer
+        echom "Plot watcher stopped"
+    endif
+endfunction
+
+"------------------------------------------------------------------------------
 " Ex Commands
 "------------------------------------------------------------------------------
+
+" Plot commands
+command! -bar RPlotShow call s:DisplayDockerPlot()
+command! -bar RPlotPreview call s:OpenDockerPlotInPreview()
+command! -bar RPlotWatchStart call s:StartPlotWatcher()
+command! -bar RPlotWatchStop call s:StopPlotWatcher()
 
 " Core Operations
 command! -bar ROpenTerminal call s:OpenRTerminal()
