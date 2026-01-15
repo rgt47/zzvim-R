@@ -1678,9 +1678,10 @@ function! s:DisplayDockerPlot() abort
     endif
     let s:plot_file_mtime = l:mtime
 
-    " Display using kitty icat (host-side)
+    " Display using kitty remote control to launch icat in a new window
+    " This works from vim because it uses kitty's socket, not a TTY
     if !empty($KITTY_WINDOW_ID)
-        call system('kitty +kitten icat --align=right ' . shellescape(l:plot_file))
+        call system('kitty @ launch --location=vsplit --keep-focus kitty +kitten icat --hold ' . shellescape(l:plot_file))
     endif
 endfunction
 
