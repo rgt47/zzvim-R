@@ -347,6 +347,10 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
       cat("No plot to display\n")
       return(invisible(NULL))
     }
+    if (.is_docker()) {
+      cat("In Docker: use :RPlotPreview in vim to open in Preview\n")
+      return(invisible(NULL))
+    }
     system2("open", pf, wait = FALSE)
     cat("Opened in Preview - use Cmd++ to zoom, Cmd+0 to fit\n")
     invisible(NULL)
