@@ -1665,8 +1665,19 @@ endif
 
 let s:plot_file_mtime = 0
 
+function! s:GetPlotFile() abort
+    " Find plot file relative to project root (where .zzcollab/ is)
+    " or fall back to directory of current buffer
+    let l:project_root = s:GetProjectRoot()
+    if empty(l:project_root)
+        " Not in zzcollab project, use buffer's directory
+        let l:project_root = expand('%:p:h')
+    endif
+    return l:project_root . '/.plots/current.png'
+endfunction
+
 function! s:DisplayDockerPlot() abort
-    let l:plot_file = getcwd() . '/.plots/current.png'
+    let l:plot_file = s:GetPlotFile()
     if !filereadable(l:plot_file)
         return
     endif
@@ -1686,12 +1697,12 @@ function! s:DisplayDockerPlot() abort
 endfunction
 
 function! s:OpenDockerPlotInPreview() abort
-    let l:plot_file = getcwd() . '/.plots/current.png'
+    let l:plot_file = s:GetPlotFile()
     if filereadable(l:plot_file)
         call system('open ' . shellescape(l:plot_file))
         echom "Opened plot in Preview"
     else
-        call s:Error("No plot file found at .plots/current.png")
+        call s:Error("No plot file found at " . l:plot_file)
     endif
 endfunction
 
