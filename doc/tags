@@ -2,6 +2,8 @@
 :RDataFrameHUD	zzvim-R.txt	/*:RDataFrameHUD*
 :RDataViewer	zzvim-R.txt	/*:RDataViewer*
 :RDim	zzvim-R.txt	/*:RDim*
+:RDockerTerminal	zzvim-R.txt	/*:RDockerTerminal*
+:RDockerTerminalForce	zzvim-R.txt	/*:RDockerTerminalForce*
 :REnvironmentHUD	zzvim-R.txt	/*:REnvironmentHUD*
 :RGetwd	zzvim-R.txt	/*:RGetwd*
 :RGlimpse	zzvim-R.txt	/*:RGlimpse*
@@ -44,6 +46,8 @@
 :RSummary	zzvim-R.txt	/*:RSummary*
 :RSwitchToTerminal	zzvim-R.txt	/*:RSwitchToTerminal*
 :RTail	zzvim-R.txt	/*:RTail*
+:RTerminalLocal	zzvim-R.txt	/*:RTerminalLocal*
+:RTerminalVanilla	zzvim-R.txt	/*:RTerminalVanilla*
 :RWorkspace	zzvim-R.txt	/*:RWorkspace*
 g:zzvim_r_chunk_end	zzvim-R.txt	/*g:zzvim_r_chunk_end*
 g:zzvim_r_chunk_start	zzvim-R.txt	/*g:zzvim_r_chunk_start*
@@ -69,6 +73,8 @@ zzvim-r-commands-core	zzvim-R.txt	/*zzvim-r-commands-core*
 zzvim-r-commands-hud	zzvim-R.txt	/*zzvim-r-commands-hud*
 zzvim-r-commands-inspection	zzvim-R.txt	/*zzvim-r-commands-inspection*
 zzvim-r-commands-session	zzvim-R.txt	/*zzvim-r-commands-session*
+zzvim-r-commands-submission	zzvim-R.txt	/*zzvim-r-commands-submission*
+zzvim-r-commands-terminal	zzvim-R.txt	/*zzvim-r-commands-terminal*
 zzvim-r-commands-terminals	zzvim-R.txt	/*zzvim-r-commands-terminals*
 zzvim-r-commands-workspace	zzvim-R.txt	/*zzvim-r-commands-workspace*
 zzvim-r-configuration	zzvim-R.txt	/*zzvim-r-configuration*
@@ -104,6 +110,7 @@ zzvim-r-mappings-explicit	zzvim-R.txt	/*zzvim-r-mappings-explicit*
 zzvim-r-mappings-hud	zzvim-R.txt	/*zzvim-r-mappings-hud*
 zzvim-r-mappings-inspection	zzvim-R.txt	/*zzvim-r-mappings-inspection*
 zzvim-r-mappings-primary	zzvim-R.txt	/*zzvim-r-mappings-primary*
+zzvim-r-mappings-terminal	zzvim-R.txt	/*zzvim-r-mappings-terminal*
 zzvim-r-mappings-visual	zzvim-R.txt	/*zzvim-r-mappings-visual*
 zzvim-r-requirements	zzvim-R.txt	/*zzvim-r-requirements*
 zzvim-r-troubleshooting	zzvim-R.txt	/*zzvim-r-troubleshooting*
