@@ -1703,12 +1703,12 @@ function! s:DisplayDockerPlot() abort
         " Pane exists - send Ctrl+C and new icat command
         call system('kitty @ send-text --match title:' . l:pane_title . " '\\x03'")
         sleep 100m
-        let l:cmd = 'clear && kitty +kitten icat --clear && kitty +kitten icat --scale-up ' . shellescape(l:plot_file) . " && read -r -d '' _ </dev/tty\n"
+        let l:cmd = 'clear && kitty +kitten icat --clear && kitty +kitten icat --scale-up ' . l:plot_file . " && read -r -d '' _ </dev/tty\n"
         call system('kitty @ send-text --match title:' . l:pane_title . ' ' . shellescape(l:cmd))
     else
         " Create new pane to the right with title for reuse
-        let l:cmd = 'kitty @ launch --location=vsplit --keep-focus --title ' . shellescape(l:pane_title)
-                    \ . ' -- sh -c ' . shellescape('kitty +kitten icat --scale-up ' . shellescape(l:plot_file) . "; read -r -d '' _ </dev/tty")
+        let l:sh_cmd = 'kitty +kitten icat --scale-up ' . shellescape(l:plot_file) . "; read -r -d '' _ </dev/tty"
+        let l:cmd = 'kitty @ launch --location=vsplit --keep-focus --title ' . l:pane_title . ' -- sh -c ' . shellescape(l:sh_cmd)
         call system(l:cmd)
     endif
 endfunction
@@ -1745,10 +1745,21 @@ endfunction
 "------------------------------------------------------------------------------
 
 " Plot commands
-command! -bar RPlotShow call s:DisplayDockerPlot()
+command! -bar RPlotShow let s:plot_file_mtime = 0 | call s:DisplayDockerPlot()
 command! -bar RPlotPreview call s:OpenDockerPlotInPreview()
 command! -bar RPlotWatchStart call s:StartPlotWatcher()
 command! -bar RPlotWatchStop call s:StopPlotWatcher()
+command! -bar RPlotDebug call s:DebugPlotWatcher()
+
+function! s:DebugPlotWatcher() abort
+    let l:plot_file = s:GetPlotFile()
+    echo "Plot file: " . l:plot_file
+    echo "Exists: " . filereadable(l:plot_file)
+    echo "Mtime: " . getftime(l:plot_file)
+    echo "Cached mtime: " . s:plot_file_mtime
+    let l:pane_exists = system('kitty @ ls 2>/dev/null | grep -q zzvim-plot && echo 1 || echo 0')
+    echo "Plot pane exists: " . trim(l:pane_exists)
+endfunction
 
 " Core Operations
 command! -bar ROpenTerminal call s:OpenRTerminal()
