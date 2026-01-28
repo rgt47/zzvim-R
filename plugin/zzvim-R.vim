@@ -574,7 +574,13 @@ function! s:ConfigureTerminal(terminal_name, is_docker) abort
 
     if a:is_docker
         let b:r_terminal_id = current_terminal
-        " Auto-start plot watcher for Docker terminals
+        " Initialize plot mtime to current file time (if exists) to avoid
+        " displaying stale plots on terminal open
+        let l:plot_file = s:GetPlotFile()
+        if filereadable(l:plot_file)
+            let s:plot_file_mtime = getftime(l:plot_file)
+        endif
+        " Start watcher - it will only display when mtime changes
         call s:StartPlotWatcher()
     endif
 
@@ -1692,24 +1698,24 @@ function! s:DisplayDockerPlot() abort
     let s:plot_file_mtime = l:mtime
 
     " Display using kitty remote control
-    " Use dedicated plot pane with title for reuse across plots
     let l:pane_title = 'zzvim-plot'
 
-    " Check if plot pane already exists (look for exact title match)
-    let l:pane_check = system('kitty @ ls --match title:' . l:pane_title . ' 2>&1')
-    let l:pane_exists = (l:pane_check !~# 'No matching' && l:pane_check !~# 'error')
+    " Check if plot pane already exists by looking for the title in kitty ls output
+    let l:pane_check = system('kitty @ ls 2>/dev/null | grep -c "zzvim-plot"')
+    let l:pane_exists = (str2nr(trim(l:pane_check)) > 0)
 
-    " Write command to temp script and execute
-    let l:script = '/tmp/zzvim_plot.sh'
     if l:pane_exists
-        " Send command with newline to execute
-        let l:cmd = "kitty @ send-text --match title:" . l:pane_title . " $'kitty +kitten icat --clear && kitty +kitten icat --scale-up " . l:plot_file . "\\n'"
-    else
-        " Create new pane
-        let l:cmd = 'kitty @ launch --location=neighbor --keep-focus --title ' . l:pane_title . ' -- sh -c "kitty +kitten icat --scale-up ' . l:plot_file . '; while true; do sleep 86400; done"'
+        " Pane exists - close it and relaunch with new image
+        " This is simpler than trying to send-text which has quoting issues
+        call system('kitty @ close-window --match title:' . l:pane_title . ' 2>/dev/null')
+        sleep 50m
     endif
-    call writefile([l:cmd], l:script)
-    call system('chmod +x ' . l:script . ' && ' . l:script)
+
+    " Launch new pane with the plot (to the right via --location=neighbor)
+    let l:sh_cmd = 'kitty +kitten icat --scale-up ' . shellescape(l:plot_file) . '; while true; do sleep 86400; done'
+    call system('kitty @ launch --location=neighbor --keep-focus --title ' . l:pane_title . ' -- sh -c ' . shellescape(l:sh_cmd))
+    " Resize plot pane to be narrower (about 1/3 of remaining space)
+    call system('kitty @ resize-window --match title:' . l:pane_title . ' --axis=horizontal --increment=-20')
     redraw!
 endfunction
 
@@ -1748,7 +1754,7 @@ endfunction
 command! -bar RPlotShow call s:ForceDisplayDockerPlot()
 
 function! s:ForceDisplayDockerPlot() abort
-    " Stop watcher
+    " Stop watcher temporarily
     if exists('s:plot_watcher_timer')
         call timer_stop(s:plot_watcher_timer)
         unlet s:plot_watcher_timer
@@ -1762,22 +1768,18 @@ function! s:ForceDisplayDockerPlot() abort
     endif
 
     let l:pane_title = 'zzvim-plot'
-    let l:pane_exists = trim(system('kitty @ ls 2>/dev/null | grep -q ' . shellescape(l:pane_title) . ' && echo 1 || echo 0'))
 
-    echom "Force display: pane_exists=" . l:pane_exists
+    " Close existing pane if present
+    call system('kitty @ close-window --match title:' . l:pane_title . ' 2>/dev/null')
+    sleep 50m
 
-    if l:pane_exists == '1'
-        call system('kitty @ send-text --match title:' . l:pane_title . " '\\x03'")
-        sleep 100m
-        let l:cmd = 'clear && kitty +kitten icat --clear && kitty +kitten icat --scale-up ' . l:plot_file . " && read -r -d '' _ </dev/tty\n"
-        echom "Sending to pane: " . l:cmd
-        call system('kitty @ send-text --match title:' . l:pane_title . ' ' . shellescape(l:cmd))
-    else
-        let l:sh_cmd = 'kitty +kitten icat --scale-up ' . l:plot_file . "; read -r -d '' _ </dev/tty"
-        let l:cmd = 'kitty @ launch --location=vsplit --keep-focus --title ' . l:pane_title . ' -- sh -c ' . shellescape(l:sh_cmd)
-        echom "Launching: " . l:cmd
-        call system(l:cmd)
-    endif
+    " Launch new pane with the plot (to the right via --location=neighbor)
+    let l:sh_cmd = 'kitty +kitten icat --scale-up ' . shellescape(l:plot_file) . '; while true; do sleep 86400; done'
+    let l:cmd = 'kitty @ launch --location=neighbor --keep-focus --title ' . l:pane_title . ' -- sh -c ' . shellescape(l:sh_cmd)
+    echom "Launching plot pane"
+    call system(l:cmd)
+    " Resize plot pane to be narrower (about 1/3 of remaining space)
+    call system('kitty @ resize-window --match title:' . l:pane_title . ' --axis=horizontal --increment=-20')
 
     " Update mtime cache
     let s:plot_file_mtime = getftime(l:plot_file)
