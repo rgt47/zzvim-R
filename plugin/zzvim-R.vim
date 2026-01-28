@@ -1689,10 +1689,24 @@ function! s:DisplayDockerPlot() abort
     endif
     let s:plot_file_mtime = l:mtime
 
-    " Display using kitty remote control to launch icat in a vsplit
-    " Use --match to target the current window's tab for the split
-    if !empty($KITTY_WINDOW_ID)
-        let l:cmd = 'kitty @ launch --match=id:' . $KITTY_WINDOW_ID . ' --location=vsplit --keep-focus kitty +kitten icat --hold ' . shellescape(l:plot_file)
+    " Display using kitty remote control
+    " Use dedicated plot pane with title for reuse across plots
+    let l:pane_title = 'zzvim-plot'
+
+    " Check if plot pane already exists
+    let l:pane_exists = system('kitty @ ls 2>/dev/null | grep -q ' . shellescape(l:pane_title) . ' && echo 1 || echo 0')
+    let l:pane_exists = trim(l:pane_exists)
+
+    if l:pane_exists == '1'
+        " Pane exists - send Ctrl+C and new icat command
+        call system('kitty @ send-text --match title:' . l:pane_title . " '\\x03'")
+        sleep 100m
+        let l:cmd = 'clear && kitty +kitten icat --clear && kitty +kitten icat --scale-up ' . shellescape(l:plot_file) . " && read -r -d '' _ </dev/tty\n"
+        call system('kitty @ send-text --match title:' . l:pane_title . ' ' . shellescape(l:cmd))
+    else
+        " Create new pane to the right with title for reuse
+        let l:cmd = 'kitty @ launch --location=vsplit --keep-focus --title ' . shellescape(l:pane_title)
+                    \ . ' -- sh -c ' . shellescape('kitty +kitten icat --scale-up ' . shellescape(l:plot_file) . "; read -r -d '' _ </dev/tty")
         call system(l:cmd)
     endif
 endfunction
