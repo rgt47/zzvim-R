@@ -86,11 +86,100 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
   # ========================================================================
   # Display Plot
   # ========================================================================
+  # Plot display mode: "inline", "pane", or "auto"
+  # - inline: display in current terminal (default for standalone kitty)
+  # - pane: always use dedicated plot pane (reused across plots)
+  # - auto: try inline first, fall back to pane if inside vim terminal
+  assign(".plot_display_mode", "pane", envir = .GlobalEnv)
+  assign(".plot_pane_title", "zzvim-plot", envir = .GlobalEnv)
+  assign(".kitty_remote_warned", FALSE, envir = .GlobalEnv)
+
+  # Check if kitty remote control is enabled
+  .kitty_remote_enabled <- function() {
+    result <- suppressWarnings(
+      system("kitty @ ls >/dev/null 2>&1", ignore.stdout = TRUE, ignore.stderr = TRUE)
+    )
+    return(result == 0)
+  }
+
+  # Check if a kitty window with given title exists
+  .kitty_window_exists <- function(title) {
+    result <- suppressWarnings(
+      system(paste("kitty @ ls 2>/dev/null | grep -q", shQuote(title)),
+             ignore.stdout = TRUE, ignore.stderr = TRUE)
+    )
+    return(result == 0)
+  }
+
+  assign(".kitty_remote_enabled", .kitty_remote_enabled, envir = .GlobalEnv)
+
+  # Display plot in a dedicated kitty pane (reused across plots)
+  .display_in_pane <- function(pf) {
+    # Check if kitty remote control is available
+    if (!.kitty_remote_enabled()) {
+      warned <- get(".kitty_remote_warned", envir = .GlobalEnv)
+      if (!warned) {
+        cat("\n")
+        cat("WARNING: Kitty remote control not enabled.\n")
+        cat("Plot pane mode requires 'allow_remote_control yes' in kitty.conf\n")
+        cat("Add this line to ~/.config/kitty/kitty.conf and restart kitty.\n")
+        cat("Falling back to inline display.\n\n")
+        assign(".kitty_remote_warned", TRUE, envir = .GlobalEnv)
+      }
+      # Fall back to inline display
+      align <- get(".plot_align", envir = .GlobalEnv)
+      suppressWarnings(
+        system(paste("kitty +kitten icat --align=", align, " ", shQuote(pf), sep = ""),
+               ignore.stderr = TRUE, ignore.stdout = TRUE)
+      )
+      return(invisible(NULL))
+    }
+
+    pane_title <- get(".plot_pane_title", envir = .GlobalEnv)
+
+    if (.kitty_window_exists(pane_title)) {
+      # Pane exists - clear it and display new plot
+      # Send Ctrl+C to interrupt any running process, then clear and show new image
+      system(paste0(
+        "kitty @ send-text --match title:", pane_title,
+        " '\\x03' 2>/dev/null"
+      ), ignore.stderr = TRUE, ignore.stdout = TRUE)
+
+      # Small delay to let Ctrl+C take effect
+      Sys.sleep(0.1)
+
+      # Send command to clear and display new plot
+      cmd <- paste0("clear && kitty +kitten icat --clear && ",
+                    "kitty +kitten icat --scale-up ", shQuote(pf),
+                    " && read -r -d '' _ </dev/tty")
+      system(paste0(
+        "kitty @ send-text --match title:", pane_title,
+        " ", shQuote(paste0(cmd, "\n"))
+      ), ignore.stderr = TRUE, ignore.stdout = TRUE)
+    } else {
+      # Create new pane with title for future reuse
+      # The pane runs a loop that displays images and waits
+      shell_cmd <- paste0(
+        "kitty @ launch --location=vsplit --keep-focus ",
+        "--title ", shQuote(pane_title), " ",
+        "-- sh -c ", shQuote(paste0(
+          "kitty +kitten icat --scale-up ", shQuote(pf),
+          "; read -r -d '' _ </dev/tty"
+        ))
+      )
+      system(shell_cmd, ignore.stderr = TRUE, ignore.stdout = TRUE)
+    }
+  }
+
+  assign(".kitty_window_exists", .kitty_window_exists, envir = .GlobalEnv)
+  assign(".display_in_pane", .display_in_pane, envir = .GlobalEnv)
+
   .display_plot <- function(pf) {
     if (!is.null(pf) && file.exists(pf)) {
       align <- get(".plot_align", envir = .GlobalEnv)
       terminal <- get(".terminal", envir = .GlobalEnv)
       in_docker <- .is_docker()
+      display_mode <- get(".plot_display_mode", envir = .GlobalEnv)
 
       # Docker mode: save to .plots/ for host-side vim watcher to display
       if (in_docker) {
@@ -98,25 +187,28 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
         if (!dir.exists(plots_dir)) dir.create(plots_dir, showWarnings = FALSE)
         target_file <- file.path(plots_dir, "current.png")
         file.copy(pf, target_file, overwrite = TRUE)
-        # Vim's plot watcher will detect and display via kitty icat
-      } else {
-        # Host mode: display directly using terminal-specific command
-        if (terminal == "kitty") {
-          # Try inline first (works in native kitty terminal)
+      } else if (terminal == "kitty") {
+        if (display_mode == "pane") {
+          # Always use dedicated pane
+          .display_in_pane(pf)
+        } else if (display_mode == "inline") {
+          # Always try inline
+          suppressWarnings(
+            system(paste("kitty +kitten icat --align=", align, " ", shQuote(pf), sep = ""),
+                   ignore.stderr = TRUE, ignore.stdout = TRUE)
+          )
+        } else {
+          # Auto mode: try inline first, fall back to pane
           result <- suppressWarnings(
             system(paste("kitty +kitten icat --align=", align, " ", shQuote(pf), sep = ""),
                    ignore.stderr = TRUE, ignore.stdout = TRUE)
           )
-          # If failed (e.g., inside vim terminal), open in new kitty vsplit
           if (result != 0) {
-            system(paste("kitty @ launch --location=vsplit --keep-focus",
-                         "kitty +kitten icat --hold --scale-up", shQuote(pf)),
-                   ignore.stderr = TRUE)
+            .display_in_pane(pf)
           }
-        } else if (terminal == "iterm2") {
-          # iTerm2: imgcat doesn't support alignment, displays centered by default
-          system(paste("imgcat", shQuote(pf)), ignore.stderr = TRUE)
         }
+      } else if (terminal == "iterm2") {
+        system(paste("imgcat", shQuote(pf)), ignore.stderr = TRUE)
       }
 
       # Store terminal size for resize detection
@@ -283,6 +375,34 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
     cat(paste("Plot alignment set to:", align, "\n"))
   }
 
+  set_plot_mode <- function(mode = "pane") {
+    valid_modes <- c("inline", "pane", "auto")
+    if (!(mode %in% valid_modes)) {
+      cat(paste("Valid modes:", paste(valid_modes, collapse = ", "), "\n"))
+      cat("  inline: display in current terminal\n")
+      cat("  pane:   display in dedicated kitty pane (reused)\n")
+      cat("  auto:   try inline, fall back to pane\n")
+      return(invisible(NULL))
+    }
+    assign(".plot_display_mode", mode, envir = .GlobalEnv)
+    cat(paste("Plot display mode set to:", mode, "\n"))
+  }
+
+  # Close the plot pane if it exists
+  close_plot_pane <- function() {
+    pane_title <- get(".plot_pane_title", envir = .GlobalEnv)
+    if (.kitty_window_exists(pane_title)) {
+      system(paste0("kitty @ close-window --match title:", pane_title),
+             ignore.stderr = TRUE, ignore.stdout = TRUE)
+      cat("Plot pane closed\n")
+    } else {
+      cat("No plot pane open\n")
+    }
+  }
+
+  assign("set_plot_mode", set_plot_mode, envir = .GlobalEnv)
+  assign("close_plot_pane", close_plot_pane, envir = .GlobalEnv)
+
   set_plot_size_relative <- function(width_pct = 0.4, height_pct = 0.75) {
     assign(".use_relative_sizing", TRUE, envir = .GlobalEnv)
     assign(".width_pct", width_pct, envir = .GlobalEnv)
@@ -441,10 +561,11 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
   if (interactive()) {
     startup_msg <- c(
       paste("✓ Terminal graphics enabled (", toupper(.terminal), ")", sep = ""),
+      paste("  Plot mode: pane (plots appear in dedicated kitty pane)"),
       "",
       "Quick reference:",
-      "  zzplot(...)                : Base R plots with auto-display",
-      "  zzggplot(p)                : ggplot2 plots with auto-display",
+      "  zzplot(...)                : Base R plots (auto-display in pane)",
+      "  zzggplot(p)                : ggplot2 plots (auto-display in pane)",
       "  plot_history()             : View plot history",
       "  plot_prev() / plot_next()  : Navigate history",
       "  save_plot(file)            : Save current plot as PNG",
@@ -453,14 +574,17 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
       "  set_plot_size_relative()   : Size by % of terminal (default: 75% x 100%)"
     )
     if (.terminal == "kitty") {
-      startup_msg <- c(startup_msg, "  set_plot_align(a)          : Alignment (left/center/right)")
+      startup_msg <- c(
+        startup_msg,
+        "  set_plot_mode(m)           : Display mode (pane/inline/auto)",
+        "  close_plot_pane()          : Close the plot pane",
+        "  set_plot_align(a)          : Alignment (left/center/right)"
+      )
     }
     startup_msg <- c(
       startup_msg,
-      "  plot_split()               : Open current plot in split pane",
       "  plot_zoom()                : Open in Preview (Cmd++ to zoom)",
       "  plot_zoom_kitty()          : Open in new Kitty window (scaled)",
-      "  plot_redisplay_if_resized(): Redisplay after terminal resize",
       ""
     )
     cat(paste(startup_msg, collapse = "\n"))
