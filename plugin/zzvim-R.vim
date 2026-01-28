@@ -568,9 +568,8 @@ function! s:ConfigureTerminal(terminal_name, is_docker) abort
 
     if a:is_docker
         let b:r_is_docker = 1
-        " Add buffer-local autocmd to clean up plot pane when R exits
-        " We're still in the terminal buffer here, so <buffer> works
-        autocmd TermClose <buffer> call s:OnDockerRTerminalClose()
+        " Track this as the active Docker R terminal for cleanup
+        let s:docker_r_terminal_bufnr = current_terminal
     endif
     let t:is_r_term = 1
     wincmd p
@@ -1678,13 +1677,18 @@ if !g:zzvim_r_disable_mappings
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>] :call <SID>ZoomPlotPane()<CR>
     augroup END
 
-    " Close plot pane when R terminal exits
-    " Clean up plot pane when R terminal buffer is deleted
-    " Note: TermClose is handled via buffer-local autocmd in ConfigureTerminal()
+    " Clean up plot pane when R terminal closes or buffer is deleted
     augroup zzvim_PlotCleanup
         autocmd!
         autocmd BufWipeout,BufDelete * call s:CleanupPlotPaneIfRTerminal()
     augroup END
+    " TermClose requires Vim 8.1+ or Neovim
+    if exists('##TermClose')
+        augroup zzvim_PlotCleanupTermClose
+            autocmd!
+            autocmd TermClose * call s:CleanupPlotPaneOnTermClose()
+        augroup END
+    endif
 
     " Equalize vim window sizes when kitty pane is resized
     augroup zzvim_WindowResize
@@ -1693,12 +1697,25 @@ if !g:zzvim_r_disable_mappings
     augroup END
 endif
 
+" Track active Docker R terminal buffer number
+let s:docker_r_terminal_bufnr = -1
+
 " Called when Docker R terminal job ends (R exits via q() or otherwise)
 function! s:OnDockerRTerminalClose() abort
     " Stop the plot watcher
     call s:StopPlotWatcher()
     " Close the plot pane
     call system('kitty @ close-window --match title:zzvim-plot 2>/dev/null')
+    " Clear the tracked terminal
+    let s:docker_r_terminal_bufnr = -1
+endfunction
+
+" Called on TermClose event - check if it's our Docker R terminal
+function! s:CleanupPlotPaneOnTermClose() abort
+    let l:closed_bufnr = str2nr(expand('<abuf>'))
+    if l:closed_bufnr == s:docker_r_terminal_bufnr
+        call s:OnDockerRTerminalClose()
+    endif
 endfunction
 
 function! s:CleanupPlotPaneIfRTerminal() abort
