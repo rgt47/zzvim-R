@@ -568,6 +568,9 @@ function! s:ConfigureTerminal(terminal_name, is_docker) abort
 
     if a:is_docker
         let b:r_is_docker = 1
+        " Add buffer-local autocmd to clean up plot pane when R exits
+        " We're still in the terminal buffer here, so <buffer> works
+        autocmd TermClose <buffer> call s:OnDockerRTerminalClose()
     endif
     let t:is_r_term = 1
     wincmd p
@@ -1676,11 +1679,11 @@ if !g:zzvim_r_disable_mappings
     augroup END
 
     " Close plot pane when R terminal exits
+    " Clean up plot pane when R terminal buffer is deleted
+    " Note: TermClose is handled via buffer-local autocmd in ConfigureTerminal()
     augroup zzvim_PlotCleanup
         autocmd!
         autocmd BufWipeout,BufDelete * call s:CleanupPlotPaneIfRTerminal()
-        " Also catch when terminal job ends (R exits but buffer stays)
-        autocmd TermClose * call s:CleanupPlotPaneIfRTerminal()
     augroup END
 
     " Equalize vim window sizes when kitty pane is resized
@@ -1690,15 +1693,20 @@ if !g:zzvim_r_disable_mappings
     augroup END
 endif
 
+" Called when Docker R terminal job ends (R exits via q() or otherwise)
+function! s:OnDockerRTerminalClose() abort
+    " Stop the plot watcher
+    call s:StopPlotWatcher()
+    " Close the plot pane
+    call system('kitty @ close-window --match title:zzvim-plot 2>/dev/null')
+endfunction
+
 function! s:CleanupPlotPaneIfRTerminal() abort
     " Check if the closed buffer was an R terminal
     let l:bufname = expand('<afile>')
     " Match various R terminal naming patterns
     if l:bufname =~? 'R-\|r-\|R$\|!/.*R\|terminal.*R'
-        " Stop the plot watcher
-        call s:StopPlotWatcher()
-        " Close the plot pane
-        call system('kitty @ close-window --match title:zzvim-plot 2>/dev/null')
+        call s:OnDockerRTerminalClose()
     endif
 endfunction
 
