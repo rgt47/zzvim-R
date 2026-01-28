@@ -1680,17 +1680,13 @@ endfunction
 
 function! s:DisplayDockerPlot() abort
     let l:plot_file = s:GetPlotFile()
-    echom "DisplayDockerPlot: file=" . l:plot_file
     if !filereadable(l:plot_file)
-        echom "DisplayDockerPlot: file not readable"
         return
     endif
 
     " Check if file was modified
     let l:mtime = getftime(l:plot_file)
-    echom "DisplayDockerPlot: mtime=" . l:mtime . " cached=" . s:plot_file_mtime
     if l:mtime <= s:plot_file_mtime
-        echom "DisplayDockerPlot: skipping (already displayed)"
         return
     endif
     let s:plot_file_mtime = l:mtime
@@ -1711,9 +1707,9 @@ function! s:DisplayDockerPlot() abort
         call system('kitty @ send-text --match title:' . l:pane_title . ' ' . shellescape(l:cmd))
     else
         " Create new pane to the right with title for reuse
+        " Use --location=neighbor to place next to active window
         let l:sh_cmd = 'kitty +kitten icat --scale-up ' . l:plot_file . "; read -r -d '' _ </dev/tty"
-        let l:cmd = 'kitty @ launch --location=vsplit --keep-focus --title ' . l:pane_title . ' -- sh -c ' . shellescape(l:sh_cmd)
-        echom "Plot cmd: " . l:cmd
+        let l:cmd = 'kitty @ launch --location=neighbor --keep-focus --title ' . l:pane_title . ' -- sh -c ' . shellescape(l:sh_cmd)
         call system(l:cmd)
     endif
 endfunction
