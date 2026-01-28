@@ -1669,24 +1669,28 @@ let s:plot_file_mtime = 0
 
 function! s:GetPlotFile() abort
     " Find plot file relative to project root (where .zzcollab/ is)
-    " or fall back to directory of current buffer
+    " or fall back to current working directory
     let l:project_root = s:GetProjectRoot()
     if empty(l:project_root)
-        " Not in zzcollab project, use buffer's directory
-        let l:project_root = expand('%:p:h')
+        " Not in zzcollab project, use current working directory
+        let l:project_root = getcwd()
     endif
     return l:project_root . '/.plots/current.png'
 endfunction
 
 function! s:DisplayDockerPlot() abort
     let l:plot_file = s:GetPlotFile()
+    echom "DisplayDockerPlot: file=" . l:plot_file
     if !filereadable(l:plot_file)
+        echom "DisplayDockerPlot: file not readable"
         return
     endif
 
     " Check if file was modified
     let l:mtime = getftime(l:plot_file)
+    echom "DisplayDockerPlot: mtime=" . l:mtime . " cached=" . s:plot_file_mtime
     if l:mtime <= s:plot_file_mtime
+        echom "DisplayDockerPlot: skipping (already displayed)"
         return
     endif
     let s:plot_file_mtime = l:mtime
@@ -1707,8 +1711,9 @@ function! s:DisplayDockerPlot() abort
         call system('kitty @ send-text --match title:' . l:pane_title . ' ' . shellescape(l:cmd))
     else
         " Create new pane to the right with title for reuse
-        let l:sh_cmd = 'kitty +kitten icat --scale-up ' . shellescape(l:plot_file) . "; read -r -d '' _ </dev/tty"
+        let l:sh_cmd = 'kitty +kitten icat --scale-up ' . l:plot_file . "; read -r -d '' _ </dev/tty"
         let l:cmd = 'kitty @ launch --location=vsplit --keep-focus --title ' . l:pane_title . ' -- sh -c ' . shellescape(l:sh_cmd)
+        echom "Plot cmd: " . l:cmd
         call system(l:cmd)
     endif
 endfunction
@@ -1745,7 +1750,46 @@ endfunction
 "------------------------------------------------------------------------------
 
 " Plot commands
-command! -bar RPlotShow let s:plot_file_mtime = 0 | call s:DisplayDockerPlot()
+command! -bar RPlotShow call s:ForceDisplayDockerPlot()
+
+function! s:ForceDisplayDockerPlot() abort
+    " Stop watcher
+    if exists('s:plot_watcher_timer')
+        call timer_stop(s:plot_watcher_timer)
+        unlet s:plot_watcher_timer
+    endif
+
+    " Display directly without mtime check
+    let l:plot_file = s:GetPlotFile()
+    if !filereadable(l:plot_file)
+        echom "Plot file not found: " . l:plot_file
+        return
+    endif
+
+    let l:pane_title = 'zzvim-plot'
+    let l:pane_exists = trim(system('kitty @ ls 2>/dev/null | grep -q ' . shellescape(l:pane_title) . ' && echo 1 || echo 0'))
+
+    echom "Force display: pane_exists=" . l:pane_exists
+
+    if l:pane_exists == '1'
+        call system('kitty @ send-text --match title:' . l:pane_title . " '\\x03'")
+        sleep 100m
+        let l:cmd = 'clear && kitty +kitten icat --clear && kitty +kitten icat --scale-up ' . l:plot_file . " && read -r -d '' _ </dev/tty\n"
+        echom "Sending to pane: " . l:cmd
+        call system('kitty @ send-text --match title:' . l:pane_title . ' ' . shellescape(l:cmd))
+    else
+        let l:sh_cmd = 'kitty +kitten icat --scale-up ' . l:plot_file . "; read -r -d '' _ </dev/tty"
+        let l:cmd = 'kitty @ launch --location=vsplit --keep-focus --title ' . l:pane_title . ' -- sh -c ' . shellescape(l:sh_cmd)
+        echom "Launching: " . l:cmd
+        call system(l:cmd)
+    endif
+
+    " Update mtime cache
+    let s:plot_file_mtime = getftime(l:plot_file)
+
+    " Restart watcher
+    let s:plot_watcher_timer = timer_start(500, {-> s:DisplayDockerPlot()}, {'repeat': -1})
+endfunction
 command! -bar RPlotPreview call s:OpenDockerPlotInPreview()
 command! -bar RPlotWatchStart call s:StartPlotWatcher()
 command! -bar RPlotWatchStop call s:StopPlotWatcher()
