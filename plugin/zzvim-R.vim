@@ -574,11 +574,17 @@ function! s:ConfigureTerminal(terminal_name, is_docker) abort
 
     if a:is_docker
         let b:r_terminal_id = current_terminal
-        " Initialize plot mtime to current file time (if exists) to avoid
+        " Initialize signal mtime to current file time (if exists) to avoid
         " displaying stale plots on terminal open
-        let l:plot_file = s:GetPlotFile()
-        if filereadable(l:plot_file)
-            let s:plot_file_mtime = getftime(l:plot_file)
+        let l:signal_file = s:GetSignalFile()
+        if filereadable(l:signal_file)
+            let s:plot_signal_mtime = getftime(l:signal_file)
+        else
+            " Fall back to plot file mtime if no signal file yet
+            let l:plot_file = s:GetPlotFile()
+            if filereadable(l:plot_file)
+                let s:plot_signal_mtime = getftime(l:plot_file)
+            endif
         endif
         " Start watcher - it will only display when mtime changes
         call s:StartPlotWatcher()

@@ -233,7 +233,7 @@ function! zzvimr#terminal_graphics#add_to_gitignore() abort
 
     " Check if .Rprofile.local is already in .gitignore
     for l:line in l:lines
-        if l:line =~# '.Rprofile.local'
+        if l:line =~# '\.Rprofile\.local'
             return  " Already in .gitignore
         endif
     endfor
