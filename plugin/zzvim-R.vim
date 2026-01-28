@@ -1726,18 +1726,22 @@ function! s:DisplayDockerPlot() abort
     " Display using kitty remote control
     let l:pane_title = 'zzvim-plot'
 
-    " Check if plot pane already exists
-    let l:pane_check = system('kitty @ ls 2>/dev/null | grep -c "zzvim-plot"')
-    let l:pane_exists = (str2nr(trim(l:pane_check)) > 0)
+    " Write display script to file (avoids quoting issues)
+    let l:script = '/tmp/zzvim_plot_show.sh'
+    call writefile([
+        \ '#!/bin/bash',
+        \ 'clear',
+        \ 'kitty +kitten icat --clear --scale-up --align=center "' . l:plot_file . '"',
+        \ 'echo ""',
+        \ 'echo "Press Enter to close (F11 to zoom)"',
+        \ 'read'
+        \ ], l:script)
+    call system('chmod +x ' . l:script)
 
-    if l:pane_exists
-        " Close existing pane
-        call system('kitty @ close-window --match title:' . l:pane_title . ' 2>/dev/null')
-        sleep 100m
-    endif
-
-    " Launch new pane with the plot
-    call system('kitty @ launch --location=vsplit --keep-focus --title ' . l:pane_title . ' sh -c "clear; kitty +kitten icat --scale-up --align=center ' . l:plot_file . '; echo; echo Press Enter to close; read"')
+    " Always close existing and launch fresh (simpler, more reliable)
+    call system('kitty @ close-window --match title:' . l:pane_title . ' 2>/dev/null')
+    sleep 100m
+    call system('kitty @ launch --location=vsplit --keep-focus --title ' . l:pane_title . ' /tmp/zzvim_plot_show.sh')
     redraw!
 endfunction
 
