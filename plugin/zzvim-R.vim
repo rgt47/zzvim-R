@@ -603,9 +603,12 @@ endfunction
 "                              (unused in current implementation)
 " Returns: nothing (void) - uses silent execution, no user prompts
 function! s:Send_to_r(cmd, stay_on_line) abort
+    " Track R activity for adaptive polling
+    call s:OnRActivity()
+
     " Get buffer-specific terminal (creates if needed)
     let target_terminal = s:GetBufferTerminal()
-    
+
     if target_terminal == -1
         call s:Error("Could not create or find R terminal for this buffer.")
         return
@@ -613,7 +616,7 @@ function! s:Send_to_r(cmd, stay_on_line) abort
 
     " Command Transmission with Error Handling
     try
-        
+
         " Input Validation - avoid sending empty commands to R
         " trim() removes leading/trailing whitespace
         " !empty() ensures we have actual content to send
@@ -1759,6 +1762,12 @@ endfunction
 
 let s:plot_display_in_progress = 0
 
+" Check if plot pane already exists
+function! s:PlotPaneExists() abort
+    let l:check = system('kitty @ ls 2>/dev/null | grep -q "zzvim-plot" && echo 1 || echo 0')
+    return str2nr(trim(l:check)) == 1
+endfunction
+
 function! s:DisplayDockerPlot() abort
     " Prevent duplicate pane creation
     if s:plot_display_in_progress
@@ -1794,37 +1803,48 @@ function! s:DisplayDockerPlot() abort
     " Lock to prevent race conditions
     let s:plot_display_in_progress = 1
 
-    " Display using kitty remote control (no scaling needed - image is correct size)
     let l:pane_title = 'zzvim-plot'
 
-    " Check if plot pane already exists - if so, just update the image
-    let l:pane_exists = system('kitty @ ls 2>/dev/null | grep -q "' . l:pane_title . '" && echo 1 || echo 0')
-    let l:pane_exists = str2nr(trim(l:pane_exists))
+    if s:PlotPaneExists()
+        " Pre-warmed pane: update image in-place (faster)
+        " Send keystroke to trigger refresh in the running script
+        call system('kitty @ send-key --match title:' . l:pane_title . ' r 2>/dev/null')
+        call timer_start(200, {-> execute('let s:plot_display_in_progress = 0')})
+        return
+    endif
 
-    " Write display script to file (avoids quoting issues)
+    " Create new pane with persistent display script
     let l:script = '/tmp/zzvim_plot_show.sh'
     call writefile([
         \ '#!/bin/bash',
-        \ 'clear',
-        \ 'kitty +kitten icat --clear --align=center "' . l:plot_file . '"',
-        \ 'echo ""',
-        \ 'echo "Plot 600x450 | <Space>] zoom | Enter to close"',
-        \ 'read'
+        \ 'PLOT_FILE="' . l:plot_file . '"',
+        \ 'show_plot() {',
+        \ '    clear',
+        \ '    kitty +kitten icat --clear --align=center "$PLOT_FILE"',
+        \ '    echo ""',
+        \ '    echo "Plot 600x450 | r=refresh | q=close | <Space>] zoom"',
+        \ '}',
+        \ 'show_plot',
+        \ 'while true; do',
+        \ '    read -n1 -s key',
+        \ '    case "$key" in',
+        \ '        r|R) show_plot ;;',
+        \ '        q|Q|"") exit 0 ;;',
+        \ '    esac',
+        \ 'done'
         \ ], l:script)
     call system('chmod +x ' . l:script)
 
-    " Close any existing plot panes (in all windows)
-    call system('kitty @ close-window --match title:' . l:pane_title . ' 2>/dev/null')
-    sleep 50m
-
     " Launch the plot pane to the right of the R terminal
-    " First set the layout to splits, then use hsplit for side-by-side
     call system('kitty @ goto-layout splits --match title:^R- 2>/dev/null')
     call system('kitty @ launch --location=hsplit --keep-focus --title ' . l:pane_title . ' --match title:^R- /tmp/zzvim_plot_show.sh 2>/dev/null')
     redraw!
 
     " Release lock after a delay to prevent rapid re-triggers
     call timer_start(500, {-> execute('let s:plot_display_in_progress = 0')})
+
+    " Update plot status for statusline
+    call timer_start(600, {-> s:RefreshPlotStatus()})
 endfunction
 
 function! s:OpenDockerPlotInPreview() abort
@@ -1854,20 +1874,57 @@ function! s:OpenDockerPlotHiresInPreview() abort
     endif
 endfunction
 
+" Adaptive polling configuration
+let s:poll_fast = 100       " Fast polling during active work (ms)
+let s:poll_slow = 1000      " Slow polling when idle (ms)
+let s:poll_current = 100    " Current polling rate
+let s:last_r_activity = 0   " Timestamp of last R activity
+let s:idle_threshold = 30   " Seconds of inactivity before slowing down
+
+" Track R activity for adaptive polling
+function! s:OnRActivity() abort
+    let s:last_r_activity = localtime()
+    if s:poll_current != s:poll_fast
+        let s:poll_current = s:poll_fast
+        call s:RestartPlotWatcher()
+    endif
+endfunction
+
+" Check if we should slow down polling
+function! s:MaybeSlowDown() abort
+    if s:last_r_activity == 0
+        return
+    endif
+    if localtime() - s:last_r_activity > s:idle_threshold
+        if s:poll_current != s:poll_slow
+            let s:poll_current = s:poll_slow
+            call s:RestartPlotWatcher()
+        endif
+    endif
+endfunction
+
 function! s:StartPlotWatcher() abort
-    " Set up a timer to check for plot updates every 100ms (signal file is tiny)
+    " Set up a timer to check for plot updates (adaptive rate)
     if exists('s:plot_watcher_timer')
         call timer_stop(s:plot_watcher_timer)
     endif
-    let s:plot_watcher_timer = timer_start(100, {-> s:DisplayDockerPlot()}, {'repeat': -1})
-    echom "Plot watcher started (100ms interval)"
+    let s:plot_watcher_timer = timer_start(s:poll_current, {-> s:PlotWatcherTick()}, {'repeat': -1})
+    let s:last_r_activity = localtime()
+endfunction
+
+function! s:RestartPlotWatcher() abort
+    call s:StartPlotWatcher()
+endfunction
+
+function! s:PlotWatcherTick() abort
+    call s:DisplayDockerPlot()
+    call s:MaybeSlowDown()
 endfunction
 
 function! s:StopPlotWatcher() abort
     if exists('s:plot_watcher_timer')
         call timer_stop(s:plot_watcher_timer)
         unlet s:plot_watcher_timer
-        echom "Plot watcher stopped"
     endif
 endfunction
 
@@ -1916,6 +1973,7 @@ command! -bar RPlotZoomPreview call s:OpenDockerPlotHiresInPreview()
 command! -bar RPlotWatchStart call s:StartPlotWatcher()
 command! -bar RPlotWatchStop call s:StopPlotWatcher()
 command! -bar RPlotDebug call s:DebugPlotWatcher()
+command! -bar RPlotGallery call s:OpenPlotGallery()
 
 function! s:DebugPlotWatcher() abort
     echo "=== Plot Watcher Debug ==="
@@ -1937,6 +1995,154 @@ function! s:DebugPlotWatcher() abort
     echo ""
     let l:pane_exists = system('kitty @ ls 2>/dev/null | grep -q zzvim-plot && echo 1 || echo 0')
     echo "Plot pane exists: " . trim(l:pane_exists)
+    echo ""
+    echo "Adaptive polling: " . s:poll_current . "ms (fast=" . s:poll_fast . ", slow=" . s:poll_slow . ")"
+endfunction
+
+"------------------------------------------------------------------------------
+" Plot Gallery
+"------------------------------------------------------------------------------
+" Opens a Vim buffer showing the plot history with navigation
+
+function! s:GetHistoryIndexFile() abort
+    return s:GetPlotsDir() . '/history/index.json'
+endfunction
+
+function! s:OpenPlotGallery() abort
+    let l:index_file = s:GetHistoryIndexFile()
+    if !filereadable(l:index_file)
+        call s:Error("No plot history found. Create plots with zzplot() first.")
+        return
+    endif
+
+    " Read and parse JSON
+    let l:json_content = join(readfile(l:index_file), '')
+    try
+        let l:index = json_decode(l:json_content)
+    catch
+        call s:Error("Failed to parse plot history: " . v:exception)
+        return
+    endtry
+
+    if empty(get(l:index, 'plots', []))
+        call s:Error("Plot history is empty")
+        return
+    endif
+
+    " Create gallery buffer
+    vnew
+    setlocal buftype=nofile bufhidden=wipe noswapfile
+    setlocal nonumber norelativenumber signcolumn=no
+    setlocal filetype=zzvim-gallery
+    file [Plot\ Gallery]
+
+    " Build gallery content
+    let l:lines = []
+    call add(l:lines, '╔══════════════════════════════════════════════════════════════════╗')
+    call add(l:lines, '║                         Plot Gallery                             ║')
+    call add(l:lines, '║  Press number (1-9) to view, Enter on line, q to close          ║')
+    call add(l:lines, '║  /pattern to search, n/N for next/prev match                    ║')
+    call add(l:lines, '╚══════════════════════════════════════════════════════════════════╝')
+    call add(l:lines, '')
+
+    let l:current_idx = get(l:index, 'current_index', 0)
+    let l:idx = 1
+    for plot in l:index.plots
+        let l:marker = (plot.id == l:current_idx) ? '▶ ' : '  '
+        let l:name = get(plot, 'name', 'unnamed')
+        let l:created = get(plot, 'created', '')
+        let l:code = get(plot, 'code', '')
+        " Truncate code for display
+        if len(l:code) > 40
+            let l:code = l:code[:37] . '...'
+        endif
+        let l:line = printf('%s[%d] %-20s  %s', l:marker, l:idx, l:name, l:created)
+        call add(l:lines, l:line)
+        if !empty(l:code)
+            call add(l:lines, '       ' . l:code)
+        endif
+        let l:idx += 1
+    endfor
+
+    call add(l:lines, '')
+    call add(l:lines, 'Total: ' . len(l:index.plots) . ' plots')
+
+    call setline(1, l:lines)
+    setlocal readonly nomodifiable
+
+    " Store index in buffer variable for navigation
+    let b:plot_index = l:index
+
+    " Key mappings for gallery
+    nnoremap <buffer> <silent> q :bwipe<CR>
+    nnoremap <buffer> <silent> <CR> :call <SID>GallerySelectCurrent()<CR>
+    nnoremap <buffer> <silent> <Esc> :bwipe<CR>
+    for i in range(1, 9)
+        execute 'nnoremap <buffer> <silent> ' . i . ' :call <SID>GallerySelect(' . i . ')<CR>'
+    endfor
+endfunction
+
+function! s:GallerySelect(num) abort
+    if !exists('b:plot_index')
+        return
+    endif
+    if a:num > len(b:plot_index.plots)
+        echom "Plot " . a:num . " not in history"
+        return
+    endif
+    " Send command to R to display the plot
+    call s:Send_to_r('plot_goto(' . a:num . ')', 1)
+    echom "Displaying plot " . a:num
+endfunction
+
+function! s:GallerySelectCurrent() abort
+    let l:line = getline('.')
+    let l:match = matchstr(l:line, '\[\zs\d\+\ze\]')
+    if !empty(l:match)
+        call s:GallerySelect(str2nr(l:match))
+    endif
+endfunction
+
+"------------------------------------------------------------------------------
+" Statusline Integration
+"------------------------------------------------------------------------------
+" Provides plot status for users to add to their statusline
+
+let s:plot_status_index = 0
+let s:plot_status_total = 0
+
+" Public function for statusline - returns [Plot N/M] or empty string
+function! ZzvimRPlotStatus() abort
+    if s:plot_status_total == 0
+        return ''
+    endif
+    return printf('[Plot %d/%d]', s:plot_status_index, s:plot_status_total)
+endfunction
+
+" Update plot status from history index file
+function! s:UpdatePlotStatus() abort
+    let l:index_file = s:GetHistoryIndexFile()
+    if !filereadable(l:index_file)
+        let s:plot_status_index = 0
+        let s:plot_status_total = 0
+        return
+    endif
+
+    try
+        let l:json_content = join(readfile(l:index_file), '')
+        let l:index = json_decode(l:json_content)
+        let s:plot_status_total = len(get(l:index, 'plots', []))
+        let s:plot_status_index = get(l:index, 'current_index', 0)
+    catch
+        let s:plot_status_index = 0
+        let s:plot_status_total = 0
+    endtry
+endfunction
+
+" Call this after displaying a plot to update status
+function! s:RefreshPlotStatus() abort
+    call s:UpdatePlotStatus()
+    redrawstatus
 endfunction
 
 function! s:ZoomPlotPane() abort

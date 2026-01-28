@@ -173,10 +173,11 @@ zzvim-R/
 - Competitive Analysis: Honest research-focused comparisons
 
 **Jan 2026 - Kitty Plot Display & Dual Resolution**
-- Docker Plot Watcher: Signal-based detection (100ms polling on tiny signal file)
+- Docker Plot Watcher: Signal-based detection with adaptive polling (100ms active, 1s idle)
 - Kitty Terminal Integration: Display plots in dedicated pane using `kitty +kitten icat`
 - Plot Pane Management: Auto-creates pane to the right of R terminal using splits layout
-- Plot Commands: `:RPlotShow`, `:RPlotPreview`, `:RPlotZoom`, `:RPlotZoomPreview`
+- Pre-warmed Pane: Updates image in-place instead of recreating (faster refresh)
+- Plot Commands: `:RPlotShow`, `:RPlotPreview`, `:RPlotZoom`, `:RPlotZoomPreview`, `:RPlotGallery`
 - Key Mappings:
   - `<LocalLeader>[` opens current plot in Preview
   - `<LocalLeader>]` opens hi-res plot in new Kitty window
@@ -186,6 +187,12 @@ zzvim-R/
 - **Dual-Resolution Plots**: `zzplot()`/`zzggplot()` render both sizes:
   - Small (600x450): Displayed in pane, crisp without scaling
   - Large (1800x1350): Used for zoom/export, 3x detail
+- **Persistent History**: Plots saved to `.plots/history/` with thumbnails
+  - `plot_goto(name_or_id)`: Navigate to specific plot
+  - `plot_search(pattern)`: Search plots by name or code
+  - `plot_history_persistent()`: List all saved plots
+  - `:RPlotGallery`: Vim buffer with plot gallery navigation
+- **Statusline Integration**: `ZzvimRPlotStatus()` function for statusline
 - Template Versioning: Auto-detects outdated `.Rprofile.local`, prompts to update with backup
 - `ZR` mapping: Quick access to Docker R terminal (same as `<LocalLeader>r`)
 - Comprehensive vignette: `docs/plot-display-vignette.md` documents all plot features

@@ -1,12 +1,13 @@
 # ============================================================================
 # Terminal Graphics Support - Kitty and iTerm2
-# zzvim-R template version: 2
+# zzvim-R template version: 3
 # ============================================================================
 # This file provides automatic plot display in modern terminal emulators.
 # It sources automatically if present in zzcollab workspaces.
 # Copy to workspace root: cp ~/.Rprofile.local .Rprofile.local
 #
 # Version history:
+#   v3 (2026-01): Persistent history with thumbnails, plot_goto(), plot_search()
 #   v2 (2026-01): Dual-resolution plots (600x450 pane + 1800x1350 zoom)
 #   v1 (2025-08): Initial release with single-resolution plots
 
@@ -279,15 +280,19 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
   # ========================================================================
   # Base R plots with auto-display
   # Generates both small (for pane) and large (for zoom) versions
-  zzplot <- function(...) {
+  # .name: optional name for persistent history
+  # .save: whether to save to persistent history (default TRUE)
+  zzplot <- function(..., .name = NULL, .save = TRUE) {
     # Clean up old files
     pf <- get(".plot_file", envir = .GlobalEnv)
     if (!is.null(pf) && file.exists(pf)) unlink(pf)
     pf_hires <- get(".plot_file_hires", envir = .GlobalEnv)
     if (!is.null(pf_hires) && file.exists(pf_hires)) unlink(pf_hires)
 
-    # Capture the plot call for re-evaluation
+    # Capture the plot call for re-evaluation and history
     plot_call <- substitute(plot(...))
+    code_str <- deparse(plot_call, width.cutoff = 500)
+    code_str <- paste(code_str, collapse = " ")
 
     # Render small version (for pane display)
     .create_plot_device_at_size("small")
@@ -302,16 +307,27 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
     # Display the small version
     pf <- get(".plot_file", envir = .GlobalEnv)
     .GlobalEnv$.display_plot(pf)
+
+    # Add to persistent history if requested
+    if (.save) {
+      .add_to_persistent_history(.name, code_str)
+    }
   }
 
   # ggplot2 plots with auto-display
   # Generates both small (for pane) and large (for zoom) versions
-  zzggplot <- function(p) {
+  # .name: optional name for persistent history
+  # .save: whether to save to persistent history (default TRUE)
+  zzggplot <- function(p, .name = NULL, .save = TRUE) {
     # Clean up old files
     pf <- get(".plot_file", envir = .GlobalEnv)
     if (!is.null(pf) && file.exists(pf)) unlink(pf)
     pf_hires <- get(".plot_file_hires", envir = .GlobalEnv)
     if (!is.null(pf_hires) && file.exists(pf_hires)) unlink(pf_hires)
+
+    # Capture code for history
+    code_str <- deparse(substitute(p), width.cutoff = 500)
+    code_str <- paste(code_str, collapse = " ")
 
     # Render small version (for pane display)
     .create_plot_device_at_size("small")
@@ -326,6 +342,11 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
     # Display the small version
     pf <- get(".plot_file", envir = .GlobalEnv)
     .GlobalEnv$.display_plot(pf)
+
+    # Add to persistent history if requested
+    if (.save) {
+      .add_to_persistent_history(.name, code_str)
+    }
   }
 
   assign("zzplot", zzplot, envir = .GlobalEnv)
@@ -414,6 +435,218 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
   assign("plot_prev", plot_prev, envir = .GlobalEnv)
   assign("plot_next", plot_next, envir = .GlobalEnv)
   assign("plot_history", plot_history, envir = .GlobalEnv)
+
+  # ========================================================================
+  # Persistent History with Thumbnails
+  # ========================================================================
+  assign(".plot_counter", 0, envir = .GlobalEnv)
+  assign(".plot_history_limit", 50, envir = .GlobalEnv)
+
+  # Get history directory path
+  .get_history_dir <- function() {
+    ".plots/history"
+  }
+
+  # Read history index from JSON file
+  .read_history_index <- function() {
+    index_file <- file.path(.get_history_dir(), "index.json")
+    if (!file.exists(index_file)) {
+      return(list(version = 1, plots = list(), current_index = 0))
+    }
+    tryCatch({
+      jsonlite::fromJSON(index_file, simplifyVector = FALSE)
+    }, error = function(e) {
+      list(version = 1, plots = list(), current_index = 0)
+    })
+  }
+
+  # Write history index to JSON file
+  .write_history_index <- function(index) {
+    history_dir <- .get_history_dir()
+    if (!dir.exists(history_dir)) {
+      dir.create(history_dir, recursive = TRUE, showWarnings = FALSE)
+    }
+    index_file <- file.path(history_dir, "index.json")
+    tryCatch({
+      jsonlite::write_json(index, index_file, auto_unbox = TRUE, pretty = TRUE)
+    }, error = function(e) {
+      # Silently fail if jsonlite not available
+    })
+  }
+
+  # Generate thumbnail for a plot (requires ImageMagick convert)
+  .generate_thumbnail <- function(src_path) {
+    thumb_path <- sub("\\.png$", "_thumb.png", src_path)
+    if (Sys.which("convert") != "") {
+      system(paste("convert", shQuote(src_path), "-resize 200x", shQuote(thumb_path)),
+             ignore.stderr = TRUE, ignore.stdout = TRUE)
+    }
+    thumb_path
+  }
+
+  # Add plot to persistent history
+  .add_to_persistent_history <- function(name = NULL, code = "") {
+    # Increment counter
+    counter <- get(".plot_counter", envir = .GlobalEnv) + 1
+    assign(".plot_counter", counter, envir = .GlobalEnv)
+
+    history_dir <- .get_history_dir()
+    if (!dir.exists(history_dir)) {
+      dir.create(history_dir, recursive = TRUE, showWarnings = FALSE)
+    }
+
+    # Generate name if not provided
+    if (is.null(name) || name == "") {
+      name <- sprintf("plot_%03d", counter)
+    }
+    # Sanitize name for filename
+    safe_name <- gsub("[^a-zA-Z0-9_-]", "_", name)
+
+    # Copy current plot to history
+    pf <- get(".plot_file", envir = .GlobalEnv)
+    if (is.null(pf) || !file.exists(pf)) return(invisible(NULL))
+
+    dst <- file.path(history_dir, sprintf("%03d_%s.png", counter, safe_name))
+    file.copy(pf, dst, overwrite = TRUE)
+
+    # Also copy hi-res version if available
+    pf_hires <- get(".plot_file_hires", envir = .GlobalEnv)
+    if (!is.null(pf_hires) && file.exists(pf_hires)) {
+      dst_hires <- file.path(history_dir, sprintf("%03d_%s_hires.png", counter, safe_name))
+      file.copy(pf_hires, dst_hires, overwrite = TRUE)
+    }
+
+    # Generate thumbnail
+    thumb_path <- .generate_thumbnail(dst)
+
+    # Update index
+    index <- .read_history_index()
+    new_entry <- list(
+      id = counter,
+      file = basename(dst),
+      thumb = basename(thumb_path),
+      name = name,
+      created = format(Sys.time(), "%Y-%m-%dT%H:%M:%S"),
+      code = substr(code, 1, 200)  # Truncate long code
+    )
+    index$plots <- c(index$plots, list(new_entry))
+    index$current_index <- counter
+    .write_history_index(index)
+
+    # Trim history if over limit
+    .trim_persistent_history()
+
+    invisible(counter)
+  }
+
+  # Trim old entries from persistent history
+  .trim_persistent_history <- function() {
+    limit <- get(".plot_history_limit", envir = .GlobalEnv)
+    index <- .read_history_index()
+    if (length(index$plots) <= limit) return(invisible(NULL))
+
+    # Remove oldest entries
+    to_remove <- index$plots[1:(length(index$plots) - limit)]
+    index$plots <- index$plots[(length(index$plots) - limit + 1):length(index$plots)]
+
+    # Delete files
+    history_dir <- .get_history_dir()
+    for (entry in to_remove) {
+      file_path <- file.path(history_dir, entry$file)
+      if (file.exists(file_path)) unlink(file_path)
+      thumb_path <- file.path(history_dir, entry$thumb)
+      if (file.exists(thumb_path)) unlink(thumb_path)
+      # Also remove hi-res version
+      hires_path <- sub("\\.png$", "_hires.png", file_path)
+      if (file.exists(hires_path)) unlink(hires_path)
+    }
+
+    .write_history_index(index)
+  }
+
+  # Navigate to plot by name or id
+  plot_goto <- function(name_or_id) {
+    index <- .read_history_index()
+    if (length(index$plots) == 0) {
+      cat("No persistent history\n")
+      return(invisible(NULL))
+    }
+
+    entry <- NULL
+    if (is.numeric(name_or_id)) {
+      matches <- Filter(function(x) x$id == name_or_id, index$plots)
+      if (length(matches) > 0) entry <- matches[[1]]
+    } else {
+      matches <- Filter(function(x) grepl(name_or_id, x$name, ignore.case = TRUE), index$plots)
+      if (length(matches) > 0) entry <- matches[[1]]
+    }
+
+    if (is.null(entry)) {
+      cat("Plot not found\n")
+      return(invisible(NULL))
+    }
+
+    file <- file.path(.get_history_dir(), entry$file)
+    if (!file.exists(file)) {
+      cat("Plot file not found:", file, "\n")
+      return(invisible(NULL))
+    }
+
+    .GlobalEnv$.display_plot(file)
+    cat(sprintf("Showing: %s (%s)\n", entry$name, entry$created))
+  }
+
+  # Search persistent history
+  plot_search <- function(pattern) {
+    index <- .read_history_index()
+    if (length(index$plots) == 0) {
+      cat("No persistent history\n")
+      return(invisible(NULL))
+    }
+
+    matches <- Filter(function(x) {
+      grepl(pattern, x$name, ignore.case = TRUE) ||
+      grepl(pattern, x$code, ignore.case = TRUE)
+    }, index$plots)
+
+    if (length(matches) == 0) {
+      cat("No matching plots\n")
+      return(invisible(NULL))
+    }
+
+    cat(sprintf("Found %d plots:\n", length(matches)))
+    for (m in matches) {
+      cat(sprintf("  [%d] %s - %s\n", m$id, m$name, m$created))
+    }
+    invisible(matches)
+  }
+
+  # List persistent history
+  plot_history_persistent <- function() {
+    index <- .read_history_index()
+    if (length(index$plots) == 0) {
+      cat("No persistent history\n")
+      return(invisible(NULL))
+    }
+
+    cat(sprintf("Persistent plot history: %d plots (limit: %d)\n",
+                length(index$plots), get(".plot_history_limit", envir = .GlobalEnv)))
+    cat(sprintf("Current: %d\n\n", index$current_index))
+    for (p in index$plots) {
+      marker <- if (p$id == index$current_index) "* " else "  "
+      cat(sprintf("%s[%d] %-20s %s\n", marker, p$id, p$name, p$created))
+    }
+  }
+
+  assign(".get_history_dir", .get_history_dir, envir = .GlobalEnv)
+  assign(".read_history_index", .read_history_index, envir = .GlobalEnv)
+  assign(".write_history_index", .write_history_index, envir = .GlobalEnv)
+  assign(".generate_thumbnail", .generate_thumbnail, envir = .GlobalEnv)
+  assign(".add_to_persistent_history", .add_to_persistent_history, envir = .GlobalEnv)
+  assign(".trim_persistent_history", .trim_persistent_history, envir = .GlobalEnv)
+  assign("plot_goto", plot_goto, envir = .GlobalEnv)
+  assign("plot_search", plot_search, envir = .GlobalEnv)
+  assign("plot_history_persistent", plot_history_persistent, envir = .GlobalEnv)
 
   # ========================================================================
   # Configuration Functions
