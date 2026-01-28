@@ -1818,7 +1818,8 @@ function! s:DisplayDockerPlot() abort
     sleep 50m
 
     " Launch the plot pane to the right of the R terminal
-    " hsplit = horizontal split (side-by-side), vsplit = vertical split (top-bottom)
+    " First set the layout to splits, then use hsplit for side-by-side
+    call system('kitty @ goto-layout splits --match title:^R- 2>/dev/null')
     call system('kitty @ launch --location=hsplit --keep-focus --title ' . l:pane_title . ' --match title:^R- /tmp/zzvim_plot_show.sh 2>/dev/null')
     redraw!
 
