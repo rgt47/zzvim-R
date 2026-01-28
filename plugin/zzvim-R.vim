@@ -574,6 +574,8 @@ function! s:ConfigureTerminal(terminal_name, is_docker) abort
 
     if a:is_docker
         let b:r_terminal_id = current_terminal
+        " Auto-start plot watcher for Docker terminals
+        call s:StartPlotWatcher()
     endif
 
     return current_terminal
