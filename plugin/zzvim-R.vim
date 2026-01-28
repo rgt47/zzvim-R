@@ -1692,38 +1692,63 @@ function! s:CleanupPlotPaneIfRTerminal() abort
 endfunction
 
 "------------------------------------------------------------------------------
-" Docker Plot Watcher
+" Docker Plot Watcher (Dual Resolution)
 "------------------------------------------------------------------------------
-" Watches .plots/current.png for changes and displays via kitty icat
+" Watches .plots/.signal for changes and displays .plots/current.png via kitty
+" Dual resolution: current.png (600x450) for pane, current_hires.png for zoom
 " This enables inline plot display when R runs inside Docker container
 
-let s:plot_file_mtime = 0
+let s:plot_signal_mtime = 0
 
-function! s:GetPlotFile() abort
-    " Find plot file relative to project root (where .zzcollab/ is)
-    " or fall back to current working directory
+function! s:GetPlotsDir() abort
+    " Find .plots/ directory relative to project root
     let l:project_root = s:GetProjectRoot()
     if empty(l:project_root)
-        " Not in zzcollab project, use current working directory
         let l:project_root = getcwd()
     endif
-    return l:project_root . '/.plots/current.png'
+    return l:project_root . '/.plots'
+endfunction
+
+function! s:GetPlotFile() abort
+    return s:GetPlotsDir() . '/current.png'
+endfunction
+
+function! s:GetPlotFileHires() abort
+    return s:GetPlotsDir() . '/current_hires.png'
+endfunction
+
+function! s:GetSignalFile() abort
+    return s:GetPlotsDir() . '/.signal'
 endfunction
 
 function! s:DisplayDockerPlot() abort
+    " Check signal file instead of plot file (faster, more reliable)
+    let l:signal_file = s:GetSignalFile()
+    if filereadable(l:signal_file)
+        let l:mtime = getftime(l:signal_file)
+        if l:mtime <= s:plot_signal_mtime
+            return
+        endif
+        let s:plot_signal_mtime = l:mtime
+    else
+        " Fallback to checking plot file directly
+        let l:plot_file = s:GetPlotFile()
+        if !filereadable(l:plot_file)
+            return
+        endif
+        let l:mtime = getftime(l:plot_file)
+        if l:mtime <= s:plot_signal_mtime
+            return
+        endif
+        let s:plot_signal_mtime = l:mtime
+    endif
+
     let l:plot_file = s:GetPlotFile()
     if !filereadable(l:plot_file)
         return
     endif
 
-    " Check if file was modified
-    let l:mtime = getftime(l:plot_file)
-    if l:mtime <= s:plot_file_mtime
-        return
-    endif
-    let s:plot_file_mtime = l:mtime
-
-    " Display using kitty remote control
+    " Display using kitty remote control (no scaling needed - image is correct size)
     let l:pane_title = 'zzvim-plot'
 
     " Write display script to file (avoids quoting issues)
@@ -1731,10 +1756,10 @@ function! s:DisplayDockerPlot() abort
     call writefile([
         \ '#!/bin/bash',
         \ 'clear',
-        \ 'kitty +kitten icat --clear --scale-up --align=center "' . l:plot_file . '"',
+        \ 'kitty +kitten icat --clear --align=center "' . l:plot_file . '"',
         \ 'echo ""',
-        \ 'echo "Press Enter to close (F11 to zoom)"',
-        \ 'read'
+        \ 'echo "Plot 600x450 | :RPlotZoom for hi-res"',
+        \ 'read -r -d "" _ </dev/tty'
         \ ], l:script)
     call system('chmod +x ' . l:script)
 
@@ -1746,22 +1771,39 @@ function! s:DisplayDockerPlot() abort
 endfunction
 
 function! s:OpenDockerPlotInPreview() abort
+    " Open small version in Preview
     let l:plot_file = s:GetPlotFile()
     if filereadable(l:plot_file)
         call system('open ' . shellescape(l:plot_file))
-        echom "Opened plot in Preview"
+        echom "Opened plot (600x450) in Preview"
     else
         call s:Error("No plot file found at " . l:plot_file)
     endif
 endfunction
 
+function! s:OpenDockerPlotHiresInPreview() abort
+    " Open hi-res version in Preview (preferred for zoom)
+    let l:plot_hires = s:GetPlotFileHires()
+    let l:plot_file = s:GetPlotFile()
+
+    if filereadable(l:plot_hires)
+        call system('open ' . shellescape(l:plot_hires))
+        echom "Opened hi-res plot (1800x1350) in Preview"
+    elseif filereadable(l:plot_file)
+        call system('open ' . shellescape(l:plot_file))
+        echom "Opened plot (600x450) in Preview (hi-res not available)"
+    else
+        call s:Error("No plot file found")
+    endif
+endfunction
+
 function! s:StartPlotWatcher() abort
-    " Set up a timer to check for plot updates every 500ms
+    " Set up a timer to check for plot updates every 100ms (signal file is tiny)
     if exists('s:plot_watcher_timer')
         call timer_stop(s:plot_watcher_timer)
     endif
-    let s:plot_watcher_timer = timer_start(500, {-> s:DisplayDockerPlot()}, {'repeat': -1})
-    echom "Plot watcher started"
+    let s:plot_watcher_timer = timer_start(100, {-> s:DisplayDockerPlot()}, {'repeat': -1})
+    echom "Plot watcher started (100ms interval)"
 endfunction
 
 function! s:StopPlotWatcher() abort
@@ -1813,37 +1855,55 @@ function! s:ForceDisplayDockerPlot() abort
 endfunction
 command! -bar RPlotPreview call s:OpenDockerPlotInPreview()
 command! -bar RPlotZoom call s:ZoomPlotPane()
+command! -bar RPlotZoomPreview call s:OpenDockerPlotHiresInPreview()
 command! -bar RPlotWatchStart call s:StartPlotWatcher()
 command! -bar RPlotWatchStop call s:StopPlotWatcher()
 command! -bar RPlotDebug call s:DebugPlotWatcher()
 
 function! s:DebugPlotWatcher() abort
+    echo "=== Plot Watcher Debug ==="
+    let l:signal_file = s:GetSignalFile()
+    echo "Signal file: " . l:signal_file
+    echo "  Exists: " . filereadable(l:signal_file)
+    echo "  Mtime: " . getftime(l:signal_file)
+    echo "  Cached mtime: " . s:plot_signal_mtime
+    echo ""
     let l:plot_file = s:GetPlotFile()
-    echo "Plot file: " . l:plot_file
-    echo "Exists: " . filereadable(l:plot_file)
-    echo "Mtime: " . getftime(l:plot_file)
-    echo "Cached mtime: " . s:plot_file_mtime
+    echo "Plot file (small): " . l:plot_file
+    echo "  Exists: " . filereadable(l:plot_file)
+    echo "  Mtime: " . getftime(l:plot_file)
+    echo ""
+    let l:plot_hires = s:GetPlotFileHires()
+    echo "Plot file (hi-res): " . l:plot_hires
+    echo "  Exists: " . filereadable(l:plot_hires)
+    echo "  Mtime: " . getftime(l:plot_hires)
+    echo ""
     let l:pane_exists = system('kitty @ ls 2>/dev/null | grep -q zzvim-plot && echo 1 || echo 0')
     echo "Plot pane exists: " . trim(l:pane_exists)
 endfunction
 
 function! s:ZoomPlotPane() abort
-    " Toggle zoom on the plot pane and re-display the plot at new size
-    let l:pane_title = 'zzvim-plot'
-    let l:pane_check = system('kitty @ ls 2>/dev/null | grep -c "zzvim-plot"')
-    if str2nr(trim(l:pane_check)) > 0
-        let l:plot_file = s:GetPlotFile()
-        " Focus the plot pane and toggle layout
-        call system('kitty @ focus-window --match title:' . l:pane_title)
-        call system('kitty @ action toggle_layout stack')
-        " Brief pause to let layout change complete
-        sleep 100m
-        " Re-display the plot scaled to new pane size
-        let l:icat_cmd = 'clear && kitty +kitten icat --scale-up --align=center ' . shellescape(l:plot_file) . ' && echo "Press Enter to close" && read'
-        call system('kitty @ send-text --match title:' . l:pane_title . ' ' . shellescape(l:icat_cmd . "\n"))
+    " Open hi-res version in a new Kitty OS window (not pane)
+    let l:plot_hires = s:GetPlotFileHires()
+    let l:plot_file = s:GetPlotFile()
+
+    " Prefer hi-res, fall back to standard
+    if filereadable(l:plot_hires)
+        let l:display_file = l:plot_hires
+        let l:size_msg = '1800x1350'
+    elseif filereadable(l:plot_file)
+        let l:display_file = l:plot_file
+        let l:size_msg = '600x450'
     else
-        echom "No plot pane found"
+        echom "No plot file found"
+        return
     endif
+
+    " Launch in new OS window (separate from pane)
+    let l:cmd = 'kitty @ launch --type=os-window -- sh -c ' .
+              \ shellescape('kitty +kitten icat --hold ' . shellescape(l:display_file))
+    call system(l:cmd)
+    echom "Opened plot (" . l:size_msg . ") in new Kitty window"
 endfunction
 
 " Core Operations

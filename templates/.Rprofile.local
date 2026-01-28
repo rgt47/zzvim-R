@@ -1,9 +1,14 @@
 # ============================================================================
 # Terminal Graphics Support - Kitty and iTerm2
+# zzvim-R template version: 2
 # ============================================================================
 # This file provides automatic plot display in modern terminal emulators.
 # It sources automatically if present in zzcollab workspaces.
 # Copy to workspace root: cp ~/.Rprofile.local .Rprofile.local
+#
+# Version history:
+#   v2 (2026-01): Dual-resolution plots (600x450 pane + 1800x1350 zoom)
+#   v1 (2025-08): Initial release with single-resolution plots
 
 # ============================================================================
 # Terminal Detection
@@ -31,11 +36,17 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
   # ========================================================================
   # Configuration
   # ========================================================================
-  assign(".plot_width", 900, envir = .GlobalEnv)
-  assign(".plot_height", 700, envir = .GlobalEnv)
+  # Dual-resolution plot system:
+  # - Small: displayed in pane (crisp, no scaling needed)
+  # - Large: used for zoom/export (high detail)
+  assign(".plot_width_small", 600, envir = .GlobalEnv)
+  assign(".plot_height_small", 450, envir = .GlobalEnv)
+  assign(".plot_width_large", 1800, envir = .GlobalEnv)
+  assign(".plot_height_large", 1350, envir = .GlobalEnv)
   assign(".plot_res", 96, envir = .GlobalEnv)
   assign(".plot_align", "right", envir = .GlobalEnv)
   assign(".plot_file", NULL, envir = .GlobalEnv)
+  assign(".plot_file_hires", NULL, envir = .GlobalEnv)
   assign(".plot_history", list(), envir = .GlobalEnv)
   assign(".plot_history_idx", 0, envir = .GlobalEnv)
   assign(".use_relative_sizing", FALSE, envir = .GlobalEnv)
@@ -43,42 +54,42 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
   assign(".height_pct", 1.0, envir = .GlobalEnv)
 
   # ========================================================================
-  # Device Creation
+  # Device Creation (Dual Resolution)
   # ========================================================================
+  # Creates PNG device at specified size (small or large)
+  .create_plot_device_at_size <- function(size = "small") {
+    res <- get(".plot_res", envir = .GlobalEnv)
+
+    if (size == "large") {
+      width <- get(".plot_width_large", envir = .GlobalEnv)
+      height <- get(".plot_height_large", envir = .GlobalEnv)
+      pf <- tempfile(pattern = "plot_hires_", fileext = ".png")
+      assign(".plot_file_hires", pf, envir = .GlobalEnv)
+    } else {
+      width <- get(".plot_width_small", envir = .GlobalEnv)
+      height <- get(".plot_height_small", envir = .GlobalEnv)
+      pf <- tempfile(pattern = "plot_", fileext = ".png")
+      assign(".plot_file", pf, envir = .GlobalEnv)
+    }
+
+    grDevices::png(filename = pf, width = width, height = height, res = res)
+    pf
+  }
+
+  assign(".create_plot_device_at_size", .create_plot_device_at_size, envir = .GlobalEnv)
+
+  # Legacy function for backward compatibility (creates small by default)
   .create_plot_device <- function() {
     pf <- get(".plot_file", envir = .GlobalEnv)
     if (!is.null(pf) && file.exists(pf)) {
       unlink(pf)
     }
-
-    pf <- tempfile(pattern = "plot_", fileext = ".png")
-    assign(".plot_file", pf, envir = .GlobalEnv)
-
-    # If using relative sizing, recalculate
-    use_relative <- get(".use_relative_sizing", envir = .GlobalEnv)
-    if (use_relative) {
-      cols_str <- system("tput cols", intern = TRUE, ignore.stderr = TRUE)
-      lines_str <- system("tput lines", intern = TRUE, ignore.stderr = TRUE)
-
-      if (length(cols_str) > 0 && length(lines_str) > 0) {
-        cols <- as.numeric(cols_str[1])
-        lines <- as.numeric(lines_str[1])
-        width_pct <- get(".width_pct", envir = .GlobalEnv)
-        height_pct <- get(".height_pct", envir = .GlobalEnv)
-
-        width <- floor(cols * 8 * width_pct)
-        height <- floor(lines * 16 * height_pct)
-      } else {
-        width <- get(".plot_width", envir = .GlobalEnv)
-        height <- get(".plot_height", envir = .GlobalEnv)
-      }
-    } else {
-      width <- get(".plot_width", envir = .GlobalEnv)
-      height <- get(".plot_height", envir = .GlobalEnv)
+    pf_hires <- get(".plot_file_hires", envir = .GlobalEnv)
+    if (!is.null(pf_hires) && file.exists(pf_hires)) {
+      unlink(pf_hires)
     }
 
-    res <- get(".plot_res", envir = .GlobalEnv)
-    grDevices::png(filename = pf, width = width, height = height, res = res)
+    .create_plot_device_at_size("small")
   }
 
   assign(".create_plot_device", .create_plot_device, envir = .GlobalEnv)
@@ -181,12 +192,25 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
       in_docker <- .is_docker()
       display_mode <- get(".plot_display_mode", envir = .GlobalEnv)
 
-      # Docker mode: save to .plots/ for host-side vim watcher to display
+      # Docker mode: save both files to .plots/ for host-side vim watcher
       if (in_docker) {
         plots_dir <- ".plots"
         if (!dir.exists(plots_dir)) dir.create(plots_dir, showWarnings = FALSE)
+
+        # Copy small version (for pane display)
         target_file <- file.path(plots_dir, "current.png")
         file.copy(pf, target_file, overwrite = TRUE)
+
+        # Copy large version (for zoom) if it exists
+        pf_hires <- get(".plot_file_hires", envir = .GlobalEnv)
+        if (!is.null(pf_hires) && file.exists(pf_hires)) {
+          target_hires <- file.path(plots_dir, "current_hires.png")
+          file.copy(pf_hires, target_hires, overwrite = TRUE)
+        }
+
+        # Touch signal file to notify Vim immediately
+        signal_file <- file.path(plots_dir, ".signal")
+        writeLines(as.character(Sys.time()), signal_file)
       } else if (terminal == "kitty") {
         if (display_mode == "pane") {
           # Always use dedicated pane
@@ -251,20 +275,57 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
   }, envir = .GlobalEnv)
 
   # ========================================================================
-  # Plot Functions
+  # Plot Functions (Dual Resolution)
   # ========================================================================
   # Base R plots with auto-display
+  # Generates both small (for pane) and large (for zoom) versions
   zzplot <- function(...) {
-    .GlobalEnv$.create_plot_device()
-    plot(...)
-    dev.off()
+    # Clean up old files
+    pf <- get(".plot_file", envir = .GlobalEnv)
+    if (!is.null(pf) && file.exists(pf)) unlink(pf)
+    pf_hires <- get(".plot_file_hires", envir = .GlobalEnv)
+    if (!is.null(pf_hires) && file.exists(pf_hires)) unlink(pf_hires)
+
+    # Capture the plot call for re-evaluation
+    plot_call <- substitute(plot(...))
+
+    # Render small version (for pane display)
+    .create_plot_device_at_size("small")
+    eval(plot_call, envir = parent.frame())
+    dev.off_original()
+
+    # Render large version (for zoom)
+    .create_plot_device_at_size("large")
+    eval(plot_call, envir = parent.frame())
+    dev.off_original()
+
+    # Display the small version
+    pf <- get(".plot_file", envir = .GlobalEnv)
+    .GlobalEnv$.display_plot(pf)
   }
 
   # ggplot2 plots with auto-display
+  # Generates both small (for pane) and large (for zoom) versions
   zzggplot <- function(p) {
-    .GlobalEnv$.create_plot_device()
+    # Clean up old files
+    pf <- get(".plot_file", envir = .GlobalEnv)
+    if (!is.null(pf) && file.exists(pf)) unlink(pf)
+    pf_hires <- get(".plot_file_hires", envir = .GlobalEnv)
+    if (!is.null(pf_hires) && file.exists(pf_hires)) unlink(pf_hires)
+
+    # Render small version (for pane display)
+    .create_plot_device_at_size("small")
     print(p)
-    dev.off()
+    dev.off_original()
+
+    # Render large version (for zoom)
+    .create_plot_device_at_size("large")
+    print(p)
+    dev.off_original()
+
+    # Display the small version
+    pf <- get(".plot_file", envir = .GlobalEnv)
+    .GlobalEnv$.display_plot(pf)
   }
 
   assign("zzplot", zzplot, envir = .GlobalEnv)
@@ -357,11 +418,23 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
   # ========================================================================
   # Configuration Functions
   # ========================================================================
-  set_plot_size <- function(width = 900, height = 700, res = 96) {
-    assign(".plot_width", width, envir = .GlobalEnv)
-    assign(".plot_height", height, envir = .GlobalEnv)
+  # Set plot sizes for dual-resolution system
+  # small: displayed in pane (default 600x450)
+  # large: used for zoom (default 1800x1350, 3x small)
+  set_plot_size <- function(small_width = 600, small_height = 450,
+                            large_width = NULL, large_height = NULL,
+                            res = 96) {
+    # If large not specified, use 3x small
+    if (is.null(large_width)) large_width <- small_width * 3
+    if (is.null(large_height)) large_height <- small_height * 3
+
+    assign(".plot_width_small", small_width, envir = .GlobalEnv)
+    assign(".plot_height_small", small_height, envir = .GlobalEnv)
+    assign(".plot_width_large", large_width, envir = .GlobalEnv)
+    assign(".plot_height_large", large_height, envir = .GlobalEnv)
     assign(".plot_res", res, envir = .GlobalEnv)
-    cat(paste("Plot size set to", width, "x", height, "@ ", res, "dpi\n", sep = ""))
+    cat(sprintf("Plot sizes: pane %dx%d, zoom %dx%d @ %ddpi\n",
+                small_width, small_height, large_width, large_height, res))
   }
 
   set_plot_align <- function(align = "right") {
@@ -461,24 +534,48 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
   # ========================================================================
   # Zoom Functions (for teaching/presentations)
   # ========================================================================
+  # Uses the hi-res version for crisp zoomed display
   plot_zoom <- function() {
+    # Prefer hi-res version, fall back to standard
+    pf_hires <- get(".plot_file_hires", envir = .GlobalEnv)
     pf <- get(".plot_file", envir = .GlobalEnv)
-    if (is.null(pf) || !file.exists(pf)) {
+
+    display_file <- if (!is.null(pf_hires) && file.exists(pf_hires)) {
+      pf_hires
+    } else if (!is.null(pf) && file.exists(pf)) {
+      pf
+    } else {
+      NULL
+    }
+
+    if (is.null(display_file)) {
       cat("No plot to display\n")
       return(invisible(NULL))
     }
     if (.is_docker()) {
-      cat("In Docker: use :RPlotPreview in vim to open in Preview\n")
+      cat("In Docker: use :RPlotZoom in vim to open hi-res version\n")
       return(invisible(NULL))
     }
-    system2("open", pf, wait = FALSE)
-    cat("Opened in Preview - use Cmd++ to zoom, Cmd+0 to fit\n")
+    system2("open", display_file, wait = FALSE)
+    cat("Opened hi-res version in Preview (1800x1350)\n")
     invisible(NULL)
   }
 
+  # Opens hi-res plot in a new Kitty OS window
   plot_zoom_kitty <- function() {
+    # Prefer hi-res version, fall back to standard
+    pf_hires <- get(".plot_file_hires", envir = .GlobalEnv)
     pf <- get(".plot_file", envir = .GlobalEnv)
-    if (is.null(pf) || !file.exists(pf)) {
+
+    display_file <- if (!is.null(pf_hires) && file.exists(pf_hires)) {
+      pf_hires
+    } else if (!is.null(pf) && file.exists(pf)) {
+      pf
+    } else {
+      NULL
+    }
+
+    if (is.null(display_file)) {
       cat("No plot to display\n")
       return(invisible(NULL))
     }
@@ -488,9 +585,9 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
       return(invisible(NULL))
     }
     system(paste("kitty @ launch --type=os-window",
-                 "kitty +kitten icat --hold --scale-up", shQuote(pf)),
+                 "kitty +kitten icat --hold", shQuote(display_file)),
            ignore.stderr = TRUE)
-    cat("Opened in new Kitty window (scaled up)\n")
+    cat("Opened hi-res version in new Kitty window (1800x1350)\n")
     invisible(NULL)
   }
 
@@ -561,32 +658,26 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
   if (interactive()) {
     startup_msg <- c(
       paste("✓ Terminal graphics enabled (", toupper(.terminal), ")", sep = ""),
-      paste("  Plot mode: pane (plots appear in dedicated kitty pane)"),
+      "  Dual-resolution: pane (600x450) + zoom (1800x1350)",
       "",
       "Quick reference:",
-      "  zzplot(...)                : Base R plots (auto-display in pane)",
-      "  zzggplot(p)                : ggplot2 plots (auto-display in pane)",
+      "  zzplot(...)                : Base R plots (renders both sizes)",
+      "  zzggplot(p)                : ggplot2 plots (renders both sizes)",
+      "  plot_zoom()                : Open hi-res in Preview",
+      "  plot_zoom_kitty()          : Open hi-res in Kitty window",
       "  plot_history()             : View plot history",
       "  plot_prev() / plot_next()  : Navigate history",
       "  save_plot(file)            : Save current plot as PNG",
-      "  plot_to_pdf(file)          : Save current plot as PDF",
-      "  set_plot_size(w,h,dpi)     : Fixed dimensions",
-      "  set_plot_size_relative()   : Size by % of terminal (default: 75% x 100%)"
+      "  set_plot_size(sw,sh,lw,lh) : Set small/large dimensions"
     )
     if (.terminal == "kitty") {
       startup_msg <- c(
         startup_msg,
         "  set_plot_mode(m)           : Display mode (pane/inline/auto)",
-        "  close_plot_pane()          : Close the plot pane",
-        "  set_plot_align(a)          : Alignment (left/center/right)"
+        "  close_plot_pane()          : Close the plot pane"
       )
     }
-    startup_msg <- c(
-      startup_msg,
-      "  plot_zoom()                : Open in Preview (Cmd++ to zoom)",
-      "  plot_zoom_kitty()          : Open in new Kitty window (scaled)",
-      ""
-    )
+    startup_msg <- c(startup_msg, "")
     cat(paste(startup_msg, collapse = "\n"))
   }
 }

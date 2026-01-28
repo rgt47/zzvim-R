@@ -6,6 +6,9 @@
 " Injects terminal graphics configuration into .Rprofile.local
 " Works with zzcollab workspaces and standalone R projects
 
+" Current template version - increment when template changes significantly
+let s:template_version = 2
+
 " Detect terminal type
 " Returns 'kitty' for terminals supporting Kitty graphics protocol
 " Returns 'iterm2' for iTerm2 (uses imgcat)
@@ -47,6 +50,49 @@ function! zzvimr#terminal_graphics#get_template_path() abort
     return l:template_path
 endfunction
 
+" Extract version number from .Rprofile.local file
+" Returns 0 if no version found (pre-versioning or missing)
+function! zzvimr#terminal_graphics#get_file_version(filepath) abort
+    if !filereadable(a:filepath)
+        return 0
+    endif
+    " Read first 10 lines looking for version marker
+    let l:lines = readfile(a:filepath, '', 10)
+    for l:line in l:lines
+        " Match "zzvim-R template version: N"
+        let l:match = matchstr(l:line, 'zzvim-R template version:\s*\zs\d\+')
+        if !empty(l:match)
+            return str2nr(l:match)
+        endif
+    endfor
+    return 0
+endfunction
+
+" Backup existing .Rprofile.local before overwriting
+function! zzvimr#terminal_graphics#backup_rprofile_local() abort
+    if !filereadable('.Rprofile.local')
+        return ''
+    endif
+    let l:backup = '.Rprofile.local.backup.' . strftime('%Y%m%d%H%M%S')
+    call system('cp .Rprofile.local ' . shellescape(l:backup))
+    if v:shell_error == 0
+        return l:backup
+    endif
+    return ''
+endfunction
+
+" Prompt user to update outdated .Rprofile.local
+function! zzvimr#terminal_graphics#prompt_update(current_version) abort
+    let l:msg = printf(
+        \ '.Rprofile.local is outdated (v%d -> v%d). Update for dual-resolution plots? [y/N]: ',
+        \ a:current_version, s:template_version)
+    echohl WarningMsg
+    let l:choice = input(l:msg)
+    echohl None
+    echo ''
+    return l:choice =~? '^y'
+endfunction
+
 " Copy or create .Rprofile.local in current working directory
 function! zzvimr#terminal_graphics#setup_rprofile_local() abort
     let l:terminal = zzvimr#terminal_graphics#detect_terminal()
@@ -56,21 +102,39 @@ function! zzvimr#terminal_graphics#setup_rprofile_local() abort
         return 0
     endif
 
+    let l:template_path = zzvimr#terminal_graphics#get_template_path()
+
     " Check if .Rprofile.local already exists
     if filereadable('.Rprofile.local')
-        " File already exists, user has customized it
-        return 0
+        " Check version
+        let l:current_version = zzvimr#terminal_graphics#get_file_version('.Rprofile.local')
+        let l:template_version = zzvimr#terminal_graphics#get_file_version(l:template_path)
+
+        " If template is newer, prompt user to update
+        if l:template_version > l:current_version
+            if zzvimr#terminal_graphics#prompt_update(l:current_version)
+                let l:backup = zzvimr#terminal_graphics#backup_rprofile_local()
+                if !empty(l:backup)
+                    echomsg '[zzvim-R] Backed up to ' . l:backup
+                endif
+                " Fall through to copy template
+            else
+                " User declined update
+                return 0
+            endif
+        else
+            " Up to date
+            return 0
+        endif
     endif
 
     " Try to copy from template
-    let l:template_path = zzvimr#terminal_graphics#get_template_path()
-
     if filereadable(l:template_path)
         " Copy template to .Rprofile.local
         try
             call system('cp ' . shellescape(l:template_path) . ' .Rprofile.local')
             if v:shell_error == 0
-                echomsg '[zzvim-R] Terminal graphics enabled for ' . toupper(l:terminal)
+                echomsg '[zzvim-R] Terminal graphics enabled for ' . toupper(l:terminal) . ' (v' . s:template_version . ')'
                 return 1
             endif
         catch
