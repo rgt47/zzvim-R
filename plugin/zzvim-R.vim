@@ -1695,23 +1695,22 @@ function! s:DisplayDockerPlot() abort
     " Use dedicated plot pane with title for reuse across plots
     let l:pane_title = 'zzvim-plot'
 
-    " Check if plot pane already exists
-    let l:pane_exists = system('kitty @ ls 2>/dev/null | grep -q ' . shellescape(l:pane_title) . ' && echo 1 || echo 0')
-    let l:pane_exists = trim(l:pane_exists)
+    " Check if plot pane already exists (look for exact title match)
+    let l:pane_check = system('kitty @ ls --match title:' . l:pane_title . ' 2>&1')
+    let l:pane_exists = (l:pane_check !~# 'No matching' && l:pane_check !~# 'error')
 
-    if l:pane_exists == '1'
-        " Pane exists - send Ctrl+C and new icat command
-        call system('kitty @ send-text --match title:' . l:pane_title . " '\\x03'")
-        sleep 100m
-        let l:cmd = 'clear && kitty +kitten icat --clear && kitty +kitten icat --scale-up ' . l:plot_file . " && read -r -d '' _ </dev/tty\n"
-        call system('kitty @ send-text --match title:' . l:pane_title . ' ' . shellescape(l:cmd))
+    " Write command to temp script and execute
+    let l:script = '/tmp/zzvim_plot.sh'
+    if l:pane_exists
+        " Send command with newline to execute
+        let l:cmd = "kitty @ send-text --match title:" . l:pane_title . " $'kitty +kitten icat --clear && kitty +kitten icat --scale-up " . l:plot_file . "\\n'"
     else
-        " Create new pane to the right with title for reuse
-        " Use --location=neighbor to place next to active window
-        let l:sh_cmd = 'kitty +kitten icat --scale-up ' . l:plot_file . "; read -r -d '' _ </dev/tty"
-        let l:cmd = 'kitty @ launch --location=neighbor --keep-focus --title ' . l:pane_title . ' -- sh -c ' . shellescape(l:sh_cmd)
-        call system(l:cmd)
+        " Create new pane
+        let l:cmd = 'kitty @ launch --location=neighbor --keep-focus --title ' . l:pane_title . ' -- sh -c "kitty +kitten icat --scale-up ' . l:plot_file . '; while true; do sleep 86400; done"'
     endif
+    call writefile([l:cmd], l:script)
+    call system('chmod +x ' . l:script . ' && ' . l:script)
+    redraw!
 endfunction
 
 function! s:OpenDockerPlotInPreview() abort
