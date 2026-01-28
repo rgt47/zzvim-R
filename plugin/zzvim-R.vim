@@ -1757,7 +1757,14 @@ function! s:GetSignalFile() abort
     return s:GetPlotsDir() . '/.signal'
 endfunction
 
+let s:plot_display_in_progress = 0
+
 function! s:DisplayDockerPlot() abort
+    " Prevent duplicate pane creation
+    if s:plot_display_in_progress
+        return
+    endif
+
     " Check signal file instead of plot file (faster, more reliable)
     let l:signal_file = s:GetSignalFile()
     if filereadable(l:signal_file)
@@ -1784,8 +1791,15 @@ function! s:DisplayDockerPlot() abort
         return
     endif
 
+    " Lock to prevent race conditions
+    let s:plot_display_in_progress = 1
+
     " Display using kitty remote control (no scaling needed - image is correct size)
     let l:pane_title = 'zzvim-plot'
+
+    " Check if plot pane already exists - if so, just update the image
+    let l:pane_exists = system('kitty @ ls 2>/dev/null | grep -q "' . l:pane_title . '" && echo 1 || echo 0')
+    let l:pane_exists = str2nr(trim(l:pane_exists))
 
     " Write display script to file (avoids quoting issues)
     let l:script = '/tmp/zzvim_plot_show.sh'
@@ -1799,11 +1813,17 @@ function! s:DisplayDockerPlot() abort
         \ ], l:script)
     call system('chmod +x ' . l:script)
 
-    " Always close existing and launch fresh (simpler, more reliable)
+    " Close any existing plot panes (in all windows)
     call system('kitty @ close-window --match title:' . l:pane_title . ' 2>/dev/null')
-    sleep 100m
-    call system('kitty @ launch --location=vsplit --keep-focus --title ' . l:pane_title . ' /tmp/zzvim_plot_show.sh')
+    sleep 50m
+
+    " Launch the plot pane to the right of the R terminal
+    " hsplit = horizontal split (side-by-side), vsplit = vertical split (top-bottom)
+    call system('kitty @ launch --location=hsplit --keep-focus --title ' . l:pane_title . ' --match title:^R- /tmp/zzvim_plot_show.sh 2>/dev/null')
     redraw!
+
+    " Release lock after a delay to prevent rapid re-triggers
+    call timer_start(500, {-> execute('let s:plot_display_in_progress = 0')})
 endfunction
 
 function! s:OpenDockerPlotInPreview() abort
