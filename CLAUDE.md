@@ -4,7 +4,7 @@ This document provides comprehensive information about the zzvim-R plugin, its c
 
 ## Document Status
 
-**Last Updated**: December 3, 2025
+**Last Updated**: January 28, 2026
 **Plugin Version**: 1.0
 **Documentation Status**: Comprehensive accuracy review completed
 **Test Coverage**: Full test suite + clean execution validation with automated CI workflows
@@ -21,6 +21,7 @@ This document provides comprehensive information about the zzvim-R plugin, its c
 - **Code Execution Output**: Clean terminal output (no clutter)
 - **Object Inspection**: R workspace browsing and examination
 - **Key Mappings**: Context-aware `<CR>` behavior
+- **Kitty Plot Display**: Automatic plot display in dedicated kitty terminal pane
 
 ## Project Structure
 
@@ -133,6 +134,9 @@ zzvim-R/
 - `<LocalLeader>u`: tail()
 - `<LocalLeader>y`: help()
 
+### Plot Display (Kitty Terminal)
+- `<LocalLeader>[`: Open current plot in Preview
+
 ### Control Keys
 - `<LocalLeader>q`: Quit R session
 - `<LocalLeader>c`: Interrupt R session (Ctrl-C)
@@ -166,6 +170,16 @@ zzvim-R/
 **Dec 2025 - Polish & Optimization**
 - Temp File Strategy: Improved reliability with validation
 - Competitive Analysis: Honest research-focused comparisons
+
+**Jan 2026 - Kitty Plot Display**
+- Docker Plot Watcher: Automatic detection of plot file changes
+- Kitty Terminal Integration: Display plots in dedicated pane using `kitty +kitten icat`
+- Plot Pane Management: Auto-creates pane to the right of R terminal
+- Plot Commands: `:RPlotShow`, `:RPlotPreview` (open in macOS Preview)
+- Key Mapping: `<LocalLeader>[` opens current plot in Preview
+- VimResized Autocmd: Auto-equalizes vim window splits when kitty pane changes
+- Plot Cleanup: Auto-closes plot pane when R terminal exits
+- Fixed Plot Dimensions: Default 900x700 to prevent size changes with terminal resize
 
 ### Key Technical Achievements
 - Clean execution system (source command elimination)
