@@ -1671,12 +1671,16 @@ if !g:zzvim_r_disable_mappings
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>0 :call <SID>RHUDDashboard()<CR>
         " Open current plot in Preview
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>[ :call <SID>OpenDockerPlotInPreview()<CR>
+        " Open hi-res plot in new Kitty window
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>] :call <SID>ZoomPlotPane()<CR>
     augroup END
 
     " Close plot pane when R terminal exits
     augroup zzvim_PlotCleanup
         autocmd!
         autocmd BufWipeout,BufDelete * call s:CleanupPlotPaneIfRTerminal()
+        " Also catch when terminal job ends (R exits but buffer stays)
+        autocmd TermClose * call s:CleanupPlotPaneIfRTerminal()
     augroup END
 
     " Equalize vim window sizes when kitty pane is resized
@@ -1765,8 +1769,8 @@ function! s:DisplayDockerPlot() abort
         \ 'clear',
         \ 'kitty +kitten icat --clear --align=center "' . l:plot_file . '"',
         \ 'echo ""',
-        \ 'echo "Plot 600x450 | :RPlotZoom for hi-res"',
-        \ 'read -r -d "" _ </dev/tty'
+        \ 'echo "Plot 600x450 | <Space>] zoom | Enter to close"',
+        \ 'read'
         \ ], l:script)
     call system('chmod +x ' . l:script)
 
