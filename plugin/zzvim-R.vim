@@ -1760,6 +1760,86 @@ function! s:GetSignalFile() abort
     return s:GetPlotsDir() . '/.signal'
 endfunction
 
+function! s:GetConfigFile() abort
+    return s:GetPlotsDir() . '/.config.json'
+endfunction
+
+"------------------------------------------------------------------------------
+" Unified Configuration System
+"------------------------------------------------------------------------------
+" Single source of truth for plot settings - Vim writes, R reads
+
+" Default plot configuration
+let g:zzvim_r_plot_width_small = get(g:, 'zzvim_r_plot_width_small', 600)
+let g:zzvim_r_plot_height_small = get(g:, 'zzvim_r_plot_height_small', 450)
+let g:zzvim_r_plot_width_large = get(g:, 'zzvim_r_plot_width_large', 1800)
+let g:zzvim_r_plot_height_large = get(g:, 'zzvim_r_plot_height_large', 1350)
+let g:zzvim_r_plot_dpi = get(g:, 'zzvim_r_plot_dpi', 96)
+let g:zzvim_r_plot_align = get(g:, 'zzvim_r_plot_align', 'center')
+let g:zzvim_r_plot_mode = get(g:, 'zzvim_r_plot_mode', 'pane')
+let g:zzvim_r_plot_history_limit = get(g:, 'zzvim_r_plot_history_limit', 50)
+
+" Write current config to .plots/.config.json for R to read
+function! s:WriteConfigForR() abort
+    let l:plots_dir = s:GetPlotsDir()
+    if !isdirectory(l:plots_dir)
+        call mkdir(l:plots_dir, 'p')
+    endif
+
+    let l:config = {
+        \ 'width_small': g:zzvim_r_plot_width_small,
+        \ 'height_small': g:zzvim_r_plot_height_small,
+        \ 'width_large': g:zzvim_r_plot_width_large,
+        \ 'height_large': g:zzvim_r_plot_height_large,
+        \ 'dpi': g:zzvim_r_plot_dpi,
+        \ 'align': g:zzvim_r_plot_align,
+        \ 'mode': g:zzvim_r_plot_mode,
+        \ 'history_limit': g:zzvim_r_plot_history_limit
+    \ }
+
+    let l:json = json_encode(l:config)
+    let l:config_file = s:GetConfigFile()
+    call writefile([l:json], l:config_file)
+endfunction
+
+" Show current plot configuration
+function! s:ShowPlotConfig() abort
+    echo "=== zzvim-R Plot Configuration ==="
+    echo "Small size:    " . g:zzvim_r_plot_width_small . "x" . g:zzvim_r_plot_height_small
+    echo "Large size:    " . g:zzvim_r_plot_width_large . "x" . g:zzvim_r_plot_height_large
+    echo "DPI:           " . g:zzvim_r_plot_dpi
+    echo "Align:         " . g:zzvim_r_plot_align
+    echo "Mode:          " . g:zzvim_r_plot_mode
+    echo "History limit: " . g:zzvim_r_plot_history_limit
+    echo ""
+    echo "Config file: " . s:GetConfigFile()
+    echo "  Exists: " . filereadable(s:GetConfigFile())
+endfunction
+
+" Set plot size and write config
+function! s:SetPlotSize(small_w, small_h, ...) abort
+    let g:zzvim_r_plot_width_small = a:small_w
+    let g:zzvim_r_plot_height_small = a:small_h
+
+    " Optional large dimensions (default 3x small)
+    if a:0 >= 2
+        let g:zzvim_r_plot_width_large = a:1
+        let g:zzvim_r_plot_height_large = a:2
+    else
+        let g:zzvim_r_plot_width_large = a:small_w * 3
+        let g:zzvim_r_plot_height_large = a:small_h * 3
+    endif
+
+    call s:WriteConfigForR()
+    echo "Plot size set: " . g:zzvim_r_plot_width_small . "x" . g:zzvim_r_plot_height_small .
+        \ " (zoom: " . g:zzvim_r_plot_width_large . "x" . g:zzvim_r_plot_height_large . ")"
+    echo "Run set_plot_size() in R to apply, or restart R session"
+endfunction
+
+command! -bar RPlotConfig call s:ShowPlotConfig()
+command! -bar RPlotConfigWrite call s:WriteConfigForR()
+command! -nargs=+ RPlotSize call s:SetPlotSize(<f-args>)
+
 let s:plot_display_in_progress = 0
 
 " Check if plot pane already exists
@@ -1904,6 +1984,9 @@ function! s:MaybeSlowDown() abort
 endfunction
 
 function! s:StartPlotWatcher() abort
+    " Write config for R to read on startup
+    call s:WriteConfigForR()
+
     " Set up a timer to check for plot updates (adaptive rate)
     if exists('s:plot_watcher_timer')
         call timer_stop(s:plot_watcher_timer)

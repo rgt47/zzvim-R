@@ -40,12 +40,14 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
   # Dual-resolution plot system:
   # - Small: displayed in pane (crisp, no scaling needed)
   # - Large: used for zoom/export (high detail)
+
+  # Default values (can be overridden by Vim config or set_plot_size())
   assign(".plot_width_small", 600, envir = .GlobalEnv)
   assign(".plot_height_small", 450, envir = .GlobalEnv)
   assign(".plot_width_large", 1800, envir = .GlobalEnv)
   assign(".plot_height_large", 1350, envir = .GlobalEnv)
   assign(".plot_res", 96, envir = .GlobalEnv)
-  assign(".plot_align", "right", envir = .GlobalEnv)
+  assign(".plot_align", "center", envir = .GlobalEnv)
   assign(".plot_file", NULL, envir = .GlobalEnv)
   assign(".plot_file_hires", NULL, envir = .GlobalEnv)
   assign(".plot_history", list(), envir = .GlobalEnv)
@@ -53,6 +55,43 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
   assign(".use_relative_sizing", FALSE, envir = .GlobalEnv)
   assign(".width_pct", 0.75, envir = .GlobalEnv)
   assign(".height_pct", 1.0, envir = .GlobalEnv)
+
+  # ========================================================================
+  # Unified Config Reader (reads from Vim-written .plots/.config.json)
+  # ========================================================================
+  .read_vim_config <- function() {
+    config_file <- ".plots/.config.json"
+    if (!file.exists(config_file)) {
+      return(invisible(NULL))
+    }
+    tryCatch({
+      config <- jsonlite::fromJSON(config_file)
+      if (!is.null(config$width_small))
+        assign(".plot_width_small", config$width_small, envir = .GlobalEnv)
+      if (!is.null(config$height_small))
+        assign(".plot_height_small", config$height_small, envir = .GlobalEnv)
+      if (!is.null(config$width_large))
+        assign(".plot_width_large", config$width_large, envir = .GlobalEnv)
+      if (!is.null(config$height_large))
+        assign(".plot_height_large", config$height_large, envir = .GlobalEnv)
+      if (!is.null(config$dpi))
+        assign(".plot_res", config$dpi, envir = .GlobalEnv)
+      if (!is.null(config$align))
+        assign(".plot_align", config$align, envir = .GlobalEnv)
+      if (!is.null(config$mode))
+        assign(".plot_display_mode", config$mode, envir = .GlobalEnv)
+      if (!is.null(config$history_limit))
+        assign(".plot_history_limit", config$history_limit, envir = .GlobalEnv)
+      invisible(TRUE)
+    }, error = function(e) {
+      invisible(FALSE)
+    })
+  }
+
+  # Read Vim config on startup if available
+  .read_vim_config()
+
+  assign(".read_vim_config", .read_vim_config, envir = .GlobalEnv)
 
   # ========================================================================
   # Device Creation (Dual Resolution)

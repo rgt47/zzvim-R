@@ -193,6 +193,11 @@ zzvim-R/
   - `plot_history_persistent()`: List all saved plots
   - `:RPlotGallery`: Vim buffer with plot gallery navigation
 - **Statusline Integration**: `ZzvimRPlotStatus()` function for statusline
+- **Unified Configuration**: `.plots/.config.json` shared between Vim and R
+  - `:RPlotConfig`: Show current configuration
+  - `:RPlotSize 800 600`: Set plot dimensions (large = 3x small)
+  - `g:zzvim_r_plot_*` variables for customization
+  - R reads config on startup via `.read_vim_config()`
 - Template Versioning: Auto-detects outdated `.Rprofile.local`, prompts to update with backup
 - `ZR` mapping: Quick access to Docker R terminal (same as `<LocalLeader>r`)
 - Comprehensive vignette: `docs/plot-display-vignette.md` documents all plot features
