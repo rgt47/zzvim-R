@@ -1660,10 +1660,36 @@ if !g:zzvim_r_disable_mappings
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>v :call <SID>RDataViewer()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>x :call <SID>REnvironmentHUD()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>a :call <SID>ROptionsHUD()<CR>
-        " Unified HUD Dashboard - Open all HUD displays in tabs  
+        " Unified HUD Dashboard - Open all HUD displays in tabs
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>0 :call <SID>RHUDDashboard()<CR>
+        " Open current plot in Preview
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>[ :call <SID>OpenDockerPlotInPreview()<CR>
+    augroup END
+
+    " Close plot pane when R terminal exits
+    augroup zzvim_PlotCleanup
+        autocmd!
+        autocmd BufWipeout,BufDelete * call s:CleanupPlotPaneIfRTerminal()
+    augroup END
+
+    " Equalize vim window sizes when kitty pane is resized
+    augroup zzvim_WindowResize
+        autocmd!
+        autocmd VimResized * wincmd =
     augroup END
 endif
+
+function! s:CleanupPlotPaneIfRTerminal() abort
+    " Check if the closed buffer was an R terminal
+    let l:bufname = expand('<afile>')
+    " Match various R terminal naming patterns
+    if l:bufname =~? 'R-\|r-\|R$\|!/.*R\|terminal.*R'
+        " Stop the plot watcher
+        call s:StopPlotWatcher()
+        " Close the plot pane
+        call system('kitty @ close-window --match title:zzvim-plot 2>/dev/null')
+    endif
+endfunction
 
 "------------------------------------------------------------------------------
 " Docker Plot Watcher
@@ -1700,20 +1726,18 @@ function! s:DisplayDockerPlot() abort
     " Display using kitty remote control
     let l:pane_title = 'zzvim-plot'
 
-    " Check if plot pane already exists by looking for the title in kitty ls output
+    " Check if plot pane already exists
     let l:pane_check = system('kitty @ ls 2>/dev/null | grep -c "zzvim-plot"')
     let l:pane_exists = (str2nr(trim(l:pane_check)) > 0)
 
     if l:pane_exists
-        " Pane exists - close it and relaunch with new image
-        " This is simpler than trying to send-text which has quoting issues
+        " Close existing pane
         call system('kitty @ close-window --match title:' . l:pane_title . ' 2>/dev/null')
-        sleep 50m
+        sleep 100m
     endif
 
-    " Launch new pane with the plot (to the right via --location=neighbor)
-    let l:sh_cmd = 'clear && kitty +kitten icat --scale-up --align=center ' . shellescape(l:plot_file) . ' && echo "Press Enter to close" && read'
-    call system('kitty @ launch --location=neighbor --keep-focus --title ' . l:pane_title . ' -- sh -c ' . shellescape(l:sh_cmd))
+    " Launch new pane with the plot
+    call system('kitty @ launch --location=vsplit --keep-focus --title ' . l:pane_title . ' sh -c "clear; kitty +kitten icat --scale-up --align=center ' . l:plot_file . '; echo; echo Press Enter to close; read"')
     redraw!
 endfunction
 
@@ -1800,13 +1824,19 @@ function! s:DebugPlotWatcher() abort
 endfunction
 
 function! s:ZoomPlotPane() abort
-    " Toggle zoom on the plot pane (maximize within kitty window / restore)
+    " Toggle zoom on the plot pane and re-display the plot at new size
     let l:pane_title = 'zzvim-plot'
     let l:pane_check = system('kitty @ ls 2>/dev/null | grep -c "zzvim-plot"')
     if str2nr(trim(l:pane_check)) > 0
-        " Focus the plot pane and toggle layout to stack (maximized) or back
+        let l:plot_file = s:GetPlotFile()
+        " Focus the plot pane and toggle layout
         call system('kitty @ focus-window --match title:' . l:pane_title)
-        call system('kitty @ toggle-layout stack')
+        call system('kitty @ action toggle_layout stack')
+        " Brief pause to let layout change complete
+        sleep 100m
+        " Re-display the plot scaled to new pane size
+        let l:icat_cmd = 'clear && kitty +kitten icat --scale-up --align=center ' . shellescape(l:plot_file) . ' && echo "Press Enter to close" && read'
+        call system('kitty @ send-text --match title:' . l:pane_title . ' ' . shellescape(l:icat_cmd . "\n"))
     else
         echom "No plot pane found"
     endif
