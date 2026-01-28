@@ -109,7 +109,7 @@ zzvim-R/
 - **Visual Mode**: Sends visual selection
 
 ### R Terminal Launch
-- `<LocalLeader>r`: Container R (via `make r`, with renv)
+- `<LocalLeader>r` or `ZR`: Container R (via `make r`, with renv)
 - `<LocalLeader>rr`: Host R with renv (normal startup)
 - `<LocalLeader>rh`: Host R without renv (vanilla mode)
 - `<LocalLeader>w`: Open R terminal in vertical split
@@ -171,15 +171,19 @@ zzvim-R/
 - Temp File Strategy: Improved reliability with validation
 - Competitive Analysis: Honest research-focused comparisons
 
-**Jan 2026 - Kitty Plot Display**
-- Docker Plot Watcher: Automatic detection of plot file changes
+**Jan 2026 - Kitty Plot Display & Dual Resolution**
+- Docker Plot Watcher: Signal-based detection (100ms polling on tiny signal file)
 - Kitty Terminal Integration: Display plots in dedicated pane using `kitty +kitten icat`
 - Plot Pane Management: Auto-creates pane to the right of R terminal
-- Plot Commands: `:RPlotShow`, `:RPlotPreview` (open in macOS Preview)
+- Plot Commands: `:RPlotShow`, `:RPlotPreview`, `:RPlotZoom`, `:RPlotZoomPreview`
 - Key Mapping: `<LocalLeader>[` opens current plot in Preview
 - VimResized Autocmd: Auto-equalizes vim window splits when kitty pane changes
 - Plot Cleanup: Auto-closes plot pane when R terminal exits
-- Fixed Plot Dimensions: Default 900x700 to prevent size changes with terminal resize
+- **Dual-Resolution Plots**: `zzplot()`/`zzggplot()` render both sizes:
+  - Small (600x450): Displayed in pane, crisp without scaling
+  - Large (1800x1350): Used for zoom/export, 3x detail
+- Template Versioning: Auto-detects outdated `.Rprofile.local`, prompts to update
+- `ZR` mapping: Quick access to Docker R terminal (same as `<LocalLeader>r`)
 
 ### Key Technical Achievements
 - Clean execution system (source command elimination)

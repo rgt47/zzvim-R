@@ -1626,6 +1626,7 @@ if !g:zzvim_r_disable_mappings
         "   <localleader>rr - Host R with renv (normal startup, sources .Rprofile)
         "   <localleader>rh - Host R without renv (vanilla, skips .Rprofile)
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>r   :call <SID>OpenDockerRTerminal()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> ZR              :call <SID>OpenDockerRTerminal()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>rr  :call <SID>OpenLocalRTerminal()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>rh  :call <SID>OpenLocalRTerminalVanilla()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>R   :call <SID>OpenLocalRTerminal()<CR>
