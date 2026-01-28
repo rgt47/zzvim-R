@@ -1712,10 +1712,8 @@ function! s:DisplayDockerPlot() abort
     endif
 
     " Launch new pane with the plot (to the right via --location=neighbor)
-    let l:sh_cmd = 'kitty +kitten icat --scale-up ' . shellescape(l:plot_file) . '; while true; do sleep 86400; done'
+    let l:sh_cmd = 'clear && kitty +kitten icat --scale-up --align=center ' . shellescape(l:plot_file) . ' && echo "Press Enter to close" && read'
     call system('kitty @ launch --location=neighbor --keep-focus --title ' . l:pane_title . ' -- sh -c ' . shellescape(l:sh_cmd))
-    " Resize plot pane to be narrower (about 1/3 of remaining space)
-    call system('kitty @ resize-window --match title:' . l:pane_title . ' --axis=horizontal --increment=-20')
     redraw!
 endfunction
 
@@ -1774,12 +1772,10 @@ function! s:ForceDisplayDockerPlot() abort
     sleep 50m
 
     " Launch new pane with the plot (to the right via --location=neighbor)
-    let l:sh_cmd = 'kitty +kitten icat --scale-up ' . shellescape(l:plot_file) . '; while true; do sleep 86400; done'
+    let l:sh_cmd = 'clear && kitty +kitten icat --scale-up --align=center ' . shellescape(l:plot_file) . ' && echo "Press Enter to close" && read'
     let l:cmd = 'kitty @ launch --location=neighbor --keep-focus --title ' . l:pane_title . ' -- sh -c ' . shellescape(l:sh_cmd)
     echom "Launching plot pane"
     call system(l:cmd)
-    " Resize plot pane to be narrower (about 1/3 of remaining space)
-    call system('kitty @ resize-window --match title:' . l:pane_title . ' --axis=horizontal --increment=-20')
 
     " Update mtime cache
     let s:plot_file_mtime = getftime(l:plot_file)
@@ -1788,6 +1784,7 @@ function! s:ForceDisplayDockerPlot() abort
     let s:plot_watcher_timer = timer_start(500, {-> s:DisplayDockerPlot()}, {'repeat': -1})
 endfunction
 command! -bar RPlotPreview call s:OpenDockerPlotInPreview()
+command! -bar RPlotZoom call s:ZoomPlotPane()
 command! -bar RPlotWatchStart call s:StartPlotWatcher()
 command! -bar RPlotWatchStop call s:StopPlotWatcher()
 command! -bar RPlotDebug call s:DebugPlotWatcher()
@@ -1800,6 +1797,19 @@ function! s:DebugPlotWatcher() abort
     echo "Cached mtime: " . s:plot_file_mtime
     let l:pane_exists = system('kitty @ ls 2>/dev/null | grep -q zzvim-plot && echo 1 || echo 0')
     echo "Plot pane exists: " . trim(l:pane_exists)
+endfunction
+
+function! s:ZoomPlotPane() abort
+    " Toggle zoom on the plot pane (maximize within kitty window / restore)
+    let l:pane_title = 'zzvim-plot'
+    let l:pane_check = system('kitty @ ls 2>/dev/null | grep -c "zzvim-plot"')
+    if str2nr(trim(l:pane_check)) > 0
+        " Focus the plot pane and toggle layout to stack (maximized) or back
+        call system('kitty @ focus-window --match title:' . l:pane_title)
+        call system('kitty @ toggle-layout stack')
+    else
+        echom "No plot pane found"
+    endif
 endfunction
 
 " Core Operations
