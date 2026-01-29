@@ -1678,6 +1678,10 @@ if !g:zzvim_r_disable_mappings
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>[ :call <SID>OpenDockerPlotInPreview()<CR>
         " Open hi-res plot in new Kitty window
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>] :call <SID>ZoomPlotPane()<CR>
+        " Plot navigation
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>G :RPlotGallery<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>< :call <SID>PlotPrev()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>> :call <SID>PlotNext()<CR>
     augroup END
 
     " Clean up plot pane when R terminal closes or buffer is deleted
@@ -2061,6 +2065,17 @@ command! -bar RPlotWatchStop call s:StopPlotWatcher()
 command! -bar RPlotDebug call s:DebugPlotWatcher()
 command! -bar RPlotGallery call s:OpenPlotGallery()
 command! -bar RPlotReset let s:plot_signal_mtime = 0 | let s:plot_display_in_progress = 0 | echo "Plot watcher reset"
+command! -bar RPlotPrev call s:PlotPrev()
+command! -bar RPlotNext call s:PlotNext()
+
+" Navigate plot history via R
+function! s:PlotPrev() abort
+    call s:Send_to_r('plot_prev()', 1)
+endfunction
+
+function! s:PlotNext() abort
+    call s:Send_to_r('plot_next()', 1)
+endfunction
 
 function! s:DebugPlotWatcher() abort
     echo "=== Plot Watcher Debug ==="
