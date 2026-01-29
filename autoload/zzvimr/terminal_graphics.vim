@@ -7,7 +7,7 @@
 " Works with zzcollab workspaces and standalone R projects
 
 " Current template version - increment when template changes significantly
-let s:template_version = 4
+let s:template_version = 5
 
 " Detect terminal type
 " Returns 'kitty' for terminals supporting Kitty graphics protocol
@@ -84,7 +84,7 @@ endfunction
 " Prompt user to update outdated .Rprofile.local
 function! zzvimr#terminal_graphics#prompt_update(current_version) abort
     let l:msg = printf(
-        \ '.Rprofile.local is outdated (v%d -> v%d). Update for persistent history & gallery? [y/N]: ',
+        \ '.Rprofile.local is outdated (v%d -> v%d). Update for latest features? [y/N]: ',
         \ a:current_version, s:template_version)
     echohl WarningMsg
     let l:choice = input(l:msg)

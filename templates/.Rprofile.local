@@ -1,12 +1,13 @@
 # ============================================================================
 # Terminal Graphics Support - Kitty and iTerm2
-# zzvim-R template version: 4
+# zzvim-R template version: 5
 # ============================================================================
 # This file provides automatic plot display in modern terminal emulators.
 # It sources automatically if present in zzcollab workspaces.
 # Copy to workspace root: cp ~/.Rprofile.local .Rprofile.local
 #
 # Version history:
+#   v5 (2026-01): Added jsonlite check, fixed plot_redisplay_if_resized()
 #   v4 (2026-01): Code cleanup, fixed set_plot_size_relative()
 #   v3 (2026-01): Persistent history with thumbnails, plot_goto(), plot_search()
 #   v2 (2026-01): Dual-resolution plots (600x450 pane + 1800x1350 zoom)
@@ -476,6 +477,12 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
   # ========================================================================
   # Persistent History with Thumbnails
   # ========================================================================
+  # Check if jsonlite is available (required for persistent history)
+  assign(".jsonlite_available", requireNamespace("jsonlite", quietly = TRUE), envir = .GlobalEnv)
+  if (!get(".jsonlite_available", envir = .GlobalEnv) && interactive()) {
+    message("Note: Install 'jsonlite' for persistent plot history: install.packages('jsonlite')")
+  }
+
   assign(".plot_counter", 0, envir = .GlobalEnv)
   assign(".plot_history_limit", 50, envir = .GlobalEnv)
 
@@ -486,6 +493,9 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
 
   # Read history index from JSON file
   .read_history_index <- function() {
+    if (!get(".jsonlite_available", envir = .GlobalEnv)) {
+      return(list(version = 1, plots = list(), current_index = 0))
+    }
     index_file <- file.path(.get_history_dir(), "index.json")
     if (!file.exists(index_file)) {
       return(list(version = 1, plots = list(), current_index = 0))
@@ -499,6 +509,9 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
 
   # Write history index to JSON file
   .write_history_index <- function(index) {
+    if (!get(".jsonlite_available", envir = .GlobalEnv)) {
+      return(invisible(NULL))
+    }
     history_dir <- .get_history_dir()
     if (!dir.exists(history_dir)) {
       dir.create(history_dir, recursive = TRUE, showWarnings = FALSE)
@@ -507,7 +520,7 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
     tryCatch({
       jsonlite::write_json(index, index_file, auto_unbox = TRUE, pretty = TRUE)
     }, error = function(e) {
-      # Silently fail if jsonlite not available
+      # Silently fail on write error
     })
   }
 

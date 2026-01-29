@@ -2141,10 +2141,11 @@ function! s:DebugPlotWatcher() abort
     echo "  Exists: " . filereadable(l:plot_hires)
     echo "  Mtime: " . getftime(l:plot_hires)
     echo ""
-    let l:pane_exists = system('kitty @ ls 2>/dev/null | grep -q zzvim-plot && echo 1 || echo 0')
-    echo "Plot pane exists: " . trim(l:pane_exists)
+    echo "Plot pane exists: " . s:PlotPaneExists()
+    echo "  Pane title: " . s:pane_title
     echo ""
     echo "Adaptive polling: " . s:poll_current . "ms (fast=" . s:poll_fast . ", slow=" . s:poll_slow . ")"
+    echo "Plots dir cache: " . s:plots_dir_cache
 endfunction
 
 "------------------------------------------------------------------------------
@@ -2191,6 +2192,9 @@ function! s:OpenPlotGallery() abort
 
     let l:current_idx = get(l:index, 'current_index', 0)
     let l:display_num = 1
+    let l:line_to_id = {}  " Map line numbers to plot IDs
+    let l:header_lines = 6  " Number of header lines before plot list
+
     for plot in l:index.plots
         let l:marker = (plot.id == l:current_idx) ? '▶ ' : '  '
         let l:name = get(plot, 'name', 'unnamed')
@@ -2201,9 +2205,11 @@ function! s:OpenPlotGallery() abort
         if len(l:code) > 40
             let l:code = l:code[:37] . '...'
         endif
-        " Display number for user, but store actual plot ID for selection
-        let l:line = printf('%s[%d] %-20s  %s  {id:%d}', l:marker, l:display_num, l:name, l:created, l:plot_id)
+        " Clean display without internal ID marker
+        let l:line = printf('%s[%d] %-20s  %s', l:marker, l:display_num, l:name, l:created)
         call add(l:lines, l:line)
+        " Store mapping from line number to plot ID
+        let l:line_to_id[len(l:lines) + l:header_lines] = l:plot_id
         if !empty(l:code)
             call add(l:lines, '       ' . l:code)
         endif
@@ -2216,8 +2222,9 @@ function! s:OpenPlotGallery() abort
     call setline(1, l:lines)
     setlocal readonly nomodifiable
 
-    " Store index in buffer variable for navigation
+    " Store index and line mapping in buffer variables for navigation
     let b:plot_index = l:index
+    let b:line_to_id = l:line_to_id
 
     " Key mappings for gallery
     nnoremap <buffer> <silent> q :bwipe<CR>
@@ -2246,15 +2253,17 @@ function! s:GallerySelect(display_num) abort
 endfunction
 
 function! s:GallerySelectCurrent() abort
-    let l:line = getline('.')
-    " First try to extract the actual plot ID from {id:N} marker
-    let l:id_match = matchstr(l:line, '{id:\zs\d\+\ze}')
-    if !empty(l:id_match)
-        call s:Send_to_r('plot_goto(' . l:id_match . ')', 1)
-        echom "Displaying plot id:" . l:id_match
-        return
+    " First try line-to-ID mapping (preferred method)
+    if exists('b:line_to_id')
+        let l:line_num = line('.')
+        if has_key(b:line_to_id, l:line_num)
+            let l:plot_id = b:line_to_id[l:line_num]
+            call s:Send_to_r('plot_goto(' . l:plot_id . ')', 1)
+            echom "Displaying plot id:" . l:plot_id
+            return
+        endif
     endif
-    " Fallback to display number
+    " Fallback to display number from [N] marker
     let l:match = matchstr(l:line, '\[\zs\d\+\ze\]')
     if !empty(l:match)
         call s:GallerySelect(str2nr(l:match))
