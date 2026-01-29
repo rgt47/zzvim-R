@@ -918,31 +918,36 @@ function! s:SendToR(selection_type, ...) abort
         return
     endif
     
-    " Phase 2: Consistent Code Transmission via Project Root Temp File
-    " Write to project root so Docker container can find it
-    " (R's working directory in container is the mounted project root)
-    " Use unique filenames to avoid collisions between concurrent executions
+    " Phase 2: Consistent Code Transmission via Temp File
+    " For zzcollab projects: write to project root (Docker container mounts it)
+    " For standalone: write to buffer's directory and use absolute path
     let timestamp = string(localtime())[-4:]  " Last 4 digits of unix timestamp
     let temp_filename = '.zz' . timestamp . '.R'
-    let project_root = s:GetProjectRoot()
-    if empty(project_root)
-        let project_root = getcwd()
+
+    " Get buffer's directory (where the .R file lives)
+    let buffer_dir = expand('%:p:h')
+    if empty(buffer_dir)
+        let buffer_dir = getcwd()
     endif
 
-    " Verify project root is writable before attempting to write temp file
-    if !filewritable(project_root)
-        call s:Error("Cannot write to project directory: " . project_root)
+    " Check if buffer is inside a zzcollab project
+    let project_root = s:GetProjectRoot()
+    let is_zzcollab = !empty(project_root) && stridx(buffer_dir, project_root) == 0
+
+    " Use project root for zzcollab, buffer directory for standalone
+    let write_dir = is_zzcollab ? project_root : buffer_dir
+
+    " Verify write directory is writable
+    if !filewritable(write_dir)
+        call s:Error("Cannot write to directory: " . write_dir)
         return
     endif
 
-    let temp_file = project_root . '/' . temp_filename
+    let temp_file = write_dir . '/' . temp_filename
     call writefile(text_lines, temp_file)
 
-    " Execute with R handling deletion (option C: cleanest)
     " For zzcollab/Docker: use relative path (R's cwd is mounted project root)
-    " For standalone projects: use absolute path (R's cwd may differ from Vim's)
-    " After source() succeeds, R deletes the temp file with unlink()
-    let is_zzcollab = isdirectory(project_root . '/.zzcollab')
+    " For standalone projects: use absolute path (R's cwd may differ)
     let source_path = is_zzcollab ? temp_filename : temp_file
     let r_cmd = 'source("' . source_path . '", echo=T); unlink("' . source_path . '")'
     call s:Send_to_r(r_cmd, 1)
