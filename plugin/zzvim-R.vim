@@ -1885,13 +1885,11 @@ function! s:DisplayDockerPlot() abort
 
     let l:pane_title = 'zzvim-plot'
 
-    if s:PlotPaneExists()
-        " Close existing pane and recreate (more reliable than send-key)
-        call system('kitty @ close-window --match title:' . l:pane_title . ' 2>/dev/null')
-        sleep 50m
-    endif
+    " Always close existing pane first (if any)
+    call system('kitty @ close-window --match title:' . l:pane_title . ' 2>/dev/null')
+    sleep 100m
 
-    " Create new pane with persistent display script
+    " Create new pane with display script
     let l:script = '/tmp/zzvim_plot_show.sh'
     call writefile([
         \ '#!/bin/bash',
@@ -2041,8 +2039,8 @@ function! s:ForceDisplayDockerPlot() abort
     echom "Launching plot pane"
     call system(l:cmd)
 
-    " Update mtime cache
-    let s:plot_file_mtime = getftime(l:plot_file)
+    " Update mtime cache (use same variable as DisplayDockerPlot)
+    let s:plot_signal_mtime = getftime(l:plot_file)
 
     " Restart watcher
     let s:plot_watcher_timer = timer_start(500, {-> s:DisplayDockerPlot()}, {'repeat': -1})
@@ -2054,6 +2052,7 @@ command! -bar RPlotWatchStart call s:StartPlotWatcher()
 command! -bar RPlotWatchStop call s:StopPlotWatcher()
 command! -bar RPlotDebug call s:DebugPlotWatcher()
 command! -bar RPlotGallery call s:OpenPlotGallery()
+command! -bar RPlotReset let s:plot_signal_mtime = 0 | let s:plot_display_in_progress = 0 | echo "Plot watcher reset"
 
 function! s:DebugPlotWatcher() abort
     echo "=== Plot Watcher Debug ==="
