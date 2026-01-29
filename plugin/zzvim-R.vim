@@ -1777,6 +1777,7 @@ let g:zzvim_r_plot_height_large = get(g:, 'zzvim_r_plot_height_large', 1350)
 let g:zzvim_r_plot_dpi = get(g:, 'zzvim_r_plot_dpi', 96)
 let g:zzvim_r_plot_align = get(g:, 'zzvim_r_plot_align', 'center')
 let g:zzvim_r_plot_mode = get(g:, 'zzvim_r_plot_mode', 'pane')
+let g:zzvim_r_plot_location = get(g:, 'zzvim_r_plot_location', 'vsplit')
 let g:zzvim_r_plot_history_limit = get(g:, 'zzvim_r_plot_history_limit', 50)
 
 " Write current config to .plots/.config.json for R to read
@@ -1794,6 +1795,7 @@ function! s:WriteConfigForR() abort
         \ 'dpi': g:zzvim_r_plot_dpi,
         \ 'align': g:zzvim_r_plot_align,
         \ 'mode': g:zzvim_r_plot_mode,
+        \ 'location': g:zzvim_r_plot_location,
         \ 'history_limit': g:zzvim_r_plot_history_limit
     \ }
 
@@ -1810,6 +1812,7 @@ function! s:ShowPlotConfig() abort
     echo "DPI:           " . g:zzvim_r_plot_dpi
     echo "Align:         " . g:zzvim_r_plot_align
     echo "Mode:          " . g:zzvim_r_plot_mode
+    echo "Location:      " . g:zzvim_r_plot_location . " (vsplit, hsplit, tab)"
     echo "History limit: " . g:zzvim_r_plot_history_limit
     echo ""
     echo "Config file: " . s:GetConfigFile()
@@ -1911,8 +1914,13 @@ function! s:DisplayDockerPlot() abort
         \ ], l:script)
     call system('chmod +x ' . l:script)
 
-    " Launch the plot pane next to the current window (Vim)
-    call system('kitty @ launch --location=vsplit --keep-focus --title ' . l:pane_title . ' /tmp/zzvim_plot_show.sh 2>/dev/null')
+    " Launch the plot pane using configured location
+    let l:location = g:zzvim_r_plot_location
+    if l:location == 'tab'
+        call system('kitty @ launch --type=tab --keep-focus --title ' . l:pane_title . ' /tmp/zzvim_plot_show.sh 2>/dev/null')
+    else
+        call system('kitty @ launch --location=' . l:location . ' --keep-focus --title ' . l:pane_title . ' /tmp/zzvim_plot_show.sh 2>/dev/null')
+    endif
     redraw!
 
     " Release lock after a delay to prevent rapid re-triggers
