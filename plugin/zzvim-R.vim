@@ -514,15 +514,25 @@ function! s:OpenLocalRTerminalVanilla(...) abort
     return s:ConfigureTerminal(terminal_name, 0)
 endfunction
 
-" Create R Terminal in Docker Container using Makefile
+" Check if current directory is a zzcollab project (has Makefile with r: target)
+function! s:IsZzCollabProject() abort
+    " Check for Makefile in current directory or parent directories
+    let l:makefile = findfile('Makefile', '.;')
+    if empty(l:makefile)
+        return 0
+    endif
+
+    " Check if Makefile has 'r:' target (zzcollab signature)
+    let l:content = join(readfile(l:makefile), "\n")
+    return l:content =~# '\n\s*r\s*:'
+endfunction
+
+" Create R Terminal - auto-detects zzcollab vs standalone
+" In zzcollab project: uses Docker via 'make r'
+" Outside zzcollab: falls back to local R with renv
 function! s:OpenDockerRTerminal(...) abort
     let terminal_name = a:0 > 0 ? a:1 : s:GetTerminalName()
     let force_associate = a:0 > 1 ? a:2 : 0
-
-    if !executable('make')
-        call s:Error('make is not installed or not in PATH')
-        return -1
-    endif
 
     " Force-associate with existing terminal if requested
     if force_associate
@@ -537,9 +547,20 @@ function! s:OpenDockerRTerminal(...) abort
         endfor
     endif
 
-    " Use 'mr r' shell function which finds Makefile from subdirectories
-    execute 'vertical term zsh -ic "mr r"'
-    return s:ConfigureTerminal(terminal_name, 1)
+    " Auto-detect: zzcollab project uses Docker, otherwise local R
+    if s:IsZzCollabProject()
+        if !executable('make')
+            call s:Error('make is not installed or not in PATH')
+            return -1
+        endif
+        " Use 'mr r' shell function which finds Makefile from subdirectories
+        execute 'vertical term zsh -ic "mr r"'
+        return s:ConfigureTerminal(terminal_name, 1)
+    else
+        " Not a zzcollab project - fall back to local R
+        echom 'Not a zzcollab project, using local R'
+        return s:OpenLocalRTerminal(terminal_name)
+    endif
 endfunction
 
 " Configure terminal after creation (shared between local and Docker)
@@ -1682,6 +1703,18 @@ if !g:zzvim_r_disable_mappings
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>G :RPlotGallery<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>< :call <SID>PlotPrev()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>> :call <SID>PlotNext()<CR>
+
+        " R Markdown rendering (rk = render knit)
+        autocmd FileType rmd,qmd nnoremap <buffer> <silent> <localleader>rp :RMarkdownPreview<CR>
+        autocmd FileType rmd,qmd nnoremap <buffer> <silent> <localleader>rk :RMarkdownRender<CR>
+
+        " Chunk insertion (rmd/qmd only)
+        autocmd FileType rmd,qmd nnoremap <buffer> <silent> <localleader>ci :call <SID>InsertRChunk(0)<CR>
+        autocmd FileType rmd,qmd nnoremap <buffer> <silent> <localleader>cI :call <SID>InsertRChunk(1)<CR>
+
+        " Help in buffer (K override and <localleader>?)
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> K :call <SID>RHelpBuffer('')<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>? :call <SID>RHelpBuffer('')<CR>
     augroup END
 
     " Clean up plot pane when R terminal closes or buffer is deleted
@@ -2364,6 +2397,15 @@ command! -bar RNextChunk call s:MoveNextChunk()
 command! -bar RPrevChunk call s:MovePrevChunk()
 command! -bar RSendChunk call s:SubmitChunk()
 command! -bar RSendPreviousChunks call s:SendToR('previous_chunks')
+
+" R Markdown Rendering Commands
+command! -bar -nargs=? RMarkdownRender call s:RMarkdownRender(<q-args>)
+command! -bar RMarkdownPreview call s:RMarkdownPreview()
+command! -bar RChunkInsert call s:InsertRChunk(0)
+command! -bar RChunkInsertAbove call s:InsertRChunk(1)
+
+" Help in Buffer Command (displays help in Vim buffer, not terminal)
+command! -bar -nargs=? RHelpBuffer call s:RHelpBuffer(<q-args>)
 
 " Object Inspection Commands (with optional arguments)
 command! -bar -nargs=? RHead call s:RCommandWithArg('head', <q-args>)
@@ -3065,11 +3107,75 @@ function! s:CreateHUDTab(tab_name, file_suffix, data_generator, source_file, r_t
     call s:SetupViewerBuffer()
     call a:data_generator()
     setlocal readonly
+
+    " Standard HUD mappings
     nnoremap <buffer> <silent> <LocalLeader>0 :call <SID>RHUDDashboard()<CR>
+    nnoremap <buffer> <silent> q :bwipeout<CR>
+
+    " Interactive HUD mappings for drill-down
+    nnoremap <buffer> <silent> <CR> :call <SID>HUDInspectLine()<CR>
+    nnoremap <buffer> <silent> o :call <SID>HUDOpenViewer()<CR>
+    nnoremap <buffer> <silent> h :call <SID>HUDHead()<CR>
+    nnoremap <buffer> <silent> s :call <SID>HUDStr()<CR>
+    nnoremap <buffer> <silent> r :call <SID>RHUDDashboard()<CR>
+
     normal! gg
     if exists('+showtabline')
         execute 'set showtabline=2'
     endif
+endfunction
+
+" HUD Interactive Helper Functions
+" Extract object name from current HUD line
+function! s:HUDGetObjectName() abort
+    let l:line = getline('.')
+    " Try to extract first word (object name) from various HUD formats
+    " Memory HUD: "object_name     1.23"
+    " DataFrame HUD: "df_name       100    50"
+    " Workspace: "obj : class"
+    let l:obj = matchstr(l:line, '^\s*\zs[a-zA-Z_.][a-zA-Z0-9_.]*')
+    return l:obj
+endfunction
+
+" Inspect object on current line with str()/glimpse()
+function! s:HUDInspectLine() abort
+    let l:obj = s:HUDGetObjectName()
+    if empty(l:obj)
+        echom "No object found on this line"
+        return
+    endif
+    call s:RInspectObject(l:obj)
+endfunction
+
+" Open data viewer for object on current line
+function! s:HUDOpenViewer() abort
+    let l:obj = s:HUDGetObjectName()
+    if empty(l:obj)
+        echom "No object found on this line"
+        return
+    endif
+    " Check if it's a data frame before opening viewer
+    call s:Send_to_r('if(is.data.frame(' . l:obj . ')) print(head(' . l:obj . ', 20)) else str(' . l:obj . ')', 1)
+endfunction
+
+" Show head() for object on current line
+function! s:HUDHead() abort
+    let l:obj = s:HUDGetObjectName()
+    if empty(l:obj)
+        echom "No object found on this line"
+        return
+    endif
+    call s:Send_to_r('head(' . l:obj . ')', 1)
+endfunction
+
+" Show str() for object on current line
+function! s:HUDStr() abort
+    let l:obj = s:HUDGetObjectName()
+    if empty(l:obj)
+        echom "No object found on this line"
+        return
+    endif
+    call s:Send_to_r('str(' . l:obj . ')', 1)
 endfunction
 
 " HUD Data Generators - Generate content for each tab
@@ -3266,6 +3372,149 @@ function! s:ApplyTabulation() abort
             " Silently fail if EasyAlign has issues
         endtry
     endif
+endfunction
+
+" ============================================================================
+" R Markdown Rendering Functions
+" ============================================================================
+
+" Configuration for help buffer display
+let g:zzvim_r_help_position = get(g:, 'zzvim_r_help_position', 'vsplit')
+let g:zzvim_r_help_width = get(g:, 'zzvim_r_help_width', 80)
+
+" Render R Markdown/Quarto document
+" Parameters:
+"   format (string) - output format (html_document, pdf_document, word_document)
+"                     defaults to html_document if empty
+function! s:RMarkdownRender(format) abort
+    let l:format = empty(a:format) ? 'html_document' : a:format
+    let l:file = expand('%:p')
+    let l:file_escaped = substitute(l:file, '\', '/', 'g')
+
+    " Save current buffer before rendering
+    if &modified
+        write
+    endif
+
+    " Build and send render command
+    let l:cmd = printf('rmarkdown::render("%s", output_format = "%s")',
+        \ l:file_escaped, l:format)
+    call s:Send_to_r(l:cmd, 0)
+    echom "Rendering " . expand('%:t') . " to " . l:format
+endfunction
+
+" Render R Markdown to HTML and open in browser
+function! s:RMarkdownPreview() abort
+    call s:RMarkdownRender('html_document')
+    let l:output = expand('%:p:r') . '.html'
+
+    " Platform-specific browser open (with delay for rendering)
+    if has('mac')
+        call system('(sleep 2 && open "' . l:output . '") &')
+    elseif has('unix')
+        call system('(sleep 2 && xdg-open "' . l:output . '") &')
+    elseif has('win32')
+        call system('start "" "' . l:output . '"')
+    endif
+endfunction
+
+" Insert a new R code chunk
+" Parameters:
+"   above (boolean) - if true, insert above current line; otherwise below
+function! s:InsertRChunk(above) abort
+    let l:chunk = ['```{r}', '', '```']
+    if a:above
+        call append(line('.') - 1, l:chunk)
+        normal! k
+    else
+        call append(line('.'), l:chunk)
+        normal! j
+    endif
+    " Move into the chunk content area
+    normal! j
+    startinsert
+endfunction
+
+" ============================================================================
+" Help in Buffer Functions
+" ============================================================================
+
+" Script-local variable to track help buffer
+let s:help_bufnr = -1
+
+" Display R help in a Vim buffer instead of terminal
+" Parameters:
+"   topic (string) - help topic; uses word under cursor if empty
+function! s:RHelpBuffer(topic) abort
+    let l:topic = empty(a:topic) ? expand('<cword>') : a:topic
+    if empty(l:topic)
+        call s:Error("No topic specified")
+        return
+    endif
+
+    " Create temp file for help output
+    let l:help_file = tempname() . '.Rhelp'
+    let l:help_file_escaped = substitute(l:help_file, '\', '/', 'g')
+
+    " R command to capture help text
+    let l:cmd = printf(
+        \ 'tryCatch({h <- help("%s"); ' .
+        \ 'if(length(h) > 0) {' .
+        \ 'writeLines(capture.output(tools:::Rd2txt(' .
+        \ 'utils:::.getHelpFile(h))), "%s")} ' .
+        \ 'else cat("No help found for: %s\n")}, ' .
+        \ 'error = function(e) cat("Error:", e$message, "\n"))',
+        \ l:topic, l:help_file_escaped, l:topic)
+
+    call s:Send_to_r(l:cmd, 1)
+
+    " Wait for file with timeout (3 seconds max)
+    let l:tries = 30
+    while !filereadable(l:help_file) && l:tries > 0
+        sleep 100m
+        let l:tries -= 1
+    endwhile
+
+    if !filereadable(l:help_file)
+        call s:Error("Help not found: " . l:topic)
+        return
+    endif
+
+    " Close existing help buffer if any
+    if s:help_bufnr > 0 && bufexists(s:help_bufnr)
+        execute 'bwipeout' s:help_bufnr
+    endif
+
+    " Open help buffer based on position setting
+    let l:pos = g:zzvim_r_help_position
+    if l:pos ==# 'vsplit'
+        execute 'vertical' g:zzvim_r_help_width . 'split' fnameescape(l:help_file)
+    elseif l:pos ==# 'tab'
+        execute 'tabnew' fnameescape(l:help_file)
+    else
+        execute 'split' fnameescape(l:help_file)
+    endif
+
+    " Configure buffer as scratch
+    setlocal buftype=nofile
+    setlocal bufhidden=wipe
+    setlocal noswapfile
+    setlocal nomodifiable
+    setlocal readonly
+    execute 'file R:' . l:topic
+
+    " Save buffer number for tracking
+    let s:help_bufnr = bufnr('%')
+
+    " Buffer-local mappings for quick close
+    nnoremap <buffer> q :bwipeout<CR>
+    nnoremap <buffer> <Esc> :bwipeout<CR>
+
+    " Go to top of help
+    normal! gg
+
+    " Clean up temp file
+    call delete(l:help_file)
 endfunction
 
 " ============================================================================
