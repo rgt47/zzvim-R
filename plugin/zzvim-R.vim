@@ -1896,7 +1896,7 @@ function! s:DisplayDockerPlot() abort
         \ 'PLOT_FILE="' . l:plot_file . '"',
         \ 'show_plot() {',
         \ '    clear',
-        \ '    kitty +kitten icat --clear --align=center "$PLOT_FILE"',
+        \ '    kitty +kitten icat --clear --align=left "$PLOT_FILE"',
         \ '    echo ""',
         \ '    echo "Plot 600x450 | r=refresh | q=close | <Space>] zoom"',
         \ '}',
