@@ -779,13 +779,16 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
 
     cols <- as.numeric(cols_str[1])
     lines <- as.numeric(lines_str[1])
-    last_cols <- get(".last_cols", envir = .GlobalEnv)
-    last_lines <- get(".last_lines", envir = .GlobalEnv)
 
-    if (is.null(last_cols) || is.null(last_lines)) {
+    # Check if previous size was stored (use exists() to avoid error)
+    if (!exists(".last_cols", envir = .GlobalEnv) ||
+        !exists(".last_lines", envir = .GlobalEnv)) {
       cat("No previous plot to redisplay\n")
       return(invisible(NULL))
     }
+
+    last_cols <- get(".last_cols", envir = .GlobalEnv)
+    last_lines <- get(".last_lines", envir = .GlobalEnv)
 
     if (cols != last_cols || lines != last_lines) {
       cat(paste("Terminal resized from", last_cols, "x", last_lines, "to", cols, "x", lines, "\n"))

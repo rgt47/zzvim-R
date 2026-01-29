@@ -1742,14 +1742,26 @@ endfunction
 " This enables inline plot display when R runs inside Docker container
 
 let s:plot_signal_mtime = 0
+let s:plots_dir_cache = ''
+let s:plots_dir_cwd = ''
 
 " Centralized path helper for .plots/ directory and subpaths
+" Caches result to avoid repeated filesystem lookups in hot polling path
 function! s:GetPlotsDir() abort
+    " Cache invalidation: if cwd changed, recalculate
+    let l:current_cwd = getcwd()
+    if s:plots_dir_cache != '' && s:plots_dir_cwd == l:current_cwd
+        return s:plots_dir_cache
+    endif
+
     let l:project_root = s:GetProjectRoot()
     if empty(l:project_root)
-        let l:project_root = getcwd()
+        let l:project_root = l:current_cwd
     endif
-    return l:project_root . '/.plots'
+
+    let s:plots_dir_cache = l:project_root . '/.plots'
+    let s:plots_dir_cwd = l:current_cwd
+    return s:plots_dir_cache
 endfunction
 
 " Get path within .plots/ directory
@@ -1925,6 +1937,7 @@ function! s:DisplayDockerPlot() abort
 
     " No existing pane - create new one with display script
     let l:script = '/tmp/zzvim_plot_show.sh'
+    let l:size_str = g:zzvim_r_plot_width_small . 'x' . g:zzvim_r_plot_height_small
     call writefile([
         \ '#!/bin/bash',
         \ 'PLOT_FILE="' . l:plot_file . '"',
@@ -1932,7 +1945,7 @@ function! s:DisplayDockerPlot() abort
         \ '    clear',
         \ '    kitty +kitten icat --clear --align=left "$PLOT_FILE"',
         \ '    echo ""',
-        \ '    echo "Plot 600x450 | r=refresh | q=close | <Space>] zoom"',
+        \ '    echo "Plot ' . l:size_str . ' | r=refresh | q=close"',
         \ '}',
         \ 'show_plot',
         \ 'while true; do',
@@ -1966,7 +1979,8 @@ function! s:OpenDockerPlotInPreview() abort
     let l:plot_file = s:GetPlotFile()
     if filereadable(l:plot_file)
         call system('open ' . shellescape(l:plot_file))
-        echom "Opened plot (600x450) in Preview"
+        let l:size = g:zzvim_r_plot_width_small . 'x' . g:zzvim_r_plot_height_small
+        echom "Opened plot (" . l:size . ") in Preview"
     else
         call s:Error("No plot file found at " . l:plot_file)
     endif
@@ -1977,12 +1991,15 @@ function! s:OpenDockerPlotHiresInPreview() abort
     let l:plot_hires = s:GetPlotFileHires()
     let l:plot_file = s:GetPlotFile()
 
+    let l:size_small = g:zzvim_r_plot_width_small . 'x' . g:zzvim_r_plot_height_small
+    let l:size_large = g:zzvim_r_plot_width_large . 'x' . g:zzvim_r_plot_height_large
+
     if filereadable(l:plot_hires)
         call system('open ' . shellescape(l:plot_hires))
-        echom "Opened hi-res plot (1800x1350) in Preview"
+        echom "Opened hi-res plot (" . l:size_large . ") in Preview"
     elseif filereadable(l:plot_file)
         call system('open ' . shellescape(l:plot_file))
-        echom "Opened plot (600x450) in Preview (hi-res not available)"
+        echom "Opened plot (" . l:size_small . ") in Preview (hi-res not available)"
     else
         call s:Error("No plot file found")
     endif
@@ -2304,10 +2321,10 @@ function! s:ZoomPlotPane() abort
     " Prefer hi-res, fall back to standard
     if filereadable(l:plot_hires)
         let l:display_file = l:plot_hires
-        let l:size_msg = '1800x1350'
+        let l:size_msg = g:zzvim_r_plot_width_large . 'x' . g:zzvim_r_plot_height_large
     elseif filereadable(l:plot_file)
         let l:display_file = l:plot_file
-        let l:size_msg = '600x450'
+        let l:size_msg = g:zzvim_r_plot_width_small . 'x' . g:zzvim_r_plot_height_small
     else
         echom "No plot file found"
         return
