@@ -21,7 +21,7 @@
 # Expected: Startup message shows terminal type and dual-resolution info
 
 cat("\n=== Section 1: Setup Verification ===\n")
-c,,at("Terminal type:", .terminal, "\n")
+cat("Terminal type:", .terminal, "\n")
 cat("jsonlite available:", exists(".jsonlite_available") &&
     get(".jsonlite_available", envir = .GlobalEnv), "\n")
 cat("Plot dimensions (small):", .plot_width_small, "x", .plot_height_small, "\n
