@@ -1886,11 +1886,9 @@ function! s:DisplayDockerPlot() abort
     let l:pane_title = 'zzvim-plot'
 
     if s:PlotPaneExists()
-        " Pre-warmed pane: update image in-place (faster)
-        " Send keystroke to trigger refresh in the running script
-        call system('kitty @ send-key --match title:' . l:pane_title . ' r 2>/dev/null')
-        call timer_start(200, {-> execute('let s:plot_display_in_progress = 0')})
-        return
+        " Close existing pane and recreate (more reliable than send-key)
+        call system('kitty @ close-window --match title:' . l:pane_title . ' 2>/dev/null')
+        sleep 50m
     endif
 
     " Create new pane with persistent display script
@@ -1915,9 +1913,8 @@ function! s:DisplayDockerPlot() abort
         \ ], l:script)
     call system('chmod +x ' . l:script)
 
-    " Launch the plot pane to the right of the R terminal
-    call system('kitty @ goto-layout splits --match title:^R- 2>/dev/null')
-    call system('kitty @ launch --location=hsplit --keep-focus --title ' . l:pane_title . ' --match title:^R- /tmp/zzvim_plot_show.sh 2>/dev/null')
+    " Launch the plot pane next to the current window (Vim)
+    call system('kitty @ launch --location=vsplit --keep-focus --title ' . l:pane_title . ' /tmp/zzvim_plot_show.sh 2>/dev/null')
     redraw!
 
     " Release lock after a delay to prevent rapid re-triggers
