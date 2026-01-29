@@ -225,7 +225,8 @@ function! zzvimr#terminal_graphics#add_to_gitignore() abort
 
     " Check if .gitignore exists
     if !filereadable(l:gitignore_path)
-        return  " No .gitignore, skip
+        " No .gitignore, skip
+        return
     endif
 
     " Read existing .gitignore
@@ -234,7 +235,8 @@ function! zzvimr#terminal_graphics#add_to_gitignore() abort
     " Check if .Rprofile.local is already in .gitignore
     for l:line in l:lines
         if l:line =~# '\.Rprofile\.local'
-            return  " Already in .gitignore
+            " Already in .gitignore
+            return
         endif
     endfor
 
