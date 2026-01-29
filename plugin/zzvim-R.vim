@@ -939,10 +939,12 @@ function! s:SendToR(selection_type, ...) abort
     call writefile(text_lines, temp_file)
 
     " Execute with R handling deletion (option C: cleanest)
-    " Use relative path for Docker compatibility (R's cwd is project root)
+    " For zzcollab/Docker: use relative path (R's cwd is mounted project root)
+    " For standalone projects: use absolute path (R's cwd may differ from Vim's)
     " After source() succeeds, R deletes the temp file with unlink()
-    " Shows: source(".zz1234.R", echo=T) and displays the executed code
-    let r_cmd = 'source("' . temp_filename . '", echo=T); unlink("' . temp_filename . '")'
+    let is_zzcollab = isdirectory(project_root . '/.zzcollab')
+    let source_path = is_zzcollab ? temp_filename : temp_file
+    let r_cmd = 'source("' . source_path . '", echo=T); unlink("' . source_path . '")'
     call s:Send_to_r(r_cmd, 1)
     
     " Phase 3: Determine actual submission type for cursor movement
