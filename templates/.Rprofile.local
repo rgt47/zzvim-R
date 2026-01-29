@@ -1,12 +1,13 @@
 # ============================================================================
 # Terminal Graphics Support - Kitty and iTerm2
-# zzvim-R template version: 3
+# zzvim-R template version: 4
 # ============================================================================
 # This file provides automatic plot display in modern terminal emulators.
 # It sources automatically if present in zzcollab workspaces.
 # Copy to workspace root: cp ~/.Rprofile.local .Rprofile.local
 #
 # Version history:
+#   v4 (2026-01): Code cleanup, fixed set_plot_size_relative()
 #   v3 (2026-01): Persistent history with thumbnails, plot_goto(), plot_search()
 #   v2 (2026-01): Dual-resolution plots (600x450 pane + 1800x1350 zoom)
 #   v1 (2025-08): Initial release with single-resolution plots
@@ -52,9 +53,6 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
   assign(".plot_file_hires", NULL, envir = .GlobalEnv)
   assign(".plot_history", list(), envir = .GlobalEnv)
   assign(".plot_history_idx", 0, envir = .GlobalEnv)
-  assign(".use_relative_sizing", FALSE, envir = .GlobalEnv)
-  assign(".width_pct", 0.75, envir = .GlobalEnv)
-  assign(".height_pct", 1.0, envir = .GlobalEnv)
 
   # ========================================================================
   # Unified Config Reader (reads from Vim-written .plots/.config.json)
@@ -748,23 +746,25 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
   assign("set_plot_mode", set_plot_mode, envir = .GlobalEnv)
   assign("close_plot_pane", close_plot_pane, envir = .GlobalEnv)
 
+  # Set plot size relative to terminal dimensions
+  # Calculates pixel dimensions based on terminal size and sets them
   set_plot_size_relative <- function(width_pct = 0.4, height_pct = 0.75) {
-    assign(".use_relative_sizing", TRUE, envir = .GlobalEnv)
-    assign(".width_pct", width_pct, envir = .GlobalEnv)
-    assign(".height_pct", height_pct, envir = .GlobalEnv)
-    assign(".plot_align", "right", envir = .GlobalEnv)
-
     cols_str <- system("tput cols", intern = TRUE, ignore.stderr = TRUE)
     lines_str <- system("tput lines", intern = TRUE, ignore.stderr = TRUE)
 
     if (length(cols_str) > 0 && length(lines_str) > 0) {
       cols <- as.numeric(cols_str[1])
       lines <- as.numeric(lines_str[1])
-      width <- floor(cols * 8 * width_pct)
-      height <- floor(lines * 16 * height_pct)
-      cat(paste("Relative sizing enabled:", width, "x", height, "px\n"))
-      cat(paste("(", width_pct * 100, "% x ", height_pct * 100, "% of terminal)\n", sep = ""))
-      cat("Plots will auto-resize when terminal is resized\n")
+      # Approximate 8px per column, 16px per row
+      small_width <- floor(cols * 8 * width_pct)
+      small_height <- floor(lines * 16 * height_pct)
+      # Apply the calculated dimensions via set_plot_size
+      set_plot_size(small_width, small_height)
+      assign(".plot_align", "right", envir = .GlobalEnv)
+      cat(sprintf("Relative sizing: %d%% x %d%% of terminal\n",
+                  as.integer(width_pct * 100), as.integer(height_pct * 100)))
+    } else {
+      cat("Could not determine terminal size\n")
     }
   }
 

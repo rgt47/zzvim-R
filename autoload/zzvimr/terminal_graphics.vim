@@ -7,7 +7,7 @@
 " Works with zzcollab workspaces and standalone R projects
 
 " Current template version - increment when template changes significantly
-let s:template_version = 3
+let s:template_version = 4
 
 " Detect terminal type
 " Returns 'kitty' for terminals supporting Kitty graphics protocol

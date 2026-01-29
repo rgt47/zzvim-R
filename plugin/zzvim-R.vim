@@ -1743,8 +1743,8 @@ endfunction
 
 let s:plot_signal_mtime = 0
 
+" Centralized path helper for .plots/ directory and subpaths
 function! s:GetPlotsDir() abort
-    " Find .plots/ directory relative to project root
     let l:project_root = s:GetProjectRoot()
     if empty(l:project_root)
         let l:project_root = getcwd()
@@ -1752,20 +1752,30 @@ function! s:GetPlotsDir() abort
     return l:project_root . '/.plots'
 endfunction
 
+" Get path within .plots/ directory
+function! s:GetPlotsPath(subpath) abort
+    return s:GetPlotsDir() . '/' . a:subpath
+endfunction
+
+" Convenience accessors using centralized helper
 function! s:GetPlotFile() abort
-    return s:GetPlotsDir() . '/current.png'
+    return s:GetPlotsPath('current.png')
 endfunction
 
 function! s:GetPlotFileHires() abort
-    return s:GetPlotsDir() . '/current_hires.png'
+    return s:GetPlotsPath('current_hires.png')
 endfunction
 
 function! s:GetSignalFile() abort
-    return s:GetPlotsDir() . '/.signal'
+    return s:GetPlotsPath('.signal')
 endfunction
 
 function! s:GetConfigFile() abort
-    return s:GetPlotsDir() . '/.config.json'
+    return s:GetPlotsPath('.config.json')
+endfunction
+
+function! s:GetHistoryIndexFile() abort
+    return s:GetPlotsPath('history/index.json')
 endfunction
 
 "------------------------------------------------------------------------------
@@ -1848,11 +1858,26 @@ command! -bar RPlotConfigWrite call s:WriteConfigForR()
 command! -nargs=+ RPlotSize call s:SetPlotSize(<f-args>)
 
 let s:plot_display_in_progress = 0
+let s:pane_title = 'zzvim-plot'
 
 " Check if plot pane already exists
 function! s:PlotPaneExists() abort
-    let l:check = system('kitty @ ls 2>/dev/null | grep -q "zzvim-plot" && echo 1 || echo 0')
+    let l:check = system('kitty @ ls 2>/dev/null | grep -q "' . s:pane_title . '" && echo 1 || echo 0')
     return str2nr(trim(l:check)) == 1
+endfunction
+
+" Refresh plot in existing pane (no flicker) or create new pane
+function! s:RefreshPlotInPane(plot_file) abort
+    if s:PlotPaneExists()
+        " Pane exists - send command to refresh in-place (no flicker)
+        " Send Ctrl+C to interrupt any waiting read, then refresh
+        call system('kitty @ send-text --match title:' . s:pane_title . " $'\\x03' 2>/dev/null")
+        sleep 50m
+        " Send 'r' to trigger refresh in the running script
+        call system('kitty @ send-text --match title:' . s:pane_title . " 'r' 2>/dev/null")
+        return 1
+    endif
+    return 0
 endfunction
 
 function! s:DisplayDockerPlot() abort
@@ -1890,13 +1915,15 @@ function! s:DisplayDockerPlot() abort
     " Lock to prevent race conditions
     let s:plot_display_in_progress = 1
 
-    let l:pane_title = 'zzvim-plot'
+    " Try to refresh existing pane first (flicker-free)
+    if s:RefreshPlotInPane(l:plot_file)
+        " Release lock quickly since we just sent a key
+        call timer_start(200, {-> execute('let s:plot_display_in_progress = 0')})
+        call timer_start(300, {-> s:RefreshPlotStatus()})
+        return
+    endif
 
-    " Always close existing pane first (if any)
-    call system('kitty @ close-window --match title:' . l:pane_title . ' 2>/dev/null')
-    sleep 100m
-
-    " Create new pane with display script
+    " No existing pane - create new one with display script
     let l:script = '/tmp/zzvim_plot_show.sh'
     call writefile([
         \ '#!/bin/bash',
@@ -1921,9 +1948,9 @@ function! s:DisplayDockerPlot() abort
     " Launch the plot pane using configured location
     let l:location = g:zzvim_r_plot_location
     if l:location == 'tab'
-        call system('kitty @ launch --type=tab --keep-focus --title ' . l:pane_title . ' /tmp/zzvim_plot_show.sh 2>/dev/null')
+        call system('kitty @ launch --type=tab --keep-focus --title ' . s:pane_title . ' /tmp/zzvim_plot_show.sh 2>/dev/null')
     else
-        call system('kitty @ launch --location=' . l:location . ' --keep-focus --title ' . l:pane_title . ' /tmp/zzvim_plot_show.sh 2>/dev/null')
+        call system('kitty @ launch --location=' . l:location . ' --keep-focus --title ' . s:pane_title . ' /tmp/zzvim_plot_show.sh 2>/dev/null')
     endif
     redraw!
 
@@ -1991,10 +2018,13 @@ function! s:MaybeSlowDown() abort
 endfunction
 
 function! s:StartPlotWatcher() abort
-    " Write config for R to read on startup
+    " Write config for R to read on startup (only once)
     call s:WriteConfigForR()
+    call s:RestartPlotWatcherTimer()
+endfunction
 
-    " Set up a timer to check for plot updates (adaptive rate)
+" Restart just the timer without re-writing config (for adaptive polling)
+function! s:RestartPlotWatcherTimer() abort
     if exists('s:plot_watcher_timer')
         call timer_stop(s:plot_watcher_timer)
     endif
@@ -2003,7 +2033,8 @@ function! s:StartPlotWatcher() abort
 endfunction
 
 function! s:RestartPlotWatcher() abort
-    call s:StartPlotWatcher()
+    " For adaptive polling, only restart timer (don't rewrite config)
+    call s:RestartPlotWatcherTimer()
 endfunction
 
 function! s:PlotWatcherTick() abort
@@ -2039,23 +2070,21 @@ function! s:ForceDisplayDockerPlot() abort
         return
     endif
 
-    let l:pane_title = 'zzvim-plot'
-
     " Close existing pane if present
-    call system('kitty @ close-window --match title:' . l:pane_title . ' 2>/dev/null')
+    call system('kitty @ close-window --match title:' . s:pane_title . ' 2>/dev/null')
     sleep 50m
 
     " Launch new pane with the plot (to the right via --location=neighbor)
     let l:sh_cmd = 'clear && kitty +kitten icat --scale-up --align=center ' . shellescape(l:plot_file) . ' && echo "Press Enter to close" && read'
-    let l:cmd = 'kitty @ launch --location=neighbor --keep-focus --title ' . l:pane_title . ' -- sh -c ' . shellescape(l:sh_cmd)
+    let l:cmd = 'kitty @ launch --location=neighbor --keep-focus --title ' . s:pane_title . ' -- sh -c ' . shellescape(l:sh_cmd)
     echom "Launching plot pane"
     call system(l:cmd)
 
     " Update mtime cache (use same variable as DisplayDockerPlot)
     let s:plot_signal_mtime = getftime(l:plot_file)
 
-    " Restart watcher
-    let s:plot_watcher_timer = timer_start(500, {-> s:DisplayDockerPlot()}, {'repeat': -1})
+    " Restart watcher using adaptive polling rate
+    call s:RestartPlotWatcherTimer()
 endfunction
 command! -bar RPlotPreview call s:OpenDockerPlotInPreview()
 command! -bar RPlotZoom call s:ZoomPlotPane()
@@ -2106,10 +2135,6 @@ endfunction
 "------------------------------------------------------------------------------
 " Opens a Vim buffer showing the plot history with navigation
 
-function! s:GetHistoryIndexFile() abort
-    return s:GetPlotsDir() . '/history/index.json'
-endfunction
-
 function! s:OpenPlotGallery() abort
     let l:index_file = s:GetHistoryIndexFile()
     if !filereadable(l:index_file)
@@ -2148,22 +2173,24 @@ function! s:OpenPlotGallery() abort
     call add(l:lines, '')
 
     let l:current_idx = get(l:index, 'current_index', 0)
-    let l:idx = 1
+    let l:display_num = 1
     for plot in l:index.plots
         let l:marker = (plot.id == l:current_idx) ? '▶ ' : '  '
         let l:name = get(plot, 'name', 'unnamed')
         let l:created = get(plot, 'created', '')
         let l:code = get(plot, 'code', '')
+        let l:plot_id = get(plot, 'id', l:display_num)
         " Truncate code for display
         if len(l:code) > 40
             let l:code = l:code[:37] . '...'
         endif
-        let l:line = printf('%s[%d] %-20s  %s', l:marker, l:idx, l:name, l:created)
+        " Display number for user, but store actual plot ID for selection
+        let l:line = printf('%s[%d] %-20s  %s  {id:%d}', l:marker, l:display_num, l:name, l:created, l:plot_id)
         call add(l:lines, l:line)
         if !empty(l:code)
             call add(l:lines, '       ' . l:code)
         endif
-        let l:idx += 1
+        let l:display_num += 1
     endfor
 
     call add(l:lines, '')
@@ -2184,21 +2211,33 @@ function! s:OpenPlotGallery() abort
     endfor
 endfunction
 
-function! s:GallerySelect(num) abort
+function! s:GallerySelect(display_num) abort
     if !exists('b:plot_index')
         return
     endif
-    if a:num > len(b:plot_index.plots)
-        echom "Plot " . a:num . " not in history"
+    if a:display_num > len(b:plot_index.plots)
+        echom "Plot " . a:display_num . " not in history"
         return
     endif
-    " Send command to R to display the plot
-    call s:Send_to_r('plot_goto(' . a:num . ')', 1)
-    echom "Displaying plot " . a:num
+    " Get the actual plot ID (not display number) for correct selection
+    let l:plot = b:plot_index.plots[a:display_num - 1]
+    let l:plot_id = get(l:plot, 'id', a:display_num)
+    let l:plot_name = get(l:plot, 'name', 'unnamed')
+    " Send command to R using the actual plot ID
+    call s:Send_to_r('plot_goto(' . l:plot_id . ')', 1)
+    echom "Displaying: " . l:plot_name . " (id:" . l:plot_id . ")"
 endfunction
 
 function! s:GallerySelectCurrent() abort
     let l:line = getline('.')
+    " First try to extract the actual plot ID from {id:N} marker
+    let l:id_match = matchstr(l:line, '{id:\zs\d\+\ze}')
+    if !empty(l:id_match)
+        call s:Send_to_r('plot_goto(' . l:id_match . ')', 1)
+        echom "Displaying plot id:" . l:id_match
+        return
+    endif
+    " Fallback to display number
     let l:match = matchstr(l:line, '\[\zs\d\+\ze\]')
     if !empty(l:match)
         call s:GallerySelect(str2nr(l:match))
@@ -2209,9 +2248,11 @@ endfunction
 " Statusline Integration
 "------------------------------------------------------------------------------
 " Provides plot status for users to add to their statusline
+" Uses mtime caching to avoid re-reading JSON on every statusline update
 
 let s:plot_status_index = 0
 let s:plot_status_total = 0
+let s:plot_status_mtime = 0
 
 " Public function for statusline - returns [Plot N/M] or empty string
 function! ZzvimRPlotStatus() abort
@@ -2221,14 +2262,22 @@ function! ZzvimRPlotStatus() abort
     return printf('[Plot %d/%d]', s:plot_status_index, s:plot_status_total)
 endfunction
 
-" Update plot status from history index file
+" Update plot status from history index file (with mtime caching)
 function! s:UpdatePlotStatus() abort
     let l:index_file = s:GetHistoryIndexFile()
     if !filereadable(l:index_file)
         let s:plot_status_index = 0
         let s:plot_status_total = 0
+        let s:plot_status_mtime = 0
         return
     endif
+
+    " Check if file has changed since last read (mtime caching)
+    let l:mtime = getftime(l:index_file)
+    if l:mtime == s:plot_status_mtime
+        return  " No change, skip re-reading
+    endif
+    let s:plot_status_mtime = l:mtime
 
     try
         let l:json_content = join(readfile(l:index_file), '')
