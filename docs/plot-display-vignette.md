@@ -121,8 +121,9 @@ zzggplot(p)
 
 ### Pane Location
 
-Plots appear in a dedicated Kitty pane to the right of the R terminal. The pane
-is titled `zzvim-plot` for identification.
+Plots appear in a dedicated Kitty pane. The default location is a vertical
+split to the right of the current window. The pane is titled `zzvim-plot` for
+identification.
 
 ```
 ┌─────────────────────┬─────────────────────┐
@@ -135,6 +136,19 @@ is titled `zzvim-plot` for identification.
 │                     │    (zzvim-plot)     │
 │                     │                     │
 └─────────────────────┴─────────────────────┘
+```
+
+Configure pane location in your `.vimrc`:
+
+```vim
+" Vertical split (default)
+let g:zzvim_r_plot_location = 'vsplit'
+
+" Horizontal split (below current window)
+let g:zzvim_r_plot_location = 'hsplit'
+
+" Separate Kitty tab
+let g:zzvim_r_plot_location = 'tab'
 ```
 
 ### Pane Controls
@@ -250,7 +264,83 @@ plot_next()
 Plot history is maintained per R session. When R exits, the history is cleared.
 Use `save_plot()` to persist important plots before exiting.
 
+### Persistent History
+
+Plots are also saved to `.plots/history/` with thumbnails for later reference:
+
+```r
+# List all saved plots
+plot_history_persistent()
+
+# Navigate to a specific plot by ID
+plot_goto(3)
+
+# Navigate by name (partial match)
+plot_goto("scatter")
+
+# Search plots by name or code
+plot_search("mtcars")
+```
+
+### Plot Gallery (Vim)
+
+Open the plot gallery buffer with `<LocalLeader>G` or `:RPlotGallery`:
+
+```
+╔══════════════════════════════════════════════════════════════╗
+║                      Plot Gallery                            ║
+║  Press number to view, Enter on line, q to close            ║
+╚══════════════════════════════════════════════════════════════╝
+
+  [1] plot_001              2026-01-28T10:30:00
+  [2] scatter_analysis      2026-01-28T10:35:00
+  [3] regression_plot       2026-01-28T10:40:00
+```
+
+Navigate with number keys (1-9) or move cursor to a line and press Enter.
+
 ## Configuration
+
+### Vim Configuration Variables
+
+Configure plot behavior in your `.vimrc`:
+
+```vim
+" Plot dimensions (small = pane display, large = zoom/export)
+let g:zzvim_r_plot_width_small = 600    " Default: 600
+let g:zzvim_r_plot_height_small = 450   " Default: 450
+let g:zzvim_r_plot_width_large = 1800   " Default: 1800
+let g:zzvim_r_plot_height_large = 1350  " Default: 1350
+let g:zzvim_r_plot_dpi = 96             " Default: 96
+
+" Pane location: 'vsplit', 'hsplit', or 'tab'
+let g:zzvim_r_plot_location = 'vsplit'  " Default: 'vsplit'
+
+" Display mode: 'pane', 'inline', or 'auto'
+let g:zzvim_r_plot_mode = 'pane'        " Default: 'pane'
+
+" Image alignment in pane
+let g:zzvim_r_plot_align = 'center'     " Default: 'center'
+
+" Maximum plots to keep in history
+let g:zzvim_r_plot_history_limit = 50   " Default: 50
+```
+
+View current configuration with `:RPlotConfig`:
+
+```
+=== zzvim-R Plot Configuration ===
+Small size:    600x450
+Large size:    1800x1350
+DPI:           96
+Align:         center
+Mode:          pane
+Location:      vsplit (vsplit, hsplit, tab)
+History limit: 50
+
+Config file: /path/to/project/.plots/.config.json
+  Exists: 1
+```
 
 ### Plot Dimensions
 
@@ -324,6 +414,11 @@ close_plot_pane()
 | `:RPlotPreview` | Open plot in macOS Preview |
 | `:RPlotZoom` | Open hi-res in new Kitty window |
 | `:RPlotZoomPreview` | Open hi-res in macOS Preview |
+| `:RPlotGallery` | Open plot gallery buffer |
+| `:RPlotPrev` | Navigate to previous plot |
+| `:RPlotNext` | Navigate to next plot |
+| `:RPlotConfig` | Show current plot configuration |
+| `:RPlotReset` | Reset plot watcher state |
 | `:RPlotWatchStart` | Start plot watcher (auto-started) |
 | `:RPlotWatchStop` | Stop plot watcher |
 | `:RPlotDebug` | Show debug information |
@@ -332,8 +427,25 @@ close_plot_pane()
 
 | Mapping | Description |
 |---------|-------------|
-| `<Space>[` | Open plot in macOS Preview |
-| `<Space>]` | Open hi-res in new Kitty window |
+| `<LocalLeader>[` | Open plot in macOS Preview |
+| `<LocalLeader>]` | Open hi-res in new Kitty window |
+| `<LocalLeader>G` | Open plot gallery |
+| `<LocalLeader><` | Navigate to previous plot |
+| `<LocalLeader>>` | Navigate to next plot |
+
+### Statusline Integration
+
+Add plot position to your statusline using the `ZzvimRPlotStatus()` function:
+
+```vim
+" Example: Add to your statusline
+set statusline+=%{ZzvimRPlotStatus()}
+
+" Returns: [Plot 3/7] when viewing plot 3 of 7
+" Returns: empty string when no plots in history
+```
+
+The status updates automatically when navigating plot history.
 
 ### Debug Information
 
@@ -391,6 +503,14 @@ Plot pane exists: 1
 | `set_plot_mode(mode)` | Set display mode |
 | `set_plot_align(align)` | Set alignment (Kitty only) |
 | `close_plot_pane()` | Close the plot pane |
+
+### Persistent History
+
+| Function | Description |
+|----------|-------------|
+| `plot_history_persistent()` | List all saved plots |
+| `plot_goto(name_or_id)` | Navigate to specific plot by name or ID |
+| `plot_search(pattern)` | Search plots by name or code |
 
 ## Architecture Overview
 
@@ -490,6 +610,59 @@ existing files, so stale plots don't display on startup. If this still occurs:
 1. Delete `.plots/` directory
 2. Restart R
 
+## Comparison with Other Tools
+
+### Plot Management: zzvim-R vs RStudio vs R.nvim
+
+| Feature | zzvim-R | RStudio | R.nvim |
+|---------|---------|---------|--------|
+| **Inline Display** | Kitty pane (terminal graphics) | Dedicated Plots panel | External device |
+| **Dual Resolution** | Yes (600x450 + 1800x1350) | No (single resolution) | No |
+| **Plot History** | Persistent w/ thumbnails | Session-based | None |
+| **History Navigation** | `plot_prev()`, `plot_next()`, gallery | Back/forward buttons | Manual |
+| **Search History** | `plot_search(pattern)` | No | No |
+| **Named Plots** | `plot_goto("scatter")` | No | No |
+| **Zoom** | Hi-res in separate window | Zoom panel | External |
+| **Export** | PNG, PDF | PNG, PDF, SVG, more | R functions |
+| **Pane Location** | Configurable (vsplit/hsplit/tab) | Fixed panel | N/A |
+| **Docker Support** | Full (volume-mounted .plots/) | Limited | None |
+| **Statusline** | `[Plot 3/7]` indicator | Tab count | None |
+
+### Advantages of zzvim-R Plot System
+
+1. **Dual-resolution rendering**: Each plot is rendered at both display size
+   (600x450) and export size (1800x1350) simultaneously, avoiding scaling
+   artifacts.
+
+2. **Persistent history with search**: Plots are saved to `.plots/history/`
+   with metadata, enabling search by name or code snippet even after R restarts.
+
+3. **Terminal-native display**: Plots appear directly in Kitty terminal panes
+   using the Kitty Graphics Protocol, eliminating context switches to external
+   windows.
+
+4. **Docker integration**: The `.plots/` directory is volume-mounted, enabling
+   seamless plot display from containerized R sessions.
+
+5. **Configurable layout**: Pane location (vsplit, hsplit, tab) adapts to
+   different screen sizes and workflows.
+
+### Advantages of RStudio
+
+1. **Integrated panel**: Plots panel is always visible without configuration.
+
+2. **More export formats**: Built-in export to SVG, EPS, and other formats.
+
+3. **Manipulate package**: Interactive plot customization for some plot types.
+
+4. **No terminal graphics requirement**: Works on any display.
+
+### Advantages of R.nvim
+
+1. **No special functions**: Uses standard R graphics devices.
+
+2. **Any graphics device**: Supports X11, quartz, or any R-supported device.
+
 ## Best Practices
 
 ### For Interactive Analysis
@@ -536,6 +709,7 @@ plot_to_pdf("figures/figure1.pdf")
 
 | Version | Date | Changes |
 |---------|------|---------|
+| v3 | Jan 2026 | Pane location options, gallery, navigation mappings, statusline |
 | v2 | Jan 2026 | Dual-resolution plots, signal-based watcher |
 | v1 | Aug 2025 | Initial release, single-resolution |
 
