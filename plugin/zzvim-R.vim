@@ -1710,6 +1710,7 @@ if !g:zzvim_r_disable_mappings
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>] :call <SID>ZoomPlotPane()<CR>
         " Plot navigation
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>G :RPlotGallery<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>T :RPlotThumbs<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>< :call <SID>PlotPrev()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>> :call <SID>PlotNext()<CR>
 
@@ -2308,6 +2309,112 @@ function! s:GallerySelectCurrent() abort
         call s:GallerySelect(str2nr(l:match))
     endif
 endfunction
+
+"------------------------------------------------------------------------------
+" Thumbnail Gallery (Kitty pane with visual thumbnails)
+"------------------------------------------------------------------------------
+" Opens a Kitty pane showing thumbnail images of plot history
+" User can press number keys to select a plot
+
+let s:thumb_pane_title = 'zzvim-thumbs'
+
+function! s:OpenThumbnailGallery() abort
+    let l:index_file = s:GetHistoryIndexFile()
+    if !filereadable(l:index_file)
+        call s:Error("No plot history found. Create plots with zzplot() first.")
+        return
+    endif
+
+    " Read and parse JSON
+    let l:json_content = join(readfile(l:index_file), '')
+    try
+        let l:index = json_decode(l:json_content)
+    catch
+        call s:Error("Failed to parse plot history: " . v:exception)
+        return
+    endtry
+
+    let l:plots = get(l:index, 'plots', [])
+    if empty(l:plots)
+        call s:Error("No plots in history")
+        return
+    endif
+
+    " Get history directory
+    let l:history_dir = s:GetPlotsPath('history')
+
+    " Build list of thumbnail files (most recent first, limit to 9)
+    let l:thumbs = []
+    let l:count = 0
+    for l:i in range(len(l:plots) - 1, 0, -1)
+        let l:plot = l:plots[l:i]
+        let l:thumb_file = l:history_dir . '/' . get(l:plot, 'thumb', '')
+        if filereadable(l:thumb_file)
+            call add(l:thumbs, {'file': l:thumb_file, 'name': get(l:plot, 'name', 'plot'), 'id': get(l:plot, 'id', 0)})
+            let l:count += 1
+            if l:count >= 9
+                break
+            endif
+        endif
+    endfor
+
+    if empty(l:thumbs)
+        call s:Error("No thumbnails found. Thumbnails require ImageMagick 'convert' command.")
+        return
+    endif
+
+    " Close existing thumbnail pane if present
+    call system('kitty @ close-window --match title:' . s:thumb_pane_title . ' 2>/dev/null')
+    sleep 50m
+
+    " Create shell script to display thumbnails in a grid
+    let l:script = '/tmp/zzvim_thumbs.sh'
+    let l:script_lines = [
+        \ '#!/bin/bash',
+        \ 'clear',
+        \ 'echo "╔══════════════════════════════════════════════════════════════════╗"',
+        \ 'echo "║                    Plot History Thumbnails                       ║"',
+        \ 'echo "║         Press 1-' . len(l:thumbs) . ' to select, q to close                         ║"',
+        \ 'echo "╚══════════════════════════════════════════════════════════════════╝"',
+        \ 'echo ""'
+        \ ]
+
+    " Add each thumbnail with its number
+    let l:num = 1
+    for l:thumb in l:thumbs
+        call add(l:script_lines, 'echo "[' . l:num . '] ' . l:thumb.name . ' (id:' . l:thumb.id . ')"')
+        call add(l:script_lines, 'kitty +kitten icat --align=left --place=200x150@0x0 ' . shellescape(l:thumb.file))
+        call add(l:script_lines, 'echo ""')
+        let l:num += 1
+    endfor
+
+    " Add input handling
+    call add(l:script_lines, 'echo ""')
+    call add(l:script_lines, 'echo "Select plot (1-' . len(l:thumbs) . ') or q to close:"')
+    call add(l:script_lines, 'while true; do')
+    call add(l:script_lines, '    read -n1 -s key')
+    call add(l:script_lines, '    case "$key" in')
+
+    " Add case for each thumbnail number
+    let l:num = 1
+    for l:thumb in l:thumbs
+        call add(l:script_lines, '        ' . l:num . ') echo "Selected: ' . l:thumb.name . '"; exit ' . l:thumb.id . ' ;;')
+        let l:num += 1
+    endfor
+
+    call add(l:script_lines, '        q|Q) exit 0 ;;')
+    call add(l:script_lines, '    esac')
+    call add(l:script_lines, 'done')
+
+    call writefile(l:script_lines, l:script)
+    call system('chmod +x ' . l:script)
+
+    " Launch the thumbnail pane
+    let l:cmd = 'kitty @ launch --location=vsplit --keep-focus --title ' . s:thumb_pane_title . ' ' . l:script
+    call system(l:cmd)
+endfunction
+
+command! -bar RPlotThumbs call s:OpenThumbnailGallery()
 
 "------------------------------------------------------------------------------
 " Statusline Integration
