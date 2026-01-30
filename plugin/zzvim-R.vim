@@ -1721,11 +1721,39 @@ if !g:zzvim_r_disable_mappings
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>a :call <SID>ROptionsHUD()<CR>
         " Unified HUD Dashboard - Open all HUD displays in tabs
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>0 :call <SID>RHUDDashboard()<CR>
-        " Open current plot in Preview
+
+        " ---------------------------------------------------------------------
+        " Plot Family: <LocalLeader>p + action
+        " ---------------------------------------------------------------------
+        " Zoom/View
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pz :call <SID>OpenDockerPlotInPreview()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pk :call <SID>ZoomPlotPane()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pv :call <SID>PlotSplit()<CR>
+        " Navigation
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pp :call <SID>PlotPrev()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pn :call <SID>PlotNext()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pg :call <SID>PlotGoto()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p/ :call <SID>PlotSearch()<CR>
+        " History
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>ph :call <SID>PlotHistory()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pH :call <SID>PlotHistoryPersistent()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pG :RPlotGallery<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pt :RPlotThumbs<CR>
+        " Save/Export
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>ps :call <SID>PlotSavePng()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pS :call <SID>PlotSavePdf()<CR>
+        " Configuration
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pm :call <SID>PlotSetMode()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pa :call <SID>PlotSetAlign()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pd :call <SID>PlotSetSize()<CR>
+        " Control
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pc :call <SID>PlotClose()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pr :call <SID>PlotRedisplay()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p? :call <SID>ShowPlotConfig()<CR>
+
+        " Legacy/shortcut mappings (kept for convenience)
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>[ :call <SID>OpenDockerPlotInPreview()<CR>
-        " Open hi-res plot in new Kitty window
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>] :call <SID>ZoomPlotPane()<CR>
-        " Plot navigation
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>G :RPlotGallery<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>T :RPlotThumbs<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>< :call <SID>PlotPrev()<CR>
@@ -2198,6 +2226,86 @@ endfunction
 
 function! s:PlotNext() abort
     call s:Send_to_r('plot_next()', 1)
+endfunction
+
+function! s:PlotHistory() abort
+    call s:Send_to_r('plot_history()', 1)
+endfunction
+
+function! s:PlotHistoryPersistent() abort
+    call s:Send_to_r('plot_history_persistent()', 1)
+endfunction
+
+function! s:PlotGoto() abort
+    let l:target = input('Plot ID or name: ')
+    if empty(l:target)
+        return
+    endif
+    if l:target =~# '^\d\+$'
+        call s:Send_to_r('plot_goto(' . l:target . ')', 1)
+    else
+        call s:Send_to_r('plot_goto("' . l:target . '")', 1)
+    endif
+endfunction
+
+function! s:PlotSearch() abort
+    let l:pattern = input('Search pattern: ')
+    if empty(l:pattern)
+        return
+    endif
+    call s:Send_to_r('plot_search("' . l:pattern . '")', 1)
+endfunction
+
+function! s:PlotSavePng() abort
+    let l:filename = input('Save PNG to: ', getcwd() . '/plot.png')
+    if empty(l:filename)
+        return
+    endif
+    call s:Send_to_r('save_plot("' . l:filename . '")', 1)
+endfunction
+
+function! s:PlotSavePdf() abort
+    let l:filename = input('Save PDF to: ', getcwd() . '/plot.pdf')
+    if empty(l:filename)
+        return
+    endif
+    call s:Send_to_r('plot_to_pdf("' . l:filename . '")', 1)
+endfunction
+
+function! s:PlotClose() abort
+    call s:Send_to_r('close_plot_pane()', 1)
+endfunction
+
+function! s:PlotSplit() abort
+    call s:Send_to_r('plot_split()', 1)
+endfunction
+
+function! s:PlotRedisplay() abort
+    call s:Send_to_r('plot_redisplay_if_resized()', 1)
+endfunction
+
+function! s:PlotSetMode() abort
+    let l:mode = input('Plot mode (pane/inline/auto): ', 'pane')
+    if empty(l:mode)
+        return
+    endif
+    call s:Send_to_r('set_plot_mode("' . l:mode . '")', 1)
+endfunction
+
+function! s:PlotSetAlign() abort
+    let l:align = input('Plot alignment (left/center/right): ', 'center')
+    if empty(l:align)
+        return
+    endif
+    call s:Send_to_r('set_plot_align("' . l:align . '")', 1)
+endfunction
+
+function! s:PlotSetSize() abort
+    let l:sw = input('Small width: ', '600')
+    let l:sh = input('Small height: ', '450')
+    let l:lw = input('Large width: ', '1200')
+    let l:lh = input('Large height: ', '900')
+    call s:Send_to_r('set_plot_size(' . l:sw . ', ' . l:sh . ', ' . l:lw . ', ' . l:lh . ')', 1)
 endfunction
 
 function! s:DebugPlotWatcher() abort
