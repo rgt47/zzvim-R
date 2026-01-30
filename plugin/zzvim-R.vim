@@ -2009,6 +2009,14 @@ function! s:GenerateCompositeImage() abort
         call insert(l:inputs, 'null:', 0)
     endwhile
 
+    " Create header image for thumbnail strip
+    let l:header_file = s:GetPlotsPath('.thumb_header.png')
+    let l:header_cmd = l:convert_cmd . ' -size 144x20 xc:"#333333" ' .
+        \ '-font Helvetica-Bold -pointsize 11 -fill "#CCCCCC" ' .
+        \ '-gravity center -annotate +0+0 "Plot History" ' .
+        \ shellescape(l:header_file)
+    call system(l:header_cmd)
+
     " Create 1x4 vertical grid with montage (thinner borders: +2+2)
     let l:montage_args = join(map(copy(l:inputs), 'shellescape(v:val)'), ' ')
     let l:montage_full = l:montage_cmd . ' ' . l:montage_args .
@@ -2021,7 +2029,7 @@ function! s:GenerateCompositeImage() abort
         return l:composite_file
     endif
 
-    " Add number labels to grid (bold yellow for visibility)
+    " Add number labels to grid
     let l:n_thumbs = len(l:thumb_4)
     let l:label_args = ''
     for l:i in range(1, min([l:n_thumbs, 4]))
@@ -2036,6 +2044,13 @@ function! s:GenerateCompositeImage() abort
             \ ' ' . shellescape(l:grid_file)
         call system(l:label_cmd)
     endif
+
+    " Stack header on top of grid
+    let l:grid_with_header = s:GetPlotsPath('.thumb_grid_header.png')
+    let l:stack_header_cmd = l:convert_cmd . ' ' . shellescape(l:header_file) . ' ' .
+        \ shellescape(l:grid_file) . ' -append ' . shellescape(l:grid_with_header)
+    call system(l:stack_header_cmd)
+    let l:grid_file = l:grid_with_header
 
     " Resize main plot 20% larger
     let l:resized_file = s:GetPlotsPath('.main_resized.png')
@@ -2170,7 +2185,7 @@ function! s:ForceDisplayDockerPlotFile(plot_file) abort
         \ 'done',
         \ ], l:script)
     call system('chmod +x ' . l:script)
-    call system('kitty @ launch --location=' . g:zzvim_r_plot_location . ' --title=' . s:pane_title . ' ' . l:script . ' &')
+    call system('kitty @ launch --location=' . g:zzvim_r_plot_location . ' --keep-focus --title=' . s:pane_title . ' ' . l:script . ' &')
 endfunction
 
 "------------------------------------------------------------------------------
@@ -2309,6 +2324,17 @@ function! s:DisplayDockerPlot() abort
 
     " Lock to prevent race conditions
     let s:plot_display_in_progress = 1
+
+    " If window mode is ON, generate and display composite instead
+    if s:plot_window_mode
+        let l:composite = s:GenerateCompositeImage()
+        if l:composite != '' && filereadable(l:composite)
+            call s:ForceDisplayDockerPlotFile(l:composite)
+        endif
+        call timer_start(200, {-> execute('let s:plot_display_in_progress = 0')})
+        call timer_start(300, {-> s:RefreshPlotStatus()})
+        return
+    endif
 
     " Try to refresh existing pane first (flicker-free)
     if s:RefreshPlotInPane(l:plot_file)
