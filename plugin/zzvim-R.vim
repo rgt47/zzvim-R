@@ -517,7 +517,12 @@ function! s:OpenLocalRTerminalVanilla(...) abort
         return -1
     endif
 
-    execute 'vertical term R --vanilla'
+    " Use term_start() with exit_cb to detect when R terminal closes
+    let l:term_opts = {
+        \ 'vertical': 1,
+        \ 'exit_cb': function('s:RTerminalExitCallback')
+        \ }
+    call term_start(['R', '--vanilla'], l:term_opts)
     return s:ConfigureTerminal(terminal_name, 0)
 endfunction
 
@@ -1740,20 +1745,12 @@ if !g:zzvim_r_disable_mappings
     augroup END
 
     " Clean up plot pane when R terminal closes or buffer is deleted
+    " Primary cleanup: exit_cb in term_start() (see RTerminalExitCallback)
+    " Fallback cleanup: BufWipeout/BufDelete for edge cases
     augroup zzvim_PlotCleanup
         autocmd!
         autocmd BufWipeout,BufDelete * call s:CleanupPlotPaneIfRTerminal()
     augroup END
-    " TermClose for Vim 8.1+ and Neovim - clean up plot pane when terminal closes
-    " Use try-catch in case TermClose event is not available
-    try
-        augroup zzvim_PlotCleanupTermClose
-            autocmd!
-            autocmd TermClose * call s:CleanupPlotPaneOnTermClose()
-        augroup END
-    catch
-        " TermClose not available - rely on BufDelete/BufWipeout instead
-    endtry
 
     " Equalize vim window sizes when kitty pane is resized
     augroup zzvim_WindowResize
@@ -1773,16 +1770,6 @@ function! s:OnDockerRTerminalClose() abort
     call system('kitty @ close-window --match title:zzvim-plot 2>/dev/null')
     " Clear the tracked terminal
     let s:docker_r_terminal_bufnr = -1
-endfunction
-
-" Called on TermClose event - check if it's our Docker R terminal
-function! s:CleanupPlotPaneOnTermClose() abort
-    let l:closed_bufnr = str2nr(expand('<abuf>'))
-    let l:bufname = bufname(l:closed_bufnr)
-    " Check by buffer number OR by name pattern (R terminal names)
-    if l:closed_bufnr == s:docker_r_terminal_bufnr || l:bufname =~? 'R-\|R-test_plot\|make r'
-        call s:OnDockerRTerminalClose()
-    endif
 endfunction
 
 function! s:CleanupPlotPaneIfRTerminal() abort
