@@ -693,6 +693,19 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
     for (m in matches) {
       cat(sprintf("  [%d] %s - %s\n", m$id, m$name, m$created))
     }
+
+    # Display the first match
+    first_match <- matches[[1]]
+    file <- file.path(.get_history_dir(), first_match$file)
+    if (file.exists(file)) {
+      .GlobalEnv$.display_plot(file)
+      cat(sprintf("\nShowing: [%d] %s\n", first_match$id, first_match$name))
+
+      # Update current index
+      index$current_index <- first_match$id
+      .write_history_index(index)
+    }
+
     invisible(matches)
   }
 
