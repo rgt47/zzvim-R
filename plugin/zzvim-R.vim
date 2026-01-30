@@ -1763,7 +1763,9 @@ endfunction
 " Called on TermClose event - check if it's our Docker R terminal
 function! s:CleanupPlotPaneOnTermClose() abort
     let l:closed_bufnr = str2nr(expand('<abuf>'))
-    if l:closed_bufnr == s:docker_r_terminal_bufnr
+    let l:bufname = bufname(l:closed_bufnr)
+    " Check by buffer number OR by name pattern (R terminal names)
+    if l:closed_bufnr == s:docker_r_terminal_bufnr || l:bufname =~? 'R-\|R-test_plot\|make r'
         call s:OnDockerRTerminalClose()
     endif
 endfunction
