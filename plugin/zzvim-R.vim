@@ -2314,7 +2314,7 @@ endfunction
 " Thumbnail Gallery (Kitty pane with visual thumbnails)
 "------------------------------------------------------------------------------
 " Opens a Kitty pane showing thumbnail images of plot history
-" User can press number keys to select a plot
+" Creates a montage image with ImageMagick and displays it
 
 let s:thumb_pane_title = 'zzvim-thumbs'
 
@@ -2322,6 +2322,12 @@ function! s:OpenThumbnailGallery() abort
     let l:index_file = s:GetHistoryIndexFile()
     if !filereadable(l:index_file)
         call s:Error("No plot history found. Create plots with zzplot() first.")
+        return
+    endif
+
+    " Check for ImageMagick montage command
+    if system('which montage') == ''
+        call s:Error("ImageMagick 'montage' command required for thumbnail gallery")
         return
     endif
 
@@ -2367,38 +2373,37 @@ function! s:OpenThumbnailGallery() abort
     call system('kitty @ close-window --match title:' . s:thumb_pane_title . ' 2>/dev/null')
     sleep 50m
 
-    " Create shell script to display thumbnails in a grid
+    " Create montage image with labels
+    let l:montage_file = '/tmp/zzvim_montage.png'
+    let l:montage_cmd = 'montage -label ""'
+    let l:num = 1
+    for l:thumb in l:thumbs
+        " Add label with number and name
+        let l:label = l:num . ': ' . l:thumb.name
+        let l:montage_cmd .= ' -label ' . shellescape(l:label) . ' ' . shellescape(l:thumb.file)
+        let l:num += 1
+    endfor
+    " 3 columns, with spacing and border
+    let l:montage_cmd .= ' -tile 3x -geometry 200x150+5+5 -background "#1e1e2e" -fill white ' . shellescape(l:montage_file)
+    call system(l:montage_cmd)
+
+    " Create shell script to display montage and handle input
     let l:script = '/tmp/zzvim_thumbs.sh'
     let l:script_lines = [
         \ '#!/bin/bash',
         \ 'clear',
-        \ 'echo "╔══════════════════════════════════════════════════════════════════╗"',
-        \ 'echo "║                    Plot History Thumbnails                       ║"',
-        \ 'echo "║         Press 1-' . len(l:thumbs) . ' to select, q to close                         ║"',
-        \ 'echo "╚══════════════════════════════════════════════════════════════════╝"',
-        \ 'echo ""'
+        \ 'kitty +kitten icat --align=left ' . shellescape(l:montage_file),
+        \ 'echo ""',
+        \ 'echo "Press 1-' . len(l:thumbs) . ' to select plot, q to close"',
+        \ 'while true; do',
+        \ '    read -n1 -s key',
+        \ '    case "$key" in'
         \ ]
 
-    " Add each thumbnail with its number
+    " Add case for each thumbnail number - send plot_goto to R
     let l:num = 1
     for l:thumb in l:thumbs
-        call add(l:script_lines, 'echo "[' . l:num . '] ' . l:thumb.name . ' (id:' . l:thumb.id . ')"')
-        call add(l:script_lines, 'kitty +kitten icat --align=left --place=200x150@0x0 ' . shellescape(l:thumb.file))
-        call add(l:script_lines, 'echo ""')
-        let l:num += 1
-    endfor
-
-    " Add input handling
-    call add(l:script_lines, 'echo ""')
-    call add(l:script_lines, 'echo "Select plot (1-' . len(l:thumbs) . ') or q to close:"')
-    call add(l:script_lines, 'while true; do')
-    call add(l:script_lines, '    read -n1 -s key')
-    call add(l:script_lines, '    case "$key" in')
-
-    " Add case for each thumbnail number
-    let l:num = 1
-    for l:thumb in l:thumbs
-        call add(l:script_lines, '        ' . l:num . ') echo "Selected: ' . l:thumb.name . '"; exit ' . l:thumb.id . ' ;;')
+        call add(l:script_lines, '        ' . l:num . ') echo "' . l:thumb.name . '"; exit ' . l:thumb.id . ' ;;')
         let l:num += 1
     endfor
 
