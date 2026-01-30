@@ -2453,16 +2453,17 @@ function! s:CheckThumbSelection(timer) abort
                 let l:item = s:thumb_gallery_items[l:selection - 1]
                 let l:plot_file = l:item.plot
 
-                " Copy to current.png and display via the plot pane
+                " Copy to current.png for display
                 let l:current_file = s:GetPlotFile()
                 call system('cp ' . shellescape(l:plot_file) . ' ' . shellescape(l:current_file))
 
-                " Touch signal file to trigger display
+                " Update signal file to trigger watcher
                 let l:signal_file = s:GetSignalFile()
                 call writefile([string(localtime())], l:signal_file)
 
-                " Force refresh the plot pane
-                call s:ForceDisplayDockerPlot()
+                " Reset cached mtime so watcher will detect the change
+                let s:plot_signal_mtime = 0
+
                 echom "Displaying: " . l:item.name
             endif
         endif
