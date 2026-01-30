@@ -1509,7 +1509,8 @@ function! s:GetCodeBlock() abort
     elseif block_type == 'bracket'
         let open_char = '['
         let close_char = ']'
-    else  " block_type == 'paren'
+    else
+        " block_type == 'paren'
         let open_char = '('
         let close_char = ')'
     endif
@@ -1543,7 +1544,8 @@ function! s:GetCodeBlock() abort
         " (prevents false positive on lines with no characters)
         if char_count == 0 && (open_chars > 0 || close_chars > 0)
             let end_line = line_num
-            break  " Exit loop - block boundary found
+            " Exit loop - block boundary found
+            break
         endif
     endfor
     
@@ -2341,7 +2343,8 @@ function! s:UpdatePlotStatus() abort
     " Check if file has changed since last read (mtime caching)
     let l:mtime = getftime(l:index_file)
     if l:mtime == s:plot_status_mtime
-        return  " No change, skip re-reading
+        " No change, skip re-reading
+        return
     endif
     let s:plot_status_mtime = l:mtime
 
