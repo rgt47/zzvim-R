@@ -2133,17 +2133,17 @@ function! s:PlotWindowSelectVim(n) abort
 endfunction
 
 " Helper to display a specific file (used by window mode)
+" Always creates/updates pane with the specified file (doesn't just refresh)
 function! s:ForceDisplayDockerPlotFile(plot_file) abort
     if !filereadable(a:plot_file)
         return
     endif
 
-    " Try to refresh existing pane
-    if s:RefreshPlotInPane(a:plot_file)
-        return
-    endif
+    " Close existing pane first (we need to show a different file)
+    call system('kitty @ close-window --match title:' . s:pane_title . ' 2>/dev/null')
+    sleep 100m
 
-    " Create new pane
+    " Create new pane with the specified file
     let l:script = '/tmp/zzvim_plot_show.sh'
     let l:size_str = g:zzvim_r_plot_width_small . 'x' . g:zzvim_r_plot_height_small
     call writefile([
