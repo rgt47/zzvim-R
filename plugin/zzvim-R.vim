@@ -1916,8 +1916,8 @@ let s:pane_title = 'zzvim-plot'
 
 " Check if plot pane already exists
 function! s:PlotPaneExists() abort
-    let l:check = system('kitty @ ls 2>/dev/null | grep -q "' . s:pane_title . '" && echo 1 || echo 0')
-    return str2nr(trim(l:check)) == 1
+    let l:result = system('kitty @ ls 2>/dev/null')
+    return l:result =~# s:pane_title
 endfunction
 
 " Refresh plot in existing pane (no flicker) or create new pane
