@@ -1923,12 +1923,9 @@ endfunction
 " Refresh plot in existing pane (no flicker) or create new pane
 function! s:RefreshPlotInPane(plot_file) abort
     if s:PlotPaneExists()
-        " Pane exists - send command to refresh in-place (no flicker)
-        " Send Ctrl+C to interrupt any waiting read, then refresh
-        call system('kitty @ send-text --match title:' . s:pane_title . " $'\\x03' 2>/dev/null")
-        sleep 50m
-        " Send 'r' to trigger refresh in the running script
-        call system('kitty @ send-text --match title:' . s:pane_title . " 'r' 2>/dev/null")
+        " Pane exists - send 'r' to trigger refresh in the running script
+        " The script uses 'read -n1 -s' which accepts single char immediately
+        call system('kitty @ send-text --match title:' . s:pane_title . " r 2>/dev/null")
         return 1
     endif
     return 0
