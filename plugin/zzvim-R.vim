@@ -2131,11 +2131,37 @@ function! s:ForceDisplayDockerPlot() abort
     call system('kitty @ close-window --match title:' . s:pane_title . ' 2>/dev/null')
     sleep 50m
 
-    " Launch new pane with the plot (to the right via --location=neighbor)
-    let l:sh_cmd = 'clear && kitty +kitten icat --scale-up --align=center ' . shellescape(l:plot_file) . ' && echo "Press Enter to close" && read'
-    let l:cmd = 'kitty @ launch --location=neighbor --keep-focus --title ' . s:pane_title . ' -- sh -c ' . shellescape(l:sh_cmd)
+    " Create the same refresh-capable script used by DisplayDockerPlot
+    let l:script = '/tmp/zzvim_plot_show.sh'
+    let l:size_str = g:zzvim_r_plot_width_small . 'x' . g:zzvim_r_plot_height_small
+    call writefile([
+        \ '#!/bin/bash',
+        \ 'PLOT_FILE="' . l:plot_file . '"',
+        \ 'show_plot() {',
+        \ '    clear',
+        \ '    kitty +kitten icat --clear --align=left "$PLOT_FILE"',
+        \ '    echo ""',
+        \ '    echo "Plot ' . l:size_str . ' | r=refresh | q=close"',
+        \ '}',
+        \ 'show_plot',
+        \ 'while true; do',
+        \ '    read -n1 -s key',
+        \ '    case "$key" in',
+        \ '        r|R) show_plot ;;',
+        \ '        q|Q|"") exit 0 ;;',
+        \ '    esac',
+        \ 'done'
+        \ ], l:script)
+    call system('chmod +x ' . l:script)
+
+    " Launch the plot pane with refresh-capable script
+    let l:location = g:zzvim_r_plot_location
+    if l:location == 'tab'
+        call system('kitty @ launch --type=tab --keep-focus --title ' . s:pane_title . ' ' . l:script . ' 2>/dev/null')
+    else
+        call system('kitty @ launch --location=' . l:location . ' --keep-focus --title ' . s:pane_title . ' ' . l:script . ' 2>/dev/null')
+    endif
     echom "Launching plot pane"
-    call system(l:cmd)
 
     " Update mtime cache (use same variable as DisplayDockerPlot)
     let s:plot_signal_mtime = getftime(l:plot_file)
