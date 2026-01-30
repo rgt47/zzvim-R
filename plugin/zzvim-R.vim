@@ -1837,6 +1837,7 @@ endfunction
 let s:plot_signal_mtime = 0
 let s:plots_dir_cache = ''
 let s:plots_dir_cwd = ''
+let s:plot_window_mode = 0
 
 " Centralized path helper for .plots/ directory and subpaths
 " Caches result to avoid repeated filesystem lookups in hot polling path
@@ -1881,6 +1882,244 @@ endfunction
 
 function! s:GetHistoryIndexFile() abort
     return s:GetPlotsPath('history/index.json')
+endfunction
+
+function! s:GetCompositeFile() abort
+    return s:GetPlotsPath('composite.png')
+endfunction
+
+function! s:GetHistoryDir() abort
+    return s:GetPlotsPath('history')
+endfunction
+
+"------------------------------------------------------------------------------
+" Plot Window Mode (Composite: Main + 3x3 Grid)
+"------------------------------------------------------------------------------
+" Generates composite on host side using ImageMagick (works with Docker R)
+
+function! s:GenerateCompositeImage() abort
+    if !executable('magick') && !executable('convert')
+        echom "ImageMagick required for plot window mode"
+        return ''
+    endif
+
+    let l:convert_cmd = executable('magick') ? 'magick' : 'convert'
+    let l:montage_cmd = executable('magick') ? 'magick montage' : 'montage'
+
+    let l:plots_dir = s:GetPlotsDir()
+    let l:history_dir = s:GetHistoryDir()
+    let l:composite_file = s:GetCompositeFile()
+    let l:current_file = s:GetPlotFile()
+    let l:grid_file = s:GetPlotsPath('.thumb_grid.png')
+
+    if !filereadable(l:current_file)
+        return ''
+    endif
+
+    " Read history index
+    let l:index_file = s:GetHistoryIndexFile()
+    if !filereadable(l:index_file)
+        " No history - just copy current
+        call system('cp ' . shellescape(l:current_file) . ' ' . shellescape(l:composite_file))
+        return l:composite_file
+    endif
+
+    let l:json_content = join(readfile(l:index_file), '')
+    try
+        let l:index = json_decode(l:json_content)
+    catch
+        call system('cp ' . shellescape(l:current_file) . ' ' . shellescape(l:composite_file))
+        return l:composite_file
+    endtry
+
+    if !has_key(l:index, 'plots') || len(l:index.plots) == 0
+        call system('cp ' . shellescape(l:current_file) . ' ' . shellescape(l:composite_file))
+        return l:composite_file
+    endif
+
+    " Get last 9 plots
+    let l:all_plots = l:index.plots
+    let l:start_idx = max([0, len(l:all_plots) - 9])
+    let l:recent_9 = l:all_plots[l:start_idx:]
+
+    " Build list of thumbnail files
+    let l:thumb_files = []
+    for l:p in l:recent_9
+        let l:f = l:history_dir . '/' . l:p.file
+        if filereadable(l:f)
+            call add(l:thumb_files, l:f)
+        endif
+    endfor
+
+    if len(l:thumb_files) == 0
+        call system('cp ' . shellescape(l:current_file) . ' ' . shellescape(l:composite_file))
+        return l:composite_file
+    endif
+
+    " Pad with null: if less than 9
+    let l:inputs = copy(l:thumb_files)
+    while len(l:inputs) < 9
+        call add(l:inputs, 'null:')
+    endwhile
+
+    " Create 3x3 grid with montage
+    let l:montage_args = join(map(copy(l:inputs), 'shellescape(v:val)'), ' ')
+    let l:montage_full = l:montage_cmd . ' ' . l:montage_args .
+        \ ' -tile 3x3 -geometry 180x135+4+4 -background "#333333" ' .
+        \ shellescape(l:grid_file)
+    call system(l:montage_full)
+
+    if !filereadable(l:grid_file)
+        call system('cp ' . shellescape(l:current_file) . ' ' . shellescape(l:composite_file))
+        return l:composite_file
+    endif
+
+    " Add number labels to grid
+    let l:n_thumbs = len(l:thumb_files)
+    let l:label_args = ''
+    for l:i in range(1, min([l:n_thumbs, 9]))
+        let l:col = (l:i - 1) % 3
+        let l:row = (l:i - 1) / 3
+        let l:x = l:col * 188 + 8
+        let l:y = l:row * 143 + 20
+        let l:label_args .= ' -annotate +' . l:x . '+' . l:y . " '" . l:i . "'"
+    endfor
+
+    if l:label_args != ''
+        let l:label_cmd = l:convert_cmd . ' ' . shellescape(l:grid_file) .
+            \ ' -font Helvetica -pointsize 14 -fill white' . l:label_args .
+            \ ' ' . shellescape(l:grid_file)
+        call system(l:label_cmd)
+    endif
+
+    " Stack current plot on top of grid
+    let l:stack_cmd = l:convert_cmd . ' ' . shellescape(l:current_file) . ' ' .
+        \ shellescape(l:grid_file) . ' -append ' . shellescape(l:composite_file)
+    call system(l:stack_cmd)
+
+    if filereadable(l:composite_file)
+        return l:composite_file
+    endif
+    return ''
+endfunction
+
+function! s:PlotWindowToggleVim() abort
+    let s:plot_window_mode = !s:plot_window_mode
+    if s:plot_window_mode
+        echo "Plot window mode: ON (main + 3x3 grid)"
+        " Generate and display composite immediately
+        let l:composite = s:GenerateCompositeImage()
+        if l:composite != '' && filereadable(l:composite)
+            call s:ForceDisplayDockerPlotFile(l:composite)
+        endif
+    else
+        echo "Plot window mode: OFF"
+        " Display normal plot
+        let l:plot_file = s:GetPlotFile()
+        if filereadable(l:plot_file)
+            call s:ForceDisplayDockerPlotFile(l:plot_file)
+        endif
+    endif
+endfunction
+
+function! s:PlotWindowSelectVim(n) abort
+    if a:n < 1 || a:n > 9
+        echo "Select 1-9"
+        return
+    endif
+
+    let l:index_file = s:GetHistoryIndexFile()
+    if !filereadable(l:index_file)
+        echo "No plot history"
+        return
+    endif
+
+    let l:json_content = join(readfile(l:index_file), '')
+    try
+        let l:index = json_decode(l:json_content)
+    catch
+        echo "Error reading history"
+        return
+    endtry
+
+    if !has_key(l:index, 'plots') || len(l:index.plots) == 0
+        echo "No plots in history"
+        return
+    endif
+
+    let l:all_plots = l:index.plots
+    let l:start_idx = max([0, len(l:all_plots) - 9])
+    let l:recent_9 = l:all_plots[l:start_idx:]
+
+    if a:n > len(l:recent_9)
+        echo "Only " . len(l:recent_9) . " plots available"
+        return
+    endif
+
+    let l:selected = l:recent_9[a:n - 1]
+    let l:history_dir = s:GetHistoryDir()
+    let l:plot_file = l:history_dir . '/' . l:selected.file
+
+    if !filereadable(l:plot_file)
+        echo "Plot file not found"
+        return
+    endif
+
+    " Copy selected to current.png
+    let l:current_file = s:GetPlotFile()
+    call system('cp ' . shellescape(l:plot_file) . ' ' . shellescape(l:current_file))
+
+    echo "Selected plot " . a:n . ": " . l:selected.name
+
+    " Display (composite if window mode, otherwise plain)
+    if s:plot_window_mode
+        let l:composite = s:GenerateCompositeImage()
+        if l:composite != '' && filereadable(l:composite)
+            call s:ForceDisplayDockerPlotFile(l:composite)
+        endif
+    else
+        call s:ForceDisplayDockerPlotFile(l:current_file)
+    endif
+
+    " Touch signal file to sync state
+    let l:signal_file = s:GetSignalFile()
+    call writefile([localtime()], l:signal_file)
+endfunction
+
+" Helper to display a specific file (used by window mode)
+function! s:ForceDisplayDockerPlotFile(plot_file) abort
+    if !filereadable(a:plot_file)
+        return
+    endif
+
+    " Try to refresh existing pane
+    if s:RefreshPlotInPane(a:plot_file)
+        return
+    endif
+
+    " Create new pane
+    let l:script = '/tmp/zzvim_plot_show.sh'
+    let l:size_str = g:zzvim_r_plot_width_small . 'x' . g:zzvim_r_plot_height_small
+    call writefile([
+        \ '#!/bin/bash',
+        \ 'PLOT_FILE="' . a:plot_file . '"',
+        \ 'show_plot() {',
+        \ '    clear',
+        \ '    kitty +kitten icat --clear --align=left "$PLOT_FILE"',
+        \ '    echo ""',
+        \ '    echo "Plot ' . l:size_str . ' | r=refresh | q=close"',
+        \ '}',
+        \ 'show_plot',
+        \ 'while true; do',
+        \ '    read -n1 -s key',
+        \ '    case "$key" in',
+        \ '        r|R) show_plot ;;',
+        \ '        q|Q|"") exit 0 ;;',
+        \ '    esac',
+        \ 'done',
+        \ ], l:script)
+    call system('chmod +x ' . l:script)
+    call system('kitty @ launch --location=' . g:zzvim_r_plot_location . ' --title=' . s:pane_title . ' ' . l:script . ' &')
 endfunction
 
 "------------------------------------------------------------------------------
