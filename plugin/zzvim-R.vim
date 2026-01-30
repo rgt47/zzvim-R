@@ -3253,6 +3253,8 @@ function! s:GenerateZoomComposite(main_file) abort
     return ''
 endfunction
 
+let s:zoom_selection_made = 0
+
 function! s:CheckZoomSelection(timer) abort
     " Check if zoom window still exists
     let l:result = system('kitty @ ls 2>/dev/null')
@@ -3260,6 +3262,11 @@ function! s:CheckZoomSelection(timer) abort
         call timer_stop(a:timer)
         if exists('s:zoom_selection_file')
             call delete(s:zoom_selection_file)
+        endif
+        " Refresh plot pane if a selection was made during zoom
+        if s:zoom_selection_made
+            let s:zoom_selection_made = 0
+            call s:RefreshPlotPaneAfterZoom()
         endif
         return
     endif
@@ -3272,7 +3279,26 @@ function! s:CheckZoomSelection(timer) abort
         if l:selection >= 1 && l:selection <= 8
             " Select the plot and regenerate composite
             call s:ZoomSelectPlot(l:selection)
+            let s:zoom_selection_made = 1
         endif
+    endif
+endfunction
+
+" Refresh plot pane after zoom selection
+function! s:RefreshPlotPaneAfterZoom() abort
+    if !s:PlotPaneExists()
+        return
+    endif
+
+    " If window mode, regenerate composite and display
+    if s:plot_window_mode
+        let l:composite = s:GenerateCompositeImage()
+        if l:composite != '' && filereadable(l:composite)
+            call s:ForceDisplayDockerPlotFile(l:composite)
+        endif
+    else
+        " Normal mode - just refresh with current.png
+        call system('kitty @ send-text --match title:' . s:pane_title . " r 2>/dev/null")
     endif
 endfunction
 

@@ -56,6 +56,9 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
   assign(".plot_history", list(), envir = .GlobalEnv)
   assign(".plot_history_idx", 0, envir = .GlobalEnv)
 
+  # Title size multiplier for zzplot/zzggplot (1.5 = 50% larger)
+  options(zzvim.title.cex = 1.5)
+
   # ========================================================================
   # Unified Config Reader (reads from Vim-written .plots/.config.json)
   # ========================================================================
@@ -315,6 +318,7 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
   # Generates both small (for pane) and large (for zoom) versions
   # .name: optional name for persistent history
   # .save: whether to save to persistent history (default TRUE)
+  # Uses options("zzvim.title.cex") for title size (default 1.5)
   zzplot <- function(..., .name = NULL, .save = TRUE) {
     # Clean up old files
     pf <- get(".plot_file", envir = .GlobalEnv)
@@ -322,8 +326,11 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
     pf_hires <- get(".plot_file_hires", envir = .GlobalEnv)
     if (!is.null(pf_hires) && file.exists(pf_hires)) unlink(pf_hires)
 
+    # Get title size from global option
+    title_cex <- getOption("zzvim.title.cex", 1.5)
+
     # Capture the plot call for re-evaluation and history
-    plot_call <- substitute(plot(...))
+    plot_call <- substitute(plot(..., cex.main = title_cex))
     code_str <- deparse(plot_call, width.cutoff = 500)
     code_str <- paste(code_str, collapse = " ")
 
@@ -351,6 +358,7 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
   # Generates both small (for pane) and large (for zoom) versions
   # .name: optional name for persistent history
   # .save: whether to save to persistent history (default TRUE)
+  # Uses options("zzvim.title.cex") for title size (default 1.5)
   zzggplot <- function(p, .name = NULL, .save = TRUE) {
     # Clean up old files
     pf <- get(".plot_file", envir = .GlobalEnv)
@@ -361,6 +369,13 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
     # Capture code for history
     code_str <- deparse(substitute(p), width.cutoff = 500)
     code_str <- paste(code_str, collapse = " ")
+
+    # Get title size from global option and apply to ggplot theme
+    title_cex <- getOption("zzvim.title.cex", 1.5)
+    base_size <- 11
+    p <- p + ggplot2::theme(plot.title = ggplot2::element_text(
+      size = base_size * title_cex
+    ))
 
     # Render small version (for pane display)
     .create_plot_device_at_size("small")
