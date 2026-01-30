@@ -2182,6 +2182,7 @@ endfunction
 
 " Helper to display a specific file (used by window mode)
 " Always creates/updates pane with the specified file (doesn't just refresh)
+" In window mode, watches composite.png for changes and auto-refreshes
 function! s:ForceDisplayDockerPlotFile(plot_file) abort
     if !filereadable(a:plot_file)
         return
@@ -2193,7 +2194,6 @@ function! s:ForceDisplayDockerPlotFile(plot_file) abort
 
     " Create new pane with the specified file
     let l:script = '/tmp/zzvim_plot_show.sh'
-    let l:size_str = g:zzvim_r_plot_width_small . 'x' . g:zzvim_r_plot_height_small
     call writefile([
         \ '#!/bin/bash',
         \ 'PLOT_FILE="' . a:plot_file . '"',
@@ -2201,7 +2201,7 @@ function! s:ForceDisplayDockerPlotFile(plot_file) abort
         \ '    clear',
         \ '    kitty +kitten icat --clear --align=left "$PLOT_FILE"',
         \ '    echo ""',
-        \ '    echo "Plot ' . l:size_str . ' | r=refresh | q=close"',
+        \ '    echo "r=refresh | q=close"',
         \ '}',
         \ 'show_plot',
         \ 'while true; do',
