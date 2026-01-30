@@ -2355,8 +2355,14 @@ function! s:OpenThumbnailGallery() abort
     for l:i in range(len(l:plots) - 1, 0, -1)
         let l:plot = l:plots[l:i]
         let l:thumb_file = l:history_dir . '/' . get(l:plot, 'thumb', '')
-        if filereadable(l:thumb_file)
-            call add(l:thumbs, {'file': l:thumb_file, 'name': get(l:plot, 'name', 'plot'), 'id': get(l:plot, 'id', 0)})
+        let l:plot_file = l:history_dir . '/' . get(l:plot, 'file', '')
+        if filereadable(l:thumb_file) && filereadable(l:plot_file)
+            call add(l:thumbs, {
+                \ 'thumb': l:thumb_file,
+                \ 'plot': l:plot_file,
+                \ 'name': get(l:plot, 'name', 'plot'),
+                \ 'id': get(l:plot, 'id', 0)
+                \ })
             let l:count += 1
             if l:count >= 9
                 break
@@ -2373,6 +2379,9 @@ function! s:OpenThumbnailGallery() abort
     call system('kitty @ close-window --match title:' . s:thumb_pane_title . ' 2>/dev/null')
     sleep 50m
 
+    " Store thumbs for selection callback
+    let s:thumb_gallery_items = l:thumbs
+
     " Create montage image with labels
     let l:montage_file = '/tmp/zzvim_montage.png'
     let l:montage_cmd = 'montage -label ""'
@@ -2380,7 +2389,7 @@ function! s:OpenThumbnailGallery() abort
     for l:thumb in l:thumbs
         " Add label with number and name
         let l:label = l:num . ': ' . l:thumb.name
-        let l:montage_cmd .= ' -label ' . shellescape(l:label) . ' ' . shellescape(l:thumb.file)
+        let l:montage_cmd .= ' -label ' . shellescape(l:label) . ' ' . shellescape(l:thumb.thumb)
         let l:num += 1
     endfor
     " 3 columns, with spacing and border
@@ -2405,10 +2414,10 @@ function! s:OpenThumbnailGallery() abort
         \ '    case "$key" in'
         \ ]
 
-    " Add case for each thumbnail number - write selection to file
+    " Add case for each thumbnail number - write display number to file
     let l:num = 1
     for l:thumb in l:thumbs
-        call add(l:script_lines, '        ' . l:num . ') echo "' . l:thumb.id . '" > "$SELECTION_FILE"; exit 0 ;;')
+        call add(l:script_lines, '        ' . l:num . ') echo "' . l:num . '" > "$SELECTION_FILE"; exit 0 ;;')
         let l:num += 1
     endfor
 
@@ -2437,12 +2446,24 @@ function! s:CheckThumbSelection(timer) abort
         call timer_stop(a:timer)
 
         if filereadable(s:thumb_selection_file)
-            let l:selection = trim(join(readfile(s:thumb_selection_file), ''))
+            let l:selection = str2nr(trim(join(readfile(s:thumb_selection_file), '')))
             call delete(s:thumb_selection_file)
-            if !empty(l:selection)
-                " Send plot_goto to R
-                call s:Send_to_r('plot_goto(' . l:selection . ')', 1)
-                echom "Displaying plot id: " . l:selection
+            if l:selection > 0 && l:selection <= len(s:thumb_gallery_items)
+                " Get the plot file from our stored mapping (1-indexed)
+                let l:item = s:thumb_gallery_items[l:selection - 1]
+                let l:plot_file = l:item.plot
+
+                " Copy to current.png and display via the plot pane
+                let l:current_file = s:GetPlotFile()
+                call system('cp ' . shellescape(l:plot_file) . ' ' . shellescape(l:current_file))
+
+                " Touch signal file to trigger display
+                let l:signal_file = s:GetSignalFile()
+                call writefile([string(localtime())], l:signal_file)
+
+                " Force refresh the plot pane
+                call s:ForceDisplayDockerPlot()
+                echom "Displaying: " . l:item.name
             endif
         endif
     endif
