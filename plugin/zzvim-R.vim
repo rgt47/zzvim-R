@@ -2210,6 +2210,7 @@ function! s:DebugPlotWatcher() abort
     echo "Plot pane exists: " . s:PlotPaneExists()
     echo "  Pane title: " . s:pane_title
     echo ""
+    echo "Docker R terminal bufnr: " . s:docker_r_terminal_bufnr
     echo "Adaptive polling: " . s:poll_current . "ms (fast=" . s:poll_fast . ", slow=" . s:poll_slow . ")"
     echo "Plots dir cache: " . s:plots_dir_cache
 endfunction
