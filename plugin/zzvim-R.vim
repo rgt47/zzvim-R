@@ -495,7 +495,14 @@ function! s:OpenLocalRTerminal(...) abort
         return -1
     endif
 
-    execute 'vertical term ' . g:zzvim_r_command
+    " Use term_start() with exit_cb to detect when R terminal closes
+    let l:term_opts = {
+        \ 'vertical': 1,
+        \ 'exit_cb': function('s:RTerminalExitCallback')
+        \ }
+    " Split the command into list for term_start()
+    let l:cmd_parts = split(g:zzvim_r_command)
+    call term_start(l:cmd_parts, l:term_opts)
     return s:ConfigureTerminal(terminal_name, 0)
 endfunction
 
@@ -554,7 +561,12 @@ function! s:OpenDockerRTerminal(...) abort
             return -1
         endif
         " Use 'mr r' shell function which finds Makefile from subdirectories
-        execute 'vertical term zsh -ic "mr r"'
+        " Use term_start() with exit_cb to detect when R terminal closes
+        let l:term_opts = {
+            \ 'vertical': 1,
+            \ 'exit_cb': function('s:RTerminalExitCallback')
+            \ }
+        call term_start(['zsh', '-ic', 'mr r'], l:term_opts)
         return s:ConfigureTerminal(terminal_name, 1)
     else
         " Not a zzcollab project - fall back to local R
@@ -1780,6 +1792,13 @@ function! s:CleanupPlotPaneIfRTerminal() abort
     if l:bufname =~? 'R-\|r-\|R$\|!/.*R\|terminal.*R'
         call s:OnDockerRTerminalClose()
     endif
+endfunction
+
+" Exit callback for term_start() - called when terminal job ends
+" This is the primary mechanism for detecting R terminal close (TermClose
+" event is not available in all Vim builds)
+function! s:RTerminalExitCallback(job, exit_status) abort
+    call s:OnDockerRTerminalClose()
 endfunction
 
 "------------------------------------------------------------------------------
