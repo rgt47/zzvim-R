@@ -1750,17 +1750,17 @@ if !g:zzvim_r_disable_mappings
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pc :call <SID>PlotClose()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pr :call <SID>PlotRedisplay()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p? :call <SID>ShowPlotConfig()<CR>
-        " Plot Window (composite: main + 3x3 grid)
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pw :call <SID>PlotWindowToggle()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p1 :call <SID>PlotWindowSelect(1)<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p2 :call <SID>PlotWindowSelect(2)<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p3 :call <SID>PlotWindowSelect(3)<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p4 :call <SID>PlotWindowSelect(4)<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p5 :call <SID>PlotWindowSelect(5)<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p6 :call <SID>PlotWindowSelect(6)<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p7 :call <SID>PlotWindowSelect(7)<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p8 :call <SID>PlotWindowSelect(8)<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p9 :call <SID>PlotWindowSelect(9)<CR>
+        " Plot Window (composite: main + 3x3 grid) - uses host ImageMagick
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pw :call <SID>PlotWindowToggleVim()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p1 :call <SID>PlotWindowSelectVim(1)<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p2 :call <SID>PlotWindowSelectVim(2)<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p3 :call <SID>PlotWindowSelectVim(3)<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p4 :call <SID>PlotWindowSelectVim(4)<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p5 :call <SID>PlotWindowSelectVim(5)<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p6 :call <SID>PlotWindowSelectVim(6)<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p7 :call <SID>PlotWindowSelectVim(7)<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p8 :call <SID>PlotWindowSelectVim(8)<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p9 :call <SID>PlotWindowSelectVim(9)<CR>
 
         " Legacy/shortcut mappings (kept for convenience)
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>[ :call <SID>OpenDockerPlotInPreview()<CR>
