@@ -3236,16 +3236,25 @@ function! s:ZoomSelectPlot(n) abort
         return
     endif
 
+    let l:history_dir = s:GetHistoryDir()
     let l:all_plots = l:index.plots
     let l:start_idx = max([0, len(l:all_plots) - 9])
     let l:recent_9 = l:all_plots[l:start_idx:]
 
-    if a:n > len(l:recent_9)
+    " Filter to only plots with existing files (must match GenerateZoomComposite)
+    let l:valid_plots = []
+    for l:p in l:recent_9
+        let l:f = l:history_dir . '/' . l:p.file
+        if filereadable(l:f)
+            call add(l:valid_plots, l:p)
+        endif
+    endfor
+
+    if a:n > len(l:valid_plots)
         return
     endif
 
-    let l:selected = l:recent_9[a:n - 1]
-    let l:history_dir = s:GetHistoryDir()
+    let l:selected = l:valid_plots[a:n - 1]
 
     " Try hi-res first, fall back to regular
     let l:hires_file = l:history_dir . '/' . substitute(l:selected.file, '\.png$', '_hires.png', '')
