@@ -1,12 +1,13 @@
 # ============================================================================
 # Terminal Graphics Support - Kitty and iTerm2
-# zzvim-R template version: 5
+# zzvim-R template version: 6
 # ============================================================================
 # This file provides automatic plot display in modern terminal emulators.
 # It sources automatically if present in zzcollab workspaces.
 # Copy to workspace root: cp ~/.Rprofile.local .Rprofile.local
 #
 # Version history:
+#   v6 (2026-01): plot_prev/plot_next now use persistent history (Docker fix)
 #   v5 (2026-01): Added jsonlite check, fixed plot_redisplay_if_resized()
 #   v4 (2026-01): Code cleanup, fixed set_plot_size_relative()
 #   v3 (2026-01): Persistent history with thumbnails, plot_goto(), plot_search()
@@ -276,12 +277,6 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
 
       # Store terminal size for resize detection
       .store_terminal_size()
-
-      # Add to history
-      history <- get(".plot_history", envir = .GlobalEnv)
-      history[[length(history) + 1]] <- pf
-      assign(".plot_history", history, envir = .GlobalEnv)
-      assign(".plot_history_idx", length(history), envir = .GlobalEnv)
     }
   }
 
@@ -421,52 +416,82 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
   assign("plot_to_pdf", plot_to_pdf, envir = .GlobalEnv)
 
   # ========================================================================
-  # Plot History Navigation
+  # Plot History Navigation (uses persistent history for Docker compatibility)
   # ========================================================================
-  plot_prev <- function() {
-    history <- get(".plot_history", envir = .GlobalEnv)
-    idx <- get(".plot_history_idx", envir = .GlobalEnv)
+  # Note: Session-based temp files don't persist in Docker, so we use
+  # the persistent history stored in .plots/history/ instead.
 
-    if (length(history) == 0) {
+  plot_prev <- function() {
+    index <- .read_history_index()
+    if (length(index$plots) == 0) {
       cat("No plot history\n")
       return(invisible(NULL))
     }
 
-    idx <- max(1, idx - 1)
-    assign(".plot_history_idx", idx, envir = .GlobalEnv)
-    cat(paste("Plot", idx, "of", length(history), "\n"))
-    .GlobalEnv$.display_plot(history[[idx]])
+    # Find current position in persistent history
+    current_idx <- which(sapply(index$plots, function(x) x$id) == index$current_index)
+    if (length(current_idx) == 0) current_idx <- length(index$plots)
+
+    # Move to previous
+    new_idx <- max(1, current_idx - 1)
+    entry <- index$plots[[new_idx]]
+
+    # Update current index and save
+    index$current_index <- entry$id
+    .write_history_index(index)
+
+    # Display the plot
+    file <- file.path(.get_history_dir(), entry$file)
+    if (file.exists(file)) {
+      .GlobalEnv$.display_plot(file)
+      cat(sprintf("Plot %d of %d: %s\n", new_idx, length(index$plots), entry$name))
+    } else {
+      cat("Plot file not found:", file, "\n")
+    }
   }
 
   plot_next <- function() {
-    history <- get(".plot_history", envir = .GlobalEnv)
-    idx <- get(".plot_history_idx", envir = .GlobalEnv)
-
-    if (length(history) == 0) {
+    index <- .read_history_index()
+    if (length(index$plots) == 0) {
       cat("No plot history\n")
       return(invisible(NULL))
     }
 
-    idx <- min(length(history), idx + 1)
-    assign(".plot_history_idx", idx, envir = .GlobalEnv)
-    cat(paste("Plot", idx, "of", length(history), "\n"))
-    .GlobalEnv$.display_plot(history[[idx]])
+    # Find current position in persistent history
+    current_idx <- which(sapply(index$plots, function(x) x$id) == index$current_index)
+    if (length(current_idx) == 0) current_idx <- 0
+
+    # Move to next
+    new_idx <- min(length(index$plots), current_idx + 1)
+    entry <- index$plots[[new_idx]]
+
+    # Update current index and save
+    index$current_index <- entry$id
+    .write_history_index(index)
+
+    # Display the plot
+    file <- file.path(.get_history_dir(), entry$file)
+    if (file.exists(file)) {
+      .GlobalEnv$.display_plot(file)
+      cat(sprintf("Plot %d of %d: %s\n", new_idx, length(index$plots), entry$name))
+    } else {
+      cat("Plot file not found:", file, "\n")
+    }
   }
 
   plot_history <- function() {
-    history <- get(".plot_history", envir = .GlobalEnv)
-    idx <- get(".plot_history_idx", envir = .GlobalEnv)
-
-    if (length(history) == 0) {
+    index <- .read_history_index()
+    if (length(index$plots) == 0) {
       cat("No plot history\n")
       return(invisible(NULL))
     }
 
-    cat(paste("Plot history:", length(history), "plots\n"))
-    cat(paste("Current: Plot", idx, "\n\n"))
-    for (i in seq_along(history)) {
-      marker <- if (i == idx) "* " else "  "
-      cat(paste(marker, "[", i, "]", " ", history[[i]], "\n", sep = ""))
+    cat(sprintf("Plot history: %d plots\n", length(index$plots)))
+    cat(sprintf("Current index: %d\n\n", index$current_index))
+    for (i in seq_along(index$plots)) {
+      p <- index$plots[[i]]
+      marker <- if (p$id == index$current_index) "* " else "  "
+      cat(sprintf("%s[%d] %-20s %s\n", marker, p$id, p$name, p$created))
     }
   }
 
