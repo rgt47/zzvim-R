@@ -2387,10 +2387,15 @@ function! s:OpenThumbnailGallery() abort
     let l:montage_cmd .= ' -tile 3x -geometry 200x150+5+5 -background "#1e1e2e" -fill white ' . shellescape(l:montage_file)
     call system(l:montage_cmd)
 
+    " Create selection file path
+    let l:selection_file = '/tmp/zzvim_thumb_selection'
+    call delete(l:selection_file)
+
     " Create shell script to display montage and handle input
     let l:script = '/tmp/zzvim_thumbs.sh'
     let l:script_lines = [
         \ '#!/bin/bash',
+        \ 'SELECTION_FILE="' . l:selection_file . '"',
         \ 'clear',
         \ 'kitty +kitten icat --align=left ' . shellescape(l:montage_file),
         \ 'echo ""',
@@ -2400,10 +2405,10 @@ function! s:OpenThumbnailGallery() abort
         \ '    case "$key" in'
         \ ]
 
-    " Add case for each thumbnail number - send plot_goto to R
+    " Add case for each thumbnail number - write selection to file
     let l:num = 1
     for l:thumb in l:thumbs
-        call add(l:script_lines, '        ' . l:num . ') echo "' . l:thumb.name . '"; exit ' . l:thumb.id . ' ;;')
+        call add(l:script_lines, '        ' . l:num . ') echo "' . l:thumb.id . '" > "$SELECTION_FILE"; exit 0 ;;')
         let l:num += 1
     endfor
 
@@ -2417,6 +2422,30 @@ function! s:OpenThumbnailGallery() abort
     " Launch the thumbnail pane
     let l:cmd = 'kitty @ launch --location=vsplit --keep-focus --title ' . s:thumb_pane_title . ' ' . l:script
     call system(l:cmd)
+
+    " Start a timer to check for selection
+    let s:thumb_selection_file = l:selection_file
+    let s:thumb_selection_timer = timer_start(200, function('s:CheckThumbSelection'), {'repeat': -1})
+endfunction
+
+" Check if user made a selection in the thumbnail gallery
+function! s:CheckThumbSelection(timer) abort
+    " Check if thumbnail pane still exists
+    let l:result = system('kitty @ ls 2>/dev/null')
+    if l:result !~# s:thumb_pane_title
+        " Pane closed - stop timer and check for selection
+        call timer_stop(a:timer)
+
+        if filereadable(s:thumb_selection_file)
+            let l:selection = trim(join(readfile(s:thumb_selection_file), ''))
+            call delete(s:thumb_selection_file)
+            if !empty(l:selection)
+                " Send plot_goto to R
+                call s:Send_to_r('plot_goto(' . l:selection . ')', 1)
+                echom "Displaying plot id: " . l:selection
+            endif
+        endif
+    endif
 endfunction
 
 command! -bar RPlotThumbs call s:OpenThumbnailGallery()
