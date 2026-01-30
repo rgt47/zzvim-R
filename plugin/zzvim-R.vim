@@ -2415,9 +2415,9 @@ function! s:OpenDockerPlotHiresInPreview() abort
 endfunction
 
 " Adaptive polling configuration
-let s:poll_fast = 100       " Fast polling during active work (ms)
-let s:poll_slow = 1000      " Slow polling when idle (ms)
-let s:poll_current = 100    " Current polling rate
+let s:poll_fast = get(g:, 'zzvim_r_poll_fast', 50)    " Fast polling during active work (ms)
+let s:poll_slow = get(g:, 'zzvim_r_poll_slow', 1000)  " Slow polling when idle (ms)
+let s:poll_current = s:poll_fast                       " Current polling rate
 let s:last_r_activity = 0   " Timestamp of last R activity
 let s:idle_threshold = 30   " Seconds of inactivity before slowing down
 
