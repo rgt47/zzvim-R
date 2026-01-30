@@ -1732,13 +1732,11 @@ if !g:zzvim_r_disable_mappings
         autocmd!
         autocmd BufWipeout,BufDelete * call s:CleanupPlotPaneIfRTerminal()
     augroup END
-    " TermClose requires Vim 8.1+ or Neovim
-    if exists('##TermClose')
-        augroup zzvim_PlotCleanupTermClose
-            autocmd!
-            autocmd TermClose * call s:CleanupPlotPaneOnTermClose()
-        augroup END
-    endif
+    " TermClose for Vim 8.1+ and Neovim - clean up plot pane when terminal closes
+    augroup zzvim_PlotCleanupTermClose
+        autocmd!
+        autocmd TermClose * call s:CleanupPlotPaneOnTermClose()
+    augroup END
 
     " Equalize vim window sizes when kitty pane is resized
     augroup zzvim_WindowResize
