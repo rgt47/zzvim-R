@@ -2,7 +2,10 @@
 # Test Script: Plot Window Mode (Main + 3x3 Thumbnail Grid)
 # =============================================================================
 # Quick workflow to test the composite plot window feature
-# Requires: Kitty terminal, ImageMagick (convert, montage)
+# Requires: Kitty terminal, ImageMagick on HOST (not in Docker)
+#
+# NOTE: Plot window mode is controlled via Vim mappings (not R functions)
+#       because ImageMagick runs on the host, not inside Docker.
 # =============================================================================
 
 # -----------------------------------------------------------------------------
@@ -21,13 +24,14 @@ plot_history()
 
 
 # -----------------------------------------------------------------------------
-# 2. Enable window mode
+# 2. Enable window mode (USE VIM MAPPING)
 # -----------------------------------------------------------------------------
-cat("\n--- Enabling plot window mode ---\n")
-plot_window_toggle()
+cat("\n--- To enable plot window mode ---\n")
+cat("Press <Space>pw in Vim (normal mode) to toggle window mode\n")
+cat("This uses host ImageMagick to create composite image\n\n")
 
-# New plots should now show composite (main + grid)
-cat("\nCreating plots in window mode (watch the grid)...\n")
+# Create more plots after enabling window mode
+cat("After enabling window mode, run these plots:\n")
 
 
 # -----------------------------------------------------------------------------
@@ -43,45 +47,34 @@ zzplot(1:30, (1:30)^2, type = "l", main = "Plot H: Quadratic", .name = "plot_h")
 
 
 # -----------------------------------------------------------------------------
-# 4. Select from grid using plot_window_select()
+# 4. Select from grid (USE VIM MAPPINGS)
 # -----------------------------------------------------------------------------
-cat("\n--- Testing grid selection ---\n")
-
-cat("Selecting plot 1 from grid...\n")
-plot_window_select(1)
-Sys.sleep(1)
-
-cat("Selecting plot 5 from grid...\n")
-plot_window_select(5)
-Sys.sleep(1)
-
-cat("Selecting plot 9 from grid...\n")
-plot_window_select(9)
+cat("\n--- To select from grid ---\n")
+cat("Press <Space>p1 through <Space>p9 in Vim to select plots\n")
+cat("  <Space>p1 - Select oldest plot in grid\n")
+cat("  <Space>p9 - Select newest plot in grid\n\n")
 
 
 # -----------------------------------------------------------------------------
-# 5. Toggle off and verify normal mode works
+# 5. Test thumbnail gallery
 # -----------------------------------------------------------------------------
-cat("\n--- Disabling window mode ---\n")
-plot_window_toggle()
-
-cat("\nCreating plot in normal mode...\n")
-zzplot(1:15, main = "Normal Mode Plot")
+cat("\n--- To view thumbnail gallery ---\n")
+cat("Press <Space>T in Vim to open thumbnail gallery pane\n")
+cat("Press 1-9 to select, q to close\n\n")
 
 
 # -----------------------------------------------------------------------------
-# 6. Toggle back on to verify persistence
+# 6. Available Vim mappings for plot window mode
 # -----------------------------------------------------------------------------
-cat("\n--- Re-enabling window mode ---\n")
-plot_window_toggle()
-
-cat("\nWindow mode restored. Try Vim mappings:\n")
-cat("  <LocalLeader>pw     - Toggle window mode\n")
-cat("  <LocalLeader>p1-p9  - Select from grid\n")
+cat("\n=== Plot Window Mode Vim Mappings ===\n")
+cat("  <Space>pw     - Toggle window mode (main + 3x3 grid)\n")
+cat("  <Space>p1-p9  - Select plot from grid\n")
+cat("  <Space>T      - Open thumbnail gallery pane\n")
+cat("  <Space>G      - Open full plot gallery\n\n")
 
 
 # -----------------------------------------------------------------------------
 # Done
 # -----------------------------------------------------------------------------
-cat("\n=== Test Complete ===\n")
-cat("Window mode:", ifelse(.plot_window_mode, "ON", "OFF"), "\n")
+cat("=== Test Script Complete ===\n")
+cat("Use Vim mappings above to test plot window features\n")

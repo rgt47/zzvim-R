@@ -1893,6 +1893,52 @@ function! s:GetHistoryDir() abort
 endfunction
 
 "------------------------------------------------------------------------------
+" Host-side Thumbnail Generation
+"------------------------------------------------------------------------------
+" Generates missing thumbnails using host ImageMagick (for Docker R workflow)
+
+function! s:GenerateMissingThumbnails() abort
+    if !executable('magick') && !executable('convert')
+        return
+    endif
+
+    let l:convert_cmd = executable('magick') ? 'magick' : 'convert'
+    let l:history_dir = s:GetHistoryDir()
+    let l:index_file = s:GetHistoryIndexFile()
+
+    if !filereadable(l:index_file)
+        return
+    endif
+
+    let l:json_content = join(readfile(l:index_file), '')
+    try
+        let l:index = json_decode(l:json_content)
+    catch
+        return
+    endtry
+
+    if !has_key(l:index, 'plots')
+        return
+    endif
+
+    let l:updated = 0
+    for l:plot in l:index.plots
+        let l:plot_file = l:history_dir . '/' . get(l:plot, 'file', '')
+        let l:thumb_file = l:history_dir . '/' . get(l:plot, 'thumb', '')
+
+        " Generate thumbnail if plot exists but thumb doesn't
+        if filereadable(l:plot_file) && !filereadable(l:thumb_file) && l:thumb_file != l:history_dir . '/'
+            let l:cmd = l:convert_cmd . ' ' . shellescape(l:plot_file) .
+                \ ' -resize 200x ' . shellescape(l:thumb_file)
+            call system(l:cmd)
+            let l:updated = 1
+        endif
+    endfor
+
+    return l:updated
+endfunction
+
+"------------------------------------------------------------------------------
 " Plot Window Mode (Composite: Main + 3x3 Grid)
 "------------------------------------------------------------------------------
 " Generates composite on host side using ImageMagick (works with Docker R)
@@ -2252,6 +2298,9 @@ function! s:DisplayDockerPlot() abort
     if !filereadable(l:plot_file)
         return
     endif
+
+    " Generate any missing thumbnails (host-side, for Docker workflow)
+    call s:GenerateMissingThumbnails()
 
     " Lock to prevent race conditions
     let s:plot_display_in_progress = 1
