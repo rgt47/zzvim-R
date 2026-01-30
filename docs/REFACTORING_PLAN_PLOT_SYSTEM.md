@@ -170,6 +170,14 @@ Proposed Architecture (Clean):
 
 ### 2.3 Simplified R Template (~400 lines)
 
+**Key Design Decision: PDF Master + PNG Preview**
+
+Instead of dual-resolution PNGs, we render:
+- **PDF** (vector): Master copy, infinitely zoomable, publication-ready
+- **PNG** (raster): Low-res preview for kitty terminal display
+
+This is simpler and produces better results than the current dual-PNG approach.
+
 ```r
 # ============================================================================
 # Terminal Graphics Support for zzvim-R (Simplified)
@@ -181,46 +189,69 @@ Proposed Architecture (Clean):
 .is_docker <- function() { ... }      # ~3 lines
 
 # Configuration (simplified)
-.plot_width <- 600
-.plot_height <- 450
-.plot_res <- 96
+.plot_width <- 6      # inches (for PDF)
+.plot_height <- 4.5   # inches (for PDF)
+.png_scale <- 100     # pixels per inch for preview
 
-set_plot_size <- function(width = 600, height = 450, res = 96) {
+set_plot_size <- function(width = 6, height = 4.5, png_scale = 100) {
   assign(".plot_width", width, envir = .GlobalEnv)
   assign(".plot_height", height, envir = .GlobalEnv)
-  assign(".plot_res", res, envir = .GlobalEnv)
-  cat(sprintf("Plot size: %dx%d @ %ddpi\n", width, height, res))
+  assign(".png_scale", png_scale, envir = .GlobalEnv)
+  cat(sprintf("Plot size: %.1f x %.1f inches (preview: %dx%d px)\n",
+      width, height, width * png_scale, height * png_scale))
 }
 
-# Core Plot Functions (simplified - no dual-resolution by default)
+# Core Plot Functions (PDF master + PNG preview)
 zzplot <- function(..., .name = NULL) {
-  pf <- .render_plot(function() plot(...))
-  .save_to_history(pf, .name, deparse(substitute(list(...))))
-  .signal_vim(pf)
+  .ensure_plots_dir()
+
+  # PDF master (vector - infinite zoom)
+  pdf(".plots/current.pdf", width = .plot_width, height = .plot_height)
+  plot(...)
+  dev.off()
+
+  # PNG preview (for kitty display)
+  png(".plots/current.png",
+      width = .plot_width * .png_scale,
+      height = .plot_height * .png_scale)
+  plot(...)
+  dev.off()
+
+  .save_to_history(.name, deparse(substitute(list(...))))
+  .signal_vim()
 }
 
 zzggplot <- function(p, .name = NULL) {
-  pf <- .render_plot(function() print(p))
-  .save_to_history(pf, .name, deparse(substitute(p)))
-  .signal_vim(pf)
-}
+  .ensure_plots_dir()
 
-.render_plot <- function(plot_fn) {
-  pf <- ".plots/current.png"
-  if (!dir.exists(".plots")) dir.create(".plots")
-  png(pf, width = .plot_width, height = .plot_height, res = .plot_res)
-  plot_fn()
+  # PDF master
+  pdf(".plots/current.pdf", width = .plot_width, height = .plot_height)
+  print(p)
   dev.off()
-  pf
+
+  # PNG preview
+  png(".plots/current.png",
+      width = .plot_width * .png_scale,
+      height = .plot_height * .png_scale)
+  print(p)
+  dev.off()
+
+  .save_to_history(.name, deparse(substitute(p)))
+  .signal_vim()
 }
 
-.signal_vim <- function(pf) {
+.ensure_plots_dir <- function() {
+  if (!dir.exists(".plots")) dir.create(".plots")
+  if (!dir.exists(".plots/history")) dir.create(".plots/history")
+}
+
+.signal_vim <- function() {
   writeLines(as.character(Sys.time()), ".plots/.signal")
 }
 
 # History (persistent only, simplified)
-.save_to_history <- function(pf, name, code) {
-  # ~50 lines: copy to history/, update index.json
+.save_to_history <- function(name, code) {
+  # ~50 lines: copy PDF+PNG to history/, update index.json
 }
 
 plot_prev <- function() { ... }   # ~20 lines
@@ -228,34 +259,49 @@ plot_next <- function() { ... }   # ~20 lines
 plot_goto <- function(id) { ... } # ~15 lines
 plot_history <- function() { ... } # ~15 lines
 
-# Zoom (render hi-res on demand)
+# Zoom - just open the PDF (vector, infinite zoom)
 plot_zoom <- function() {
-  pf_hires <- ".plots/current_hires.png"
-  png(pf_hires, width = .plot_width * 3, height = .plot_height * 3, res = .plot_res)
-  # Re-render current plot at high resolution
-  # This requires storing the plot expression, or just use the PNG
-  dev.off()
-  system2("open", pf_hires, wait = FALSE)
+  if (file.exists(".plots/current.pdf")) {
+    system2("open", ".plots/current.pdf", wait = FALSE)
+  } else {
+    message("No plot available. Use zzplot() or zzggplot() first.")
+  }
 }
 
-# Export
-save_plot <- function(filename) { ... }  # ~5 lines
+# Export - copy the PDF
+save_plot <- function(filename) {
+  if (grepl("\\.pdf$", filename, ignore.case = TRUE)) {
+    file.copy(".plots/current.pdf", filename, overwrite = TRUE)
+  } else if (grepl("\\.png$", filename, ignore.case = TRUE)) {
+    # For PNG export, use higher resolution
+    # Re-render or use ImageMagick convert if available
+    file.copy(".plots/current.png", filename, overwrite = TRUE)
+  }
+  message("Saved: ", filename)
+}
 
 # Startup message
 if (interactive()) {
-  cat("Terminal graphics enabled\n")
+  cat("Terminal graphics enabled (PDF + PNG)\n")
   cat("  zzplot(...)  : Base R plots\n")
   cat("  zzggplot(p)  : ggplot2 plots\n")
-  cat("  plot_zoom()  : Open hi-res version\n")
+  cat("  plot_zoom()  : Open PDF (vector, zoomable)\n")
 }
 ```
+
+**Key Changes from Current:**
+- PDF is the master format (not hi-res PNG)
+- PNG is just for terminal preview (can be lower quality)
+- `plot_zoom()` opens PDF directly (no re-rendering needed)
+- Single set of dimensions in inches (not pixels)
+- No ImageMagick dependency for basic workflow
 
 **Removed:**
 - Display mode management (inline/pane/auto)
 - Kitty remote control from R
 - Terminal size tracking
 - Session-based history
-- Dual-resolution always-on
+- Dual-resolution PNG rendering
 - `plot_split()`, `plot_maximize()`, `close_plot_pane()`
 
 ### 2.4 Simplified VimScript (~400 lines)
@@ -322,19 +368,14 @@ function! s:PlotPaneExists() abort
   return system('kitty @ ls 2>/dev/null') =~# s:pane_title
 endfunction
 
-" Zoom functions
-function! s:ZoomInPreview() abort
-  let l:pf = '.plots/current.png'
-  if filereadable(l:pf)
-    call system('open ' . shellescape(l:pf))
-  endif
-endfunction
-
-function! s:ZoomInKittyWindow() abort
-  let l:pf = '.plots/current.png'
-  if filereadable(l:pf)
-    call system('kitty @ launch --type=os-window kitty +kitten icat --hold '
-      \ . shellescape(l:pf))
+" Zoom - open the PDF (vector, infinite zoom)
+function! s:ZoomPlot() abort
+  let l:pdf = '.plots/current.pdf'
+  if filereadable(l:pdf)
+    call system('open ' . shellescape(l:pdf))
+    echom "Opened PDF (vector)"
+  else
+    call s:Error("No plot available")
   endif
 endfunction
 
@@ -351,12 +392,10 @@ endfunction
 
 " Commands
 command! RPlotShow call s:DisplayPlot()
-command! RPlotPreview call s:ZoomInPreview()
-command! RPlotZoom call s:ZoomInKittyWindow()
+command! RPlotZoom call s:ZoomPlot()
 command! RPlotGallery call s:OpenPlotGallery()
 
 " Mappings
-nnoremap <LocalLeader>[ :RPlotPreview<CR>
 nnoremap <LocalLeader>] :RPlotZoom<CR>
 nnoremap <LocalLeader>G :RPlotGallery<CR>
 ```
@@ -505,23 +544,31 @@ nnoremap <LocalLeader>G :RPlotGallery<CR>
 ```markdown
 ## Migrating from v6 to v7
 
+### Major Change: PDF Master + PNG Preview
+- Plots now render as PDF (vector) + PNG (preview)
+- Zoom opens the PDF - infinitely zoomable, publication-ready
+- No more dual-resolution PNGs
+
 ### Changed Behavior
 - Plots always display in a dedicated pane (no inline mode)
-- Hi-res version rendered on demand, not automatically
-- Configuration functions simplified
+- `plot_zoom()` opens PDF instead of hi-res PNG
+- Configuration uses inches instead of pixels
+- `set_plot_size(6, 4.5)` - width/height in inches
 
 ### Removed Functions
 - `set_plot_mode()` - Pane mode is now the only mode
 - `set_plot_size_relative()` - Use `set_plot_size()` instead
 - `plot_split()` - Use zoom functions instead
 - `close_plot_pane()` - Pane closes with R terminal
+- `plot_zoom_kitty()` - Just use `plot_zoom()` (opens PDF)
 
 ### New Workflow
-1. Create plot: `zzplot(x, y)`
-2. Plot appears in pane
-3. Zoom: Press `<LocalLeader>]` in Vim or call `plot_zoom()` in R
+1. Create plot: `zzplot(x, y)` or `zzggplot(p)`
+2. PNG preview appears in kitty pane
+3. Zoom: `<LocalLeader>]` or `plot_zoom()` opens PDF
 4. Navigate history: `plot_prev()`, `plot_next()`
 5. Browse history: `<LocalLeader>G` for gallery
+6. Export: `save_plot("figure.pdf")` - already vector quality
 ```
 
 ---

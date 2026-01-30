@@ -1,12 +1,12 @@
 # ============================================================================
-# Terminal Graphics Support - Kitty and iTerm2
-# zzvim-R template version: 6
+# Terminal Graphics Support - Kitty, Ghostty, WezTerm, iTerm2
+# zzvim-R template version: 7
 # ============================================================================
-# This file provides automatic plot display in modern terminal emulators.
-# It sources automatically if present in zzcollab workspaces.
-# Copy to workspace root: cp ~/.Rprofile.local .Rprofile.local
+# Automatic plot display in modern terminal emulators.
+# Architecture: PDF master (vector) + PNG preview (for kitty display)
 #
 # Version history:
+#   v7 (2026-01): Simplified architecture - PDF master + PNG preview
 #   v6 (2026-01): plot_prev/plot_next now use persistent history (Docker fix)
 #   v5 (2026-01): Added jsonlite check, fixed plot_redisplay_if_resized()
 #   v4 (2026-01): Code cleanup, fixed set_plot_size_relative()
@@ -18,14 +18,18 @@
 # Terminal Detection
 # ============================================================================
 .terminal_type <- function() {
-  if (Sys.getenv("KITTY_WINDOW_ID") != "") {
-    return("kitty")
-  } else if (Sys.getenv("ITERM_SESSION_ID") != "" ||
-             grepl("iTerm", Sys.getenv("TERM_PROGRAM"), ignore.case = TRUE)) {
-    return("iterm2")
-  } else {
-    return("none")
-  }
+  # Kitty
+  if (Sys.getenv("KITTY_WINDOW_ID") != "") return("kitty")
+  # Ghostty (supports Kitty graphics protocol)
+  if (Sys.getenv("GHOSTTY_RESOURCES_DIR") != "" ||
+      Sys.getenv("TERM") == "xterm-ghostty") return("kitty")
+  # WezTerm (supports Kitty graphics protocol)
+  if (Sys.getenv("WEZTERM_EXECUTABLE") != "" ||
+      grepl("WezTerm", Sys.getenv("TERM_PROGRAM"), ignore.case = TRUE)) return("kitty")
+  # iTerm2
+  if (Sys.getenv("ITERM_SESSION_ID") != "" ||
+      grepl("iTerm", Sys.getenv("TERM_PROGRAM"), ignore.case = TRUE)) return("iterm2")
+  "none"
 }
 
 .is_docker <- function() {
@@ -34,631 +38,322 @@
 
 .terminal <- .terminal_type()
 
-# Only activate on supported macOS or Linux terminals
-if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
+# Only activate on supported terminals
+if (.terminal != "none" && Sys.info()["sysname"] %in% c("Darwin", "Linux")) {
 
-  # ========================================================================
+  # ==========================================================================
   # Configuration
-  # ========================================================================
-  # Dual-resolution plot system:
-  # - Small: displayed in pane (crisp, no scaling needed)
-  # - Large: used for zoom/export (high detail)
+  # ==========================================================================
+  # PDF master + PNG preview system:
+  # - PDF: vector format, infinite zoom, publication-ready
 
-  # Default values (can be overridden by Vim config or set_plot_size())
-  assign(".plot_width_small", 600, envir = .GlobalEnv)
-  assign(".plot_height_small", 450, envir = .GlobalEnv)
-  assign(".plot_width_large", 1800, envir = .GlobalEnv)
-  assign(".plot_height_large", 1350, envir = .GlobalEnv)
-  assign(".plot_res", 96, envir = .GlobalEnv)
-  assign(".plot_align", "center", envir = .GlobalEnv)
-  assign(".plot_file", NULL, envir = .GlobalEnv)
-  assign(".plot_file_hires", NULL, envir = .GlobalEnv)
-  assign(".plot_history", list(), envir = .GlobalEnv)
-  assign(".plot_history_idx", 0, envir = .GlobalEnv)
+  # - PNG: raster preview for kitty terminal display
 
-  # Title size multiplier for zzplot/zzggplot (1.5 = 50% larger)
-  options(zzvim.title.cex = 1.5)
+  .plot_width <- 6        # inches (for PDF)
+  .plot_height <- 4.5     # inches (for PDF)
+  .png_scale <- 100       # pixels per inch for PNG preview
+  .plots_dir <- ".plots"
+  .history_limit <- 50
 
-  # ========================================================================
-  # Unified Config Reader (reads from Vim-written .plots/.config.json)
-  # ========================================================================
-  .read_vim_config <- function() {
-    config_file <- ".plots/.config.json"
-    if (!file.exists(config_file)) {
-      return(invisible(NULL))
-    }
-    tryCatch({
-      config <- jsonlite::fromJSON(config_file)
-      if (!is.null(config$width_small))
-        assign(".plot_width_small", config$width_small, envir = .GlobalEnv)
-      if (!is.null(config$height_small))
-        assign(".plot_height_small", config$height_small, envir = .GlobalEnv)
-      if (!is.null(config$width_large))
-        assign(".plot_width_large", config$width_large, envir = .GlobalEnv)
-      if (!is.null(config$height_large))
-        assign(".plot_height_large", config$height_large, envir = .GlobalEnv)
-      if (!is.null(config$dpi))
-        assign(".plot_res", config$dpi, envir = .GlobalEnv)
-      if (!is.null(config$align))
-        assign(".plot_align", config$align, envir = .GlobalEnv)
-      if (!is.null(config$mode))
-        assign(".plot_display_mode", config$mode, envir = .GlobalEnv)
-      if (!is.null(config$history_limit))
-        assign(".plot_history_limit", config$history_limit, envir = .GlobalEnv)
-      invisible(TRUE)
-    }, error = function(e) {
-      invisible(FALSE)
-    })
+  # ==========================================================================
+  # Helper Functions
+  # ==========================================================================
+  .ensure_dirs <- function() {
+    if (!dir.exists(.plots_dir)) dir.create(.plots_dir, showWarnings = FALSE)
+    history_dir <- file.path(.plots_dir, "history")
+    if (!dir.exists(history_dir)) dir.create(history_dir, showWarnings = FALSE)
   }
 
-  # Read Vim config on startup if available
-  .read_vim_config()
-
-  assign(".read_vim_config", .read_vim_config, envir = .GlobalEnv)
-
-  # ========================================================================
-  # Device Creation (Dual Resolution)
-  # ========================================================================
-  # Creates PNG device at specified size (small or large)
-  .create_plot_device_at_size <- function(size = "small") {
-    res <- get(".plot_res", envir = .GlobalEnv)
-
-    if (size == "large") {
-      width <- get(".plot_width_large", envir = .GlobalEnv)
-      height <- get(".plot_height_large", envir = .GlobalEnv)
-      pf <- tempfile(pattern = "plot_hires_", fileext = ".png")
-      assign(".plot_file_hires", pf, envir = .GlobalEnv)
-    } else {
-      width <- get(".plot_width_small", envir = .GlobalEnv)
-      height <- get(".plot_height_small", envir = .GlobalEnv)
-      pf <- tempfile(pattern = "plot_", fileext = ".png")
-      assign(".plot_file", pf, envir = .GlobalEnv)
-    }
-
-    grDevices::png(filename = pf, width = width, height = height, res = res)
-    pf
+  .signal_vim <- function() {
+    writeLines(as.character(Sys.time()), file.path(.plots_dir, ".signal"))
   }
 
-  assign(".create_plot_device_at_size", .create_plot_device_at_size, envir = .GlobalEnv)
+  .current_pdf <- function() file.path(.plots_dir, "current.pdf")
+  .current_png <- function() file.path(.plots_dir, "current.png")
 
-  # Legacy function for backward compatibility (creates small by default)
-  .create_plot_device <- function() {
-    pf <- get(".plot_file", envir = .GlobalEnv)
-    if (!is.null(pf) && file.exists(pf)) {
-      unlink(pf)
-    }
-    pf_hires <- get(".plot_file_hires", envir = .GlobalEnv)
-    if (!is.null(pf_hires) && file.exists(pf_hires)) {
-      unlink(pf_hires)
-    }
+  # ==========================================================================
+  # Core Plot Functions (PDF master + PNG preview)
+  # ==========================================================================
 
-    .create_plot_device_at_size("small")
-  }
-
-  assign(".create_plot_device", .create_plot_device, envir = .GlobalEnv)
-
-  # ========================================================================
-  # Display Plot
-  # ========================================================================
-  # Plot display mode: "inline", "pane", or "auto"
-  # - inline: display in current terminal (default for standalone kitty)
-  # - pane: always use dedicated plot pane (reused across plots)
-  # - auto: try inline first, fall back to pane if inside vim terminal
-  assign(".plot_display_mode", "pane", envir = .GlobalEnv)
-  assign(".plot_pane_title", "zzvim-plot", envir = .GlobalEnv)
-  assign(".kitty_remote_warned", FALSE, envir = .GlobalEnv)
-
-  # Check if kitty remote control is enabled
-  .kitty_remote_enabled <- function() {
-    result <- suppressWarnings(
-      system("kitty @ ls >/dev/null 2>&1", ignore.stdout = TRUE, ignore.stderr = TRUE)
-    )
-    return(result == 0)
-  }
-
-  # Check if a kitty window with given title exists
-  .kitty_window_exists <- function(title) {
-    result <- suppressWarnings(
-      system(paste("kitty @ ls 2>/dev/null | grep -q", shQuote(title)),
-             ignore.stdout = TRUE, ignore.stderr = TRUE)
-    )
-    return(result == 0)
-  }
-
-  assign(".kitty_remote_enabled", .kitty_remote_enabled, envir = .GlobalEnv)
-
-  # Display plot in a dedicated kitty pane (reused across plots)
-  .display_in_pane <- function(pf) {
-    # Check if kitty remote control is available
-    if (!.kitty_remote_enabled()) {
-      warned <- get(".kitty_remote_warned", envir = .GlobalEnv)
-      if (!warned) {
-        cat("\n")
-        cat("WARNING: Kitty remote control not enabled.\n")
-        cat("Plot pane mode requires 'allow_remote_control yes' in kitty.conf\n")
-        cat("Add this line to ~/.config/kitty/kitty.conf and restart kitty.\n")
-        cat("Falling back to inline display.\n\n")
-        assign(".kitty_remote_warned", TRUE, envir = .GlobalEnv)
-      }
-      # Fall back to inline display
-      align <- get(".plot_align", envir = .GlobalEnv)
-      suppressWarnings(
-        system(paste("kitty +kitten icat --align=", align, " ", shQuote(pf), sep = ""),
-               ignore.stderr = TRUE, ignore.stdout = TRUE)
-      )
-      return(invisible(NULL))
-    }
-
-    pane_title <- get(".plot_pane_title", envir = .GlobalEnv)
-
-    if (.kitty_window_exists(pane_title)) {
-      # Pane exists - clear it and display new plot
-      # Send Ctrl+C to interrupt any running process, then clear and show new image
-      system(paste0(
-        "kitty @ send-text --match title:", pane_title,
-        " '\\x03' 2>/dev/null"
-      ), ignore.stderr = TRUE, ignore.stdout = TRUE)
-
-      # Small delay to let Ctrl+C take effect
-      Sys.sleep(0.1)
-
-      # Send command to clear and display new plot
-      cmd <- paste0("clear && kitty +kitten icat --clear && ",
-                    "kitty +kitten icat --scale-up ", shQuote(pf),
-                    " && read -r -d '' _ </dev/tty")
-      system(paste0(
-        "kitty @ send-text --match title:", pane_title,
-        " ", shQuote(paste0(cmd, "\n"))
-      ), ignore.stderr = TRUE, ignore.stdout = TRUE)
-    } else {
-      # Create new pane with title for future reuse
-      # The pane runs a loop that displays images and waits
-      shell_cmd <- paste0(
-        "kitty @ launch --location=vsplit --keep-focus ",
-        "--title ", shQuote(pane_title), " ",
-        "-- sh -c ", shQuote(paste0(
-          "kitty +kitten icat --scale-up ", shQuote(pf),
-          "; read -r -d '' _ </dev/tty"
-        ))
-      )
-      system(shell_cmd, ignore.stderr = TRUE, ignore.stdout = TRUE)
-    }
-  }
-
-  assign(".kitty_window_exists", .kitty_window_exists, envir = .GlobalEnv)
-  assign(".display_in_pane", .display_in_pane, envir = .GlobalEnv)
-
-  .display_plot <- function(pf) {
-    if (!is.null(pf) && file.exists(pf)) {
-      align <- get(".plot_align", envir = .GlobalEnv)
-      terminal <- get(".terminal", envir = .GlobalEnv)
-      in_docker <- .is_docker()
-      display_mode <- get(".plot_display_mode", envir = .GlobalEnv)
-
-      # Docker mode: save both files to .plots/ for host-side vim watcher
-      if (in_docker) {
-        plots_dir <- ".plots"
-        if (!dir.exists(plots_dir)) dir.create(plots_dir, showWarnings = FALSE)
-
-        # Copy small version (for pane display)
-        target_file <- file.path(plots_dir, "current.png")
-        file.copy(pf, target_file, overwrite = TRUE)
-
-        # Copy large version (for zoom) if it exists
-        pf_hires <- get(".plot_file_hires", envir = .GlobalEnv)
-        if (!is.null(pf_hires) && file.exists(pf_hires)) {
-          target_hires <- file.path(plots_dir, "current_hires.png")
-          file.copy(pf_hires, target_hires, overwrite = TRUE)
-        }
-
-        # Touch signal file to notify Vim immediately
-        signal_file <- file.path(plots_dir, ".signal")
-        writeLines(as.character(Sys.time()), signal_file)
-      } else if (terminal == "kitty") {
-        if (display_mode == "pane") {
-          # Always use dedicated pane
-          .display_in_pane(pf)
-        } else if (display_mode == "inline") {
-          # Always try inline
-          suppressWarnings(
-            system(paste("kitty +kitten icat --align=", align, " ", shQuote(pf), sep = ""),
-                   ignore.stderr = TRUE, ignore.stdout = TRUE)
-          )
-        } else {
-          # Auto mode: try inline first, fall back to pane
-          result <- suppressWarnings(
-            system(paste("kitty +kitten icat --align=", align, " ", shQuote(pf), sep = ""),
-                   ignore.stderr = TRUE, ignore.stdout = TRUE)
-          )
-          if (result != 0) {
-            .display_in_pane(pf)
-          }
-        }
-      } else if (terminal == "iterm2") {
-        system(paste("imgcat", shQuote(pf)), ignore.stderr = TRUE)
-      }
-
-      # Store terminal size for resize detection
-      .store_terminal_size()
-    }
-  }
-
-  assign(".display_plot", .display_plot, envir = .GlobalEnv)
-
-  # ========================================================================
-  # Terminal Size Management
-  # ========================================================================
-  .store_terminal_size <- function() {
-    cols_str <- system("tput cols", intern = TRUE, ignore.stderr = TRUE)
-    lines_str <- system("tput lines", intern = TRUE, ignore.stderr = TRUE)
-
-    if (length(cols_str) > 0 && length(lines_str) > 0) {
-      assign(".last_cols", as.numeric(cols_str[1]), envir = .GlobalEnv)
-      assign(".last_lines", as.numeric(lines_str[1]), envir = .GlobalEnv)
-    }
-  }
-
-  assign(".store_terminal_size", .store_terminal_size, envir = .GlobalEnv)
-
-  # ========================================================================
-  # Override dev.off for automatic display
-  # ========================================================================
-  dev.off_original <- grDevices::dev.off
-  assign("dev.off", function(...) {
-    result <- dev.off_original(...)
-    pf <- get(".plot_file", envir = .GlobalEnv)
-    .GlobalEnv$.display_plot(pf)
-    invisible(result)
-  }, envir = .GlobalEnv)
-
-  # ========================================================================
-  # Plot Functions (Dual Resolution)
-  # ========================================================================
-  # Base R plots with auto-display
-  # Generates both small (for pane) and large (for zoom) versions
-  # .name: optional name for persistent history
-  # .save: whether to save to persistent history (default TRUE)
-  # Uses options("zzvim.title.cex") for title size (default 1.5)
+  # Base R plots
   zzplot <- function(..., .name = NULL, .save = TRUE) {
-    # Clean up old files
-    pf <- get(".plot_file", envir = .GlobalEnv)
-    if (!is.null(pf) && file.exists(pf)) unlink(pf)
-    pf_hires <- get(".plot_file_hires", envir = .GlobalEnv)
-    if (!is.null(pf_hires) && file.exists(pf_hires)) unlink(pf_hires)
+    .ensure_dirs()
 
-    # Get title size from global option
-    title_cex <- getOption("zzvim.title.cex", 1.5)
-
-    # Capture the plot call for re-evaluation and history
-    plot_call <- substitute(plot(..., cex.main = title_cex))
-    code_str <- deparse(plot_call, width.cutoff = 500)
+    # Capture code for history
+    code_str <- deparse(substitute(list(...)), width.cutoff = 500)
     code_str <- paste(code_str, collapse = " ")
 
-    # Render small version (for pane display)
-    .create_plot_device_at_size("small")
-    eval(plot_call, envir = parent.frame())
-    dev.off_original()
+    # PDF master (vector - infinite zoom)
+    pdf(.current_pdf(), width = .plot_width, height = .plot_height)
+    plot(...)
+    dev.off()
 
-    # Render large version (for zoom)
-    .create_plot_device_at_size("large")
-    eval(plot_call, envir = parent.frame())
-    dev.off_original()
+    # PNG preview (for kitty display)
+    png(.current_png(),
+        width = .plot_width * .png_scale,
+        height = .plot_height * .png_scale)
+    plot(...)
+    dev.off()
 
-    # Display the small version
-    pf <- get(".plot_file", envir = .GlobalEnv)
-    .GlobalEnv$.display_plot(pf)
+    # Signal Vim to display
+    .signal_vim()
 
-    # Add to persistent history if requested
-    if (.save) {
-      .add_to_persistent_history(.name, code_str)
-    }
+    # Save to history
+    if (.save) .add_to_history(.name, code_str)
+
+    invisible(NULL)
   }
 
-  # ggplot2 plots with auto-display
-  # Generates both small (for pane) and large (for zoom) versions
-  # .name: optional name for persistent history
-  # .save: whether to save to persistent history (default TRUE)
-  # Uses options("zzvim.title.cex") for title size (default 1.5)
+  # ggplot2 plots
   zzggplot <- function(p, .name = NULL, .save = TRUE) {
-    # Clean up old files
-    pf <- get(".plot_file", envir = .GlobalEnv)
-    if (!is.null(pf) && file.exists(pf)) unlink(pf)
-    pf_hires <- get(".plot_file_hires", envir = .GlobalEnv)
-    if (!is.null(pf_hires) && file.exists(pf_hires)) unlink(pf_hires)
+    .ensure_dirs()
 
     # Capture code for history
     code_str <- deparse(substitute(p), width.cutoff = 500)
     code_str <- paste(code_str, collapse = " ")
 
-    # Get title size from global option and apply to ggplot theme
-    title_cex <- getOption("zzvim.title.cex", 1.5)
-    base_size <- 11
-    p <- p + ggplot2::theme(plot.title = ggplot2::element_text(
-      size = base_size * title_cex
-    ))
-
-    # Render small version (for pane display)
-    .create_plot_device_at_size("small")
+    # PDF master
+    pdf(.current_pdf(), width = .plot_width, height = .plot_height)
     print(p)
-    dev.off_original()
+    dev.off()
 
-    # Render large version (for zoom)
-    .create_plot_device_at_size("large")
+    # PNG preview
+    png(.current_png(),
+        width = .plot_width * .png_scale,
+        height = .plot_height * .png_scale)
     print(p)
-    dev.off_original()
+    dev.off()
 
-    # Display the small version
-    pf <- get(".plot_file", envir = .GlobalEnv)
-    .GlobalEnv$.display_plot(pf)
+    # Signal Vim
+    .signal_vim()
 
-    # Add to persistent history if requested
-    if (.save) {
-      .add_to_persistent_history(.name, code_str)
-    }
+    # Save to history
+    if (.save) .add_to_history(.name, code_str)
+
+    invisible(NULL)
   }
 
   assign("zzplot", zzplot, envir = .GlobalEnv)
   assign("zzggplot", zzggplot, envir = .GlobalEnv)
 
-  # ========================================================================
-  # Export Functions
-  # ========================================================================
-  save_plot <- function(filename) {
-    pf <- get(".plot_file", envir = .GlobalEnv)
-    if (!is.null(pf) && file.exists(pf)) {
-      file.copy(pf, filename, overwrite = TRUE)
-      cat(paste("Plot saved to:", filename, "\n"))
-    }
+  # ==========================================================================
+  # Configuration
+  # ==========================================================================
+
+  set_plot_size <- function(width = 6, height = 4.5, png_scale = 100) {
+    assign(".plot_width", width, envir = .GlobalEnv)
+    assign(".plot_height", height, envir = .GlobalEnv)
+    assign(".png_scale", png_scale, envir = .GlobalEnv)
+    cat(sprintf("Plot size: %.1f x %.1f in (preview: %dx%d px)\n",
+        width, height, as.integer(width * png_scale),
+        as.integer(height * png_scale)))
   }
 
-  plot_to_pdf <- function(filename) {
-    pf <- get(".plot_file", envir = .GlobalEnv)
-    if (!is.null(pf) && file.exists(pf)) {
-      if (!requireNamespace("png", quietly = TRUE)) {
-        cat("Installing 'png' package...\n")
-        install.packages("png", quiet = TRUE)
-      }
+  assign("set_plot_size", set_plot_size, envir = .GlobalEnv)
 
-      img <- png::readPNG(pf)
-      pdf(filename, width = 9, height = 7)
-      grid::grid.raster(img)
-      grDevices::dev.off()
-      cat(paste("PDF saved to:", filename, "\n"))
+  # ==========================================================================
+  # Zoom - Open the PDF (vector, infinite zoom)
+  # ==========================================================================
+
+  plot_zoom <- function() {
+    pdf_file <- .current_pdf()
+    if (!file.exists(pdf_file)) {
+      cat("No plot available. Use zzplot() or zzggplot() first.\n")
+      return(invisible(NULL))
+    }
+    if (.is_docker()) {
+      cat("In Docker: use <LocalLeader>] in Vim to open PDF\n")
+      return(invisible(NULL))
+    }
+    system2("open", pdf_file, wait = FALSE)
+    cat("Opened PDF (vector, zoomable)\n")
+  }
+
+  assign("plot_zoom", plot_zoom, envir = .GlobalEnv)
+
+  # ==========================================================================
+  # Export
+  # ==========================================================================
+
+  save_plot <- function(filename) {
+    if (grepl("\\.pdf$", filename, ignore.case = TRUE)) {
+      if (file.exists(.current_pdf())) {
+        file.copy(.current_pdf(), filename, overwrite = TRUE)
+        cat("Saved:", filename, "(PDF vector)\n")
+      } else {
+        cat("No PDF available\n")
+      }
+    } else if (grepl("\\.png$", filename, ignore.case = TRUE)) {
+      if (file.exists(.current_png())) {
+        file.copy(.current_png(), filename, overwrite = TRUE)
+        cat("Saved:", filename, "(PNG preview)\n")
+      } else {
+        cat("No PNG available\n")
+      }
+    } else {
+      cat("Supported formats: .pdf, .png\n")
     }
   }
 
   assign("save_plot", save_plot, envir = .GlobalEnv)
-  assign("plot_to_pdf", plot_to_pdf, envir = .GlobalEnv)
 
-  # ========================================================================
-  # Plot History Navigation (uses persistent history for Docker compatibility)
-  # ========================================================================
-  # Note: Session-based temp files don't persist in Docker, so we use
-  # the persistent history stored in .plots/history/ instead.
+  # ==========================================================================
+  # Persistent History
+  # ==========================================================================
 
-  plot_prev <- function() {
-    index <- .read_history_index()
-    if (length(index$plots) == 0) {
-      cat("No plot history\n")
-      return(invisible(NULL))
-    }
+  .history_dir <- function() file.path(.plots_dir, "history")
+  .history_index <- function() file.path(.history_dir(), "index.json")
 
-    # Find current position in persistent history
-    current_idx <- which(sapply(index$plots, function(x) x$id) == index$current_index)
-    if (length(current_idx) == 0) current_idx <- length(index$plots)
-
-    # Move to previous
-    new_idx <- max(1, current_idx - 1)
-    entry <- index$plots[[new_idx]]
-
-    # Update current index and save
-    index$current_index <- entry$id
-    .write_history_index(index)
-
-    # Display the plot
-    file <- file.path(.get_history_dir(), entry$file)
-    if (file.exists(file)) {
-      .GlobalEnv$.display_plot(file)
-      cat(sprintf("Plot %d of %d: %s\n", new_idx, length(index$plots), entry$name))
-    } else {
-      cat("Plot file not found:", file, "\n")
-    }
+  .jsonlite_ok <- requireNamespace("jsonlite", quietly = TRUE)
+  if (!.jsonlite_ok && interactive()) {
+    message("Install 'jsonlite' for plot history: install.packages('jsonlite')")
   }
 
-  plot_next <- function() {
-    index <- .read_history_index()
-    if (length(index$plots) == 0) {
-      cat("No plot history\n")
-      return(invisible(NULL))
-    }
-
-    # Find current position in persistent history
-    current_idx <- which(sapply(index$plots, function(x) x$id) == index$current_index)
-    if (length(current_idx) == 0) current_idx <- 0
-
-    # Move to next
-    new_idx <- min(length(index$plots), current_idx + 1)
-    entry <- index$plots[[new_idx]]
-
-    # Update current index and save
-    index$current_index <- entry$id
-    .write_history_index(index)
-
-    # Display the plot
-    file <- file.path(.get_history_dir(), entry$file)
-    if (file.exists(file)) {
-      .GlobalEnv$.display_plot(file)
-      cat(sprintf("Plot %d of %d: %s\n", new_idx, length(index$plots), entry$name))
-    } else {
-      cat("Plot file not found:", file, "\n")
-    }
+  .read_index <- function() {
+    if (!.jsonlite_ok) return(list(plots = list(), current = 0, counter = 0))
+    idx_file <- .history_index()
+    if (!file.exists(idx_file)) return(list(plots = list(), current = 0, counter = 0))
+    tryCatch(
+      jsonlite::fromJSON(idx_file, simplifyVector = FALSE),
+      error = function(e) list(plots = list(), current = 0, counter = 0)
+    )
   }
 
-  plot_history <- function() {
-    index <- .read_history_index()
-    if (length(index$plots) == 0) {
-      cat("No plot history\n")
-      return(invisible(NULL))
-    }
-
-    cat(sprintf("Plot history: %d plots\n", length(index$plots)))
-    cat(sprintf("Current index: %d\n\n", index$current_index))
-    for (i in seq_along(index$plots)) {
-      p <- index$plots[[i]]
-      marker <- if (p$id == index$current_index) "* " else "  "
-      cat(sprintf("%s[%d] %-20s %s\n", marker, p$id, p$name, p$created))
-    }
+  .write_index <- function(index) {
+    if (!.jsonlite_ok) return(invisible(NULL))
+    .ensure_dirs()
+    tryCatch(
+      jsonlite::write_json(index, .history_index(), auto_unbox = TRUE, pretty = TRUE),
+      error = function(e) NULL
+    )
   }
 
-  assign("plot_prev", plot_prev, envir = .GlobalEnv)
-  assign("plot_next", plot_next, envir = .GlobalEnv)
-  assign("plot_history", plot_history, envir = .GlobalEnv)
-
-  # ========================================================================
-  # Persistent History with Thumbnails
-  # ========================================================================
-  # Check if jsonlite is available (required for persistent history)
-  assign(".jsonlite_available", requireNamespace("jsonlite", quietly = TRUE), envir = .GlobalEnv)
-  if (!get(".jsonlite_available", envir = .GlobalEnv) && interactive()) {
-    message("Note: Install 'jsonlite' for persistent plot history: install.packages('jsonlite')")
-  }
-
-  assign(".plot_counter", 0, envir = .GlobalEnv)
-  assign(".plot_history_limit", 50, envir = .GlobalEnv)
-
-  # Get history directory path
-  .get_history_dir <- function() {
-    ".plots/history"
-  }
-
-  # Read history index from JSON file
-  .read_history_index <- function() {
-    if (!get(".jsonlite_available", envir = .GlobalEnv)) {
-      return(list(version = 1, plots = list(), current_index = 0))
-    }
-    index_file <- file.path(.get_history_dir(), "index.json")
-    if (!file.exists(index_file)) {
-      return(list(version = 1, plots = list(), current_index = 0))
-    }
-    tryCatch({
-      jsonlite::fromJSON(index_file, simplifyVector = FALSE)
-    }, error = function(e) {
-      list(version = 1, plots = list(), current_index = 0)
-    })
-  }
-
-  # Write history index to JSON file
-  .write_history_index <- function(index) {
-    if (!get(".jsonlite_available", envir = .GlobalEnv)) {
-      return(invisible(NULL))
-    }
-    history_dir <- .get_history_dir()
-    if (!dir.exists(history_dir)) {
-      dir.create(history_dir, recursive = TRUE, showWarnings = FALSE)
-    }
-    index_file <- file.path(history_dir, "index.json")
-    tryCatch({
-      jsonlite::write_json(index, index_file, auto_unbox = TRUE, pretty = TRUE)
-    }, error = function(e) {
-      # Silently fail on write error
-    })
-  }
-
-  # Generate thumbnail for a plot (requires ImageMagick convert)
-  .generate_thumbnail <- function(src_path) {
-    thumb_path <- sub("\\.png$", "_thumb.png", src_path)
-    if (Sys.which("convert") != "") {
-      system(paste("convert", shQuote(src_path), "-resize 200x", shQuote(thumb_path)),
-             ignore.stderr = TRUE, ignore.stdout = TRUE)
-    }
-    thumb_path
-  }
-
-  # Add plot to persistent history
-  .add_to_persistent_history <- function(name = NULL, code = "") {
-    # Increment counter
-    counter <- get(".plot_counter", envir = .GlobalEnv) + 1
-    assign(".plot_counter", counter, envir = .GlobalEnv)
-
-    history_dir <- .get_history_dir()
-    if (!dir.exists(history_dir)) {
-      dir.create(history_dir, recursive = TRUE, showWarnings = FALSE)
-    }
+  .add_to_history <- function(name = NULL, code = "") {
+    index <- .read_index()
+    index$counter <- index$counter + 1
+    id <- index$counter
 
     # Generate name if not provided
     if (is.null(name) || name == "") {
-      name <- sprintf("plot_%03d", counter)
+      name <- sprintf("plot_%03d", id)
     }
-    # Sanitize name for filename
     safe_name <- gsub("[^a-zA-Z0-9_-]", "_", name)
 
-    # Copy current plot to history
-    pf <- get(".plot_file", envir = .GlobalEnv)
-    if (is.null(pf) || !file.exists(pf)) return(invisible(NULL))
+    # Copy files to history
+    hist_dir <- .history_dir()
+    pdf_dst <- file.path(hist_dir, sprintf("%03d_%s.pdf", id, safe_name))
+    png_dst <- file.path(hist_dir, sprintf("%03d_%s.png", id, safe_name))
 
-    dst <- file.path(history_dir, sprintf("%03d_%s.png", counter, safe_name))
-    file.copy(pf, dst, overwrite = TRUE)
+    if (file.exists(.current_pdf())) file.copy(.current_pdf(), pdf_dst, overwrite = TRUE)
+    if (file.exists(.current_png())) file.copy(.current_png(), png_dst, overwrite = TRUE)
 
-    # Also copy hi-res version if available
-    pf_hires <- get(".plot_file_hires", envir = .GlobalEnv)
-    if (!is.null(pf_hires) && file.exists(pf_hires)) {
-      dst_hires <- file.path(history_dir, sprintf("%03d_%s_hires.png", counter, safe_name))
-      file.copy(pf_hires, dst_hires, overwrite = TRUE)
-    }
-
-    # Generate thumbnail
-    thumb_path <- .generate_thumbnail(dst)
-
-    # Update index
-    index <- .read_history_index()
-    new_entry <- list(
-      id = counter,
-      file = basename(dst),
-      thumb = basename(thumb_path),
+    # Add entry
+    entry <- list(
+      id = id,
       name = name,
+      pdf = basename(pdf_dst),
+      png = basename(png_dst),
       created = format(Sys.time(), "%Y-%m-%dT%H:%M:%S"),
-      code = substr(code, 1, 200)  # Truncate long code
+      code = substr(code, 1, 200)
     )
-    index$plots <- c(index$plots, list(new_entry))
-    index$current_index <- counter
-    .write_history_index(index)
+    index$plots <- c(index$plots, list(entry))
+    index$current <- id
 
-    # Trim history if over limit
-    .trim_persistent_history()
+    .write_index(index)
+    .trim_history()
 
-    invisible(counter)
+    invisible(id)
   }
 
-  # Trim old entries from persistent history
-  .trim_persistent_history <- function() {
-    limit <- get(".plot_history_limit", envir = .GlobalEnv)
-    index <- .read_history_index()
-    if (length(index$plots) <= limit) return(invisible(NULL))
+  .trim_history <- function() {
+    index <- .read_index()
+    if (length(index$plots) <= .history_limit) return()
 
-    # Remove oldest entries
-    to_remove <- index$plots[1:(length(index$plots) - limit)]
-    index$plots <- index$plots[(length(index$plots) - limit + 1):length(index$plots)]
+    # Remove oldest
+    n_remove <- length(index$plots) - .history_limit
+    to_remove <- index$plots[1:n_remove]
+    index$plots <- index$plots[(n_remove + 1):length(index$plots)]
 
     # Delete files
-    history_dir <- .get_history_dir()
+    hist_dir <- .history_dir()
     for (entry in to_remove) {
-      file_path <- file.path(history_dir, entry$file)
-      if (file.exists(file_path)) unlink(file_path)
-      thumb_path <- file.path(history_dir, entry$thumb)
-      if (file.exists(thumb_path)) unlink(thumb_path)
-      # Also remove hi-res version
-      hires_path <- sub("\\.png$", "_hires.png", file_path)
-      if (file.exists(hires_path)) unlink(hires_path)
+      pdf_path <- file.path(hist_dir, entry$pdf)
+      png_path <- file.path(hist_dir, entry$png)
+      if (file.exists(pdf_path)) unlink(pdf_path)
+      if (file.exists(png_path)) unlink(png_path)
     }
 
-    .write_history_index(index)
+    .write_index(index)
   }
 
-  # Navigate to plot by name or id
-  plot_goto <- function(name_or_id) {
-    index <- .read_history_index()
+  # ==========================================================================
+  # History Navigation
+  # ==========================================================================
+
+  .display_from_history <- function(entry) {
+    hist_dir <- .history_dir()
+    png_file <- file.path(hist_dir, entry$png)
+
+    if (!file.exists(png_file)) {
+      cat("Plot file not found\n")
+      return(invisible(NULL))
+    }
+
+    # Copy to current for display
+    file.copy(png_file, .current_png(), overwrite = TRUE)
+    pdf_file <- file.path(hist_dir, entry$pdf)
+    if (file.exists(pdf_file)) {
+      file.copy(pdf_file, .current_pdf(), overwrite = TRUE)
+    }
+
+    .signal_vim()
+    cat(sprintf("%s (%s)\n", entry$name, entry$created))
+  }
+
+  plot_prev <- function() {
+    index <- .read_index()
     if (length(index$plots) == 0) {
-      cat("No persistent history\n")
+      cat("No plot history\n")
+      return(invisible(NULL))
+    }
+
+    # Find current position
+    pos <- which(sapply(index$plots, function(x) x$id) == index$current)
+    if (length(pos) == 0) pos <- length(index$plots)
+
+    # Move back
+    new_pos <- max(1, pos - 1)
+    entry <- index$plots[[new_pos]]
+    index$current <- entry$id
+    .write_index(index)
+
+    cat(sprintf("[%d/%d] ", new_pos, length(index$plots)))
+    .display_from_history(entry)
+  }
+
+  plot_next <- function() {
+    index <- .read_index()
+    if (length(index$plots) == 0) {
+      cat("No plot history\n")
+      return(invisible(NULL))
+    }
+
+    pos <- which(sapply(index$plots, function(x) x$id) == index$current)
+    if (length(pos) == 0) pos <- 0
+
+    new_pos <- min(length(index$plots), pos + 1)
+    entry <- index$plots[[new_pos]]
+    index$current <- entry$id
+    .write_index(index)
+
+    cat(sprintf("[%d/%d] ", new_pos, length(index$plots)))
+    .display_from_history(entry)
+  }
+
+  plot_goto <- function(name_or_id) {
+    index <- .read_index()
+    if (length(index$plots) == 0) {
+      cat("No plot history\n")
       return(invisible(NULL))
     }
 
@@ -667,7 +362,8 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
       matches <- Filter(function(x) x$id == name_or_id, index$plots)
       if (length(matches) > 0) entry <- matches[[1]]
     } else {
-      matches <- Filter(function(x) grepl(name_or_id, x$name, ignore.case = TRUE), index$plots)
+      matches <- Filter(function(x) grepl(name_or_id, x$name, ignore.case = TRUE),
+                        index$plots)
       if (length(matches) > 0) entry <- matches[[1]]
     }
 
@@ -676,21 +372,30 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
       return(invisible(NULL))
     }
 
-    file <- file.path(.get_history_dir(), entry$file)
-    if (!file.exists(file)) {
-      cat("Plot file not found:", file, "\n")
+    index$current <- entry$id
+    .write_index(index)
+    .display_from_history(entry)
+  }
+
+  plot_history <- function() {
+    index <- .read_index()
+    if (length(index$plots) == 0) {
+      cat("No plot history\n")
       return(invisible(NULL))
     }
 
-    .GlobalEnv$.display_plot(file)
-    cat(sprintf("Showing: %s (%s)\n", entry$name, entry$created))
+    cat(sprintf("Plot history: %d plots\n\n", length(index$plots)))
+    for (i in seq_along(index$plots)) {
+      p <- index$plots[[i]]
+      marker <- if (p$id == index$current) "▶ " else "  "
+      cat(sprintf("%s[%d] %-20s %s\n", marker, i, p$name, p$created))
+    }
   }
 
-  # Search persistent history
   plot_search <- function(pattern) {
-    index <- .read_history_index()
+    index <- .read_index()
     if (length(index$plots) == 0) {
-      cat("No persistent history\n")
+      cat("No plot history\n")
       return(invisible(NULL))
     }
 
@@ -700,325 +405,40 @@ if (.terminal != "none" && (Sys.info()["sysname"] %in% c("Darwin", "Linux"))) {
     }, index$plots)
 
     if (length(matches) == 0) {
-      cat("No matching plots\n")
+      cat("No matches\n")
       return(invisible(NULL))
     }
 
-    cat(sprintf("Found %d plots:\n", length(matches)))
+    cat(sprintf("Found %d:\n", length(matches)))
     for (m in matches) {
-      cat(sprintf("  [%d] %s - %s\n", m$id, m$name, m$created))
+      cat(sprintf("  [%d] %s\n", m$id, m$name))
     }
 
-    # Display the first match
-    first_match <- matches[[1]]
-    file <- file.path(.get_history_dir(), first_match$file)
-    if (file.exists(file)) {
-      .GlobalEnv$.display_plot(file)
-      cat(sprintf("\nShowing: [%d] %s\n", first_match$id, first_match$name))
-
-      # Update current index
-      index$current_index <- first_match$id
-      .write_history_index(index)
-    }
-
-    invisible(matches)
+    # Display first match
+    entry <- matches[[1]]
+    index$current <- entry$id
+    .write_index(index)
+    cat("\n")
+    .display_from_history(entry)
   }
 
-  # List persistent history
-  plot_history_persistent <- function() {
-    index <- .read_history_index()
-    if (length(index$plots) == 0) {
-      cat("No persistent history\n")
-      return(invisible(NULL))
-    }
-
-    cat(sprintf("Persistent plot history: %d plots (limit: %d)\n",
-                length(index$plots), get(".plot_history_limit", envir = .GlobalEnv)))
-    cat(sprintf("Current: %d\n\n", index$current_index))
-    for (p in index$plots) {
-      marker <- if (p$id == index$current_index) "* " else "  "
-      cat(sprintf("%s[%d] %-20s %s\n", marker, p$id, p$name, p$created))
-    }
-  }
-
-  assign(".get_history_dir", .get_history_dir, envir = .GlobalEnv)
-  assign(".read_history_index", .read_history_index, envir = .GlobalEnv)
-  assign(".write_history_index", .write_history_index, envir = .GlobalEnv)
-  assign(".generate_thumbnail", .generate_thumbnail, envir = .GlobalEnv)
-  assign(".add_to_persistent_history", .add_to_persistent_history, envir = .GlobalEnv)
-  assign(".trim_persistent_history", .trim_persistent_history, envir = .GlobalEnv)
+  assign("plot_prev", plot_prev, envir = .GlobalEnv)
+  assign("plot_next", plot_next, envir = .GlobalEnv)
   assign("plot_goto", plot_goto, envir = .GlobalEnv)
+  assign("plot_history", plot_history, envir = .GlobalEnv)
   assign("plot_search", plot_search, envir = .GlobalEnv)
-  assign("plot_history_persistent", plot_history_persistent, envir = .GlobalEnv)
 
-  # ========================================================================
-  # Configuration Functions
-  # ========================================================================
-  # Set plot sizes for dual-resolution system
-  # small: displayed in pane (default 600x450)
-  # large: used for zoom (default 1800x1350, 3x small)
-  set_plot_size <- function(small_width = 600, small_height = 450,
-                            large_width = NULL, large_height = NULL,
-                            res = 96) {
-    # If large not specified, use 3x small
-    if (is.null(large_width)) large_width <- small_width * 3
-    if (is.null(large_height)) large_height <- small_height * 3
-
-    assign(".plot_width_small", small_width, envir = .GlobalEnv)
-    assign(".plot_height_small", small_height, envir = .GlobalEnv)
-    assign(".plot_width_large", large_width, envir = .GlobalEnv)
-    assign(".plot_height_large", large_height, envir = .GlobalEnv)
-    assign(".plot_res", res, envir = .GlobalEnv)
-    cat(sprintf("Plot sizes: pane %dx%d, zoom %dx%d @ %ddpi\n",
-                small_width, small_height, large_width, large_height, res))
-  }
-
-  set_plot_align <- function(align = "right") {
-    valid_aligns <- c("left", "center", "right")
-    if (!(align %in% valid_aligns)) {
-      cat(paste("Valid alignments:", paste(valid_aligns, collapse = ", "), "\n"))
-      return(invisible(NULL))
-    }
-    # Note: iTerm2 doesn't support alignment, only Kitty does
-    assign(".plot_align", align, envir = .GlobalEnv)
-    cat(paste("Plot alignment set to:", align, "\n"))
-  }
-
-  set_plot_mode <- function(mode = "pane") {
-    valid_modes <- c("inline", "pane", "auto")
-    if (!(mode %in% valid_modes)) {
-      cat(paste("Valid modes:", paste(valid_modes, collapse = ", "), "\n"))
-      cat("  inline: display in current terminal\n")
-      cat("  pane:   display in dedicated kitty pane (reused)\n")
-      cat("  auto:   try inline, fall back to pane\n")
-      return(invisible(NULL))
-    }
-    assign(".plot_display_mode", mode, envir = .GlobalEnv)
-    cat(paste("Plot display mode set to:", mode, "\n"))
-  }
-
-  # Close the plot pane if it exists
-  close_plot_pane <- function() {
-    pane_title <- get(".plot_pane_title", envir = .GlobalEnv)
-    if (.kitty_window_exists(pane_title)) {
-      system(paste0("kitty @ close-window --match title:", pane_title),
-             ignore.stderr = TRUE, ignore.stdout = TRUE)
-      cat("Plot pane closed\n")
-    } else {
-      cat("No plot pane open\n")
-    }
-  }
-
-  assign("set_plot_mode", set_plot_mode, envir = .GlobalEnv)
-  assign("close_plot_pane", close_plot_pane, envir = .GlobalEnv)
-
-  # Set plot size relative to terminal dimensions
-  # Calculates pixel dimensions based on terminal size and sets them
-  set_plot_size_relative <- function(width_pct = 0.4, height_pct = 0.75) {
-    cols_str <- system("tput cols", intern = TRUE, ignore.stderr = TRUE)
-    lines_str <- system("tput lines", intern = TRUE, ignore.stderr = TRUE)
-
-    if (length(cols_str) > 0 && length(lines_str) > 0) {
-      cols <- as.numeric(cols_str[1])
-      lines <- as.numeric(lines_str[1])
-      # Approximate 8px per column, 16px per row
-      small_width <- floor(cols * 8 * width_pct)
-      small_height <- floor(lines * 16 * height_pct)
-      # Apply the calculated dimensions via set_plot_size
-      set_plot_size(small_width, small_height)
-      assign(".plot_align", "right", envir = .GlobalEnv)
-      cat(sprintf("Relative sizing: %d%% x %d%% of terminal\n",
-                  as.integer(width_pct * 100), as.integer(height_pct * 100)))
-    } else {
-      cat("Could not determine terminal size\n")
-    }
-  }
-
-  plot_redisplay_if_resized <- function() {
-    cols_str <- system("tput cols", intern = TRUE, ignore.stderr = TRUE)
-    lines_str <- system("tput lines", intern = TRUE, ignore.stderr = TRUE)
-
-    if (length(cols_str) == 0 || length(lines_str) == 0) {
-      cat("Could not determine terminal size\n")
-      return(invisible(NULL))
-    }
-
-    cols <- as.numeric(cols_str[1])
-    lines <- as.numeric(lines_str[1])
-
-    # Check if previous size was stored (use exists() to avoid error)
-    if (!exists(".last_cols", envir = .GlobalEnv) ||
-        !exists(".last_lines", envir = .GlobalEnv)) {
-      cat("No previous plot to redisplay\n")
-      return(invisible(NULL))
-    }
-
-    last_cols <- get(".last_cols", envir = .GlobalEnv)
-    last_lines <- get(".last_lines", envir = .GlobalEnv)
-
-    if (cols != last_cols || lines != last_lines) {
-      cat(paste("Terminal resized from", last_cols, "x", last_lines, "to", cols, "x", lines, "\n"))
-      cat("Redisplaying current plot...\n")
-
-      pf <- get(".plot_file", envir = .GlobalEnv)
-      if (!is.null(pf) && file.exists(pf)) {
-        .GlobalEnv$.display_plot(pf)
-      }
-    }
-  }
-
-  assign("set_plot_size", set_plot_size, envir = .GlobalEnv)
-  assign("set_plot_align", set_plot_align, envir = .GlobalEnv)
-  assign("set_plot_size_relative", set_plot_size_relative, envir = .GlobalEnv)
-  assign("plot_redisplay_if_resized", plot_redisplay_if_resized, envir = .GlobalEnv)
-
-  # ========================================================================
-  # Zoom Functions (for teaching/presentations)
-  # ========================================================================
-  # Uses the hi-res version for crisp zoomed display
-  plot_zoom <- function() {
-    # Prefer hi-res version, fall back to standard
-    pf_hires <- get(".plot_file_hires", envir = .GlobalEnv)
-    pf <- get(".plot_file", envir = .GlobalEnv)
-
-    display_file <- if (!is.null(pf_hires) && file.exists(pf_hires)) {
-      pf_hires
-    } else if (!is.null(pf) && file.exists(pf)) {
-      pf
-    } else {
-      NULL
-    }
-
-    if (is.null(display_file)) {
-      cat("No plot to display\n")
-      return(invisible(NULL))
-    }
-    if (.is_docker()) {
-      cat("In Docker: use :RPlotZoom in vim to open hi-res version\n")
-      return(invisible(NULL))
-    }
-    system2("open", display_file, wait = FALSE)
-    cat("Opened hi-res version in Preview (1800x1350)\n")
-    invisible(NULL)
-  }
-
-  # Opens hi-res plot in a new Kitty OS window
-  plot_zoom_kitty <- function() {
-    # Prefer hi-res version, fall back to standard
-    pf_hires <- get(".plot_file_hires", envir = .GlobalEnv)
-    pf <- get(".plot_file", envir = .GlobalEnv)
-
-    display_file <- if (!is.null(pf_hires) && file.exists(pf_hires)) {
-      pf_hires
-    } else if (!is.null(pf) && file.exists(pf)) {
-      pf
-    } else {
-      NULL
-    }
-
-    if (is.null(display_file)) {
-      cat("No plot to display\n")
-      return(invisible(NULL))
-    }
-    terminal <- get(".terminal", envir = .GlobalEnv)
-    if (terminal != "kitty") {
-      cat("plot_zoom_kitty() requires Kitty terminal\n")
-      return(invisible(NULL))
-    }
-    system(paste("kitty @ launch --type=os-window",
-                 "kitty +kitten icat --hold", shQuote(display_file)),
-           ignore.stderr = TRUE)
-    cat("Opened hi-res version in new Kitty window (1800x1350)\n")
-    invisible(NULL)
-  }
-
-  assign("plot_zoom", plot_zoom, envir = .GlobalEnv)
-  assign("plot_zoom_kitty", plot_zoom_kitty, envir = .GlobalEnv)
-
-  # ========================================================================
-  # Fullscreen/Maximize Plot
-  # ========================================================================
-  plot_split <- function(scale = 1) {
-    pf <- get(".plot_file", envir = .GlobalEnv)
-    if (is.null(pf) || !file.exists(pf)) {
-      cat("No plot to display\n")
-      return(invisible(NULL))
-    }
-
-    # If scale != 1, create a scaled version of the plot
-    display_file <- pf
-    if (scale != 1) {
-      if (!requireNamespace("png", quietly = TRUE)) {
-        cat("Installing 'png' package for scaled display...\n")
-        install.packages("png", quiet = TRUE)
-      }
-
-      # Read the current plot
-      img <- png::readPNG(pf)
-      dims <- dim(img)
-      new_width <- floor(dims[2] * scale)
-      new_height <- floor(dims[1] * scale)
-
-      # Create scaled version
-      scaled_file <- tempfile(pattern = "plot_scaled_", fileext = ".png")
-      png(scaled_file, width = new_width, height = new_height, res = 96)
-      par(mar = c(0, 0, 0, 0))
-      grid::grid.raster(img)
-      dev.off()
-
-      display_file <- scaled_file
-    }
-
-    terminal <- get(".terminal", envir = .GlobalEnv)
-    if (terminal == "kitty") {
-      # Use shell wrapper to properly create split pane with kitty
-      # tail -f /dev/null keeps pane open without showing a shell prompt
-      shell_cmd <- sprintf(
-        "exec bash -c 'kitty @ launch --location=vsplit -- sh -c \"kitty +kitten icat %s; tail -f /dev/null\"' &",
-        shQuote(display_file)
-      )
-      # Suppress both the return code and any error messages
-      tryCatch(
-        invisible(system(shell_cmd, ignore.stderr = TRUE)),
-        error = function(e) invisible(NULL)
-      )
-      cat("Plot opened in split pane (use Ctrl+Shift+] to focus plot, Ctrl+Shift+[ to return to R)\n")
-    } else if (terminal == "iterm2") {
-      # For iTerm2, open with system viewer
-      system2("open", display_file, wait = FALSE)
-      cat("Plot opened in default image viewer\n")
-    }
-    invisible(NULL)
-  }
-
-  assign("plot_split", plot_split, envir = .GlobalEnv)
-
-  # ========================================================================
+  # ==========================================================================
   # Startup Message
-  # ========================================================================
+  # ==========================================================================
   if (interactive()) {
-    startup_msg <- c(
-      paste("✓ Terminal graphics enabled (", toupper(.terminal), ")", sep = ""),
-      "  Dual-resolution: pane (600x450) + zoom (1800x1350)",
-      "",
-      "Quick reference:",
-      "  zzplot(...)                : Base R plots (renders both sizes)",
-      "  zzggplot(p)                : ggplot2 plots (renders both sizes)",
-      "  plot_zoom()                : Open hi-res in Preview",
-      "  plot_zoom_kitty()          : Open hi-res in Kitty window",
-      "  plot_history()             : View plot history",
-      "  plot_prev() / plot_next()  : Navigate history",
-      "  save_plot(file)            : Save current plot as PNG",
-      "  set_plot_size(sw,sh,lw,lh) : Set small/large dimensions"
-    )
-    if (.terminal == "kitty") {
-      startup_msg <- c(
-        startup_msg,
-        "  set_plot_mode(m)           : Display mode (pane/inline/auto)",
-        "  close_plot_pane()          : Close the plot pane"
-      )
-    }
-    startup_msg <- c(startup_msg, "")
-    cat(paste(startup_msg, collapse = "\n"))
+    cat(sprintf("Terminal graphics: %s (PDF + PNG)\n", toupper(.terminal)))
+    cat("  zzplot(...)     Base R plots\n")
+    cat("  zzggplot(p)     ggplot2 plots\n")
+    cat("  plot_zoom()     Open PDF (vector)\n")
+    cat("  plot_history()  View history\n")
+    cat("  plot_prev/next  Navigate\n")
+    cat("  save_plot(f)    Export\n")
+    cat("\n")
   }
 }
