@@ -2002,16 +2002,17 @@ function! s:GenerateCompositeImage() abort
         return l:composite_file
     endif
 
-    " Pad with null: if less than 9
-    let l:inputs = copy(l:thumb_files)
-    while len(l:inputs) < 9
-        call add(l:inputs, 'null:')
+    " Use only last 4 thumbnails (1=oldest, 4=newest in grid)
+    let l:thumb_4 = len(l:thumb_files) > 4 ? l:thumb_files[-4:] : l:thumb_files
+    let l:inputs = copy(l:thumb_4)
+    while len(l:inputs) < 4
+        call insert(l:inputs, 'null:', 0)
     endwhile
 
-    " Create 3x3 grid with montage
+    " Create 1x4 vertical grid with montage (thinner borders: +2+2)
     let l:montage_args = join(map(copy(l:inputs), 'shellescape(v:val)'), ' ')
     let l:montage_full = l:montage_cmd . ' ' . l:montage_args .
-        \ ' -tile 3x3 -geometry 180x135+4+4 -background "#333333" ' .
+        \ ' -tile 1x4 -geometry 140x105+2+2 -background "#333333" ' .
         \ shellescape(l:grid_file)
     call system(l:montage_full)
 
@@ -2020,27 +2021,31 @@ function! s:GenerateCompositeImage() abort
         return l:composite_file
     endif
 
-    " Add number labels to grid
-    let l:n_thumbs = len(l:thumb_files)
+    " Add number labels to grid (bold yellow for visibility)
+    let l:n_thumbs = len(l:thumb_4)
     let l:label_args = ''
-    for l:i in range(1, min([l:n_thumbs, 9]))
-        let l:col = (l:i - 1) % 3
-        let l:row = (l:i - 1) / 3
-        let l:x = l:col * 188 + 8
-        let l:y = l:row * 143 + 20
+    for l:i in range(1, min([l:n_thumbs, 4]))
+        let l:x = 6
+        let l:y = (l:i - 1) * 109 + 18
         let l:label_args .= ' -annotate +' . l:x . '+' . l:y . " '" . l:i . "'"
     endfor
 
     if l:label_args != ''
         let l:label_cmd = l:convert_cmd . ' ' . shellescape(l:grid_file) .
-            \ ' -font Helvetica -pointsize 14 -fill white' . l:label_args .
+            \ ' -font Helvetica-Bold -pointsize 16 -fill "#CC0000"' . l:label_args .
             \ ' ' . shellescape(l:grid_file)
         call system(l:label_cmd)
     endif
 
-    " Stack current plot on top of grid
-    let l:stack_cmd = l:convert_cmd . ' ' . shellescape(l:current_file) . ' ' .
-        \ shellescape(l:grid_file) . ' -append ' . shellescape(l:composite_file)
+    " Resize main plot 20% larger
+    let l:resized_file = s:GetPlotsPath('.main_resized.png')
+    let l:resize_cmd = l:convert_cmd . ' ' . shellescape(l:current_file) .
+        \ ' -resize 120% ' . shellescape(l:resized_file)
+    call system(l:resize_cmd)
+
+    " Join grid to right side of resized plot (+append = horizontal)
+    let l:stack_cmd = l:convert_cmd . ' ' . shellescape(l:resized_file) . ' ' .
+        \ shellescape(l:grid_file) . ' +append ' . shellescape(l:composite_file)
     call system(l:stack_cmd)
 
     if filereadable(l:composite_file)
@@ -2052,7 +2057,7 @@ endfunction
 function! s:PlotWindowToggleVim() abort
     let s:plot_window_mode = !s:plot_window_mode
     if s:plot_window_mode
-        echo "Plot window mode: ON (main + 3x3 grid)"
+        echo "Plot window mode: ON (main + 4 thumbnails)"
         " Generate and display composite immediately
         let l:composite = s:GenerateCompositeImage()
         if l:composite != '' && filereadable(l:composite)
@@ -2069,8 +2074,8 @@ function! s:PlotWindowToggleVim() abort
 endfunction
 
 function! s:PlotWindowSelectVim(n) abort
-    if a:n < 1 || a:n > 9
-        echo "Select 1-9"
+    if a:n < 1 || a:n > 4
+        echo "Select 1-4"
         return
     endif
 
@@ -2094,15 +2099,15 @@ function! s:PlotWindowSelectVim(n) abort
     endif
 
     let l:all_plots = l:index.plots
-    let l:start_idx = max([0, len(l:all_plots) - 9])
-    let l:recent_9 = l:all_plots[l:start_idx:]
+    let l:start_idx = max([0, len(l:all_plots) - 4])
+    let l:recent_4 = l:all_plots[l:start_idx:]
 
-    if a:n > len(l:recent_9)
-        echo "Only " . len(l:recent_9) . " plots available"
+    if a:n > len(l:recent_4)
+        echo "Only " . len(l:recent_4) . " plots available"
         return
     endif
 
-    let l:selected = l:recent_9[a:n - 1]
+    let l:selected = l:recent_4[a:n - 1]
     let l:history_dir = s:GetHistoryDir()
     let l:plot_file = l:history_dir . '/' . l:selected.file
 
@@ -2160,7 +2165,7 @@ function! s:ForceDisplayDockerPlotFile(plot_file) abort
         \ '    read -n1 -s key',
         \ '    case "$key" in',
         \ '        r|R) show_plot ;;',
-        \ '        q|Q|"") exit 0 ;;',
+        \ '        q|Q) exit 0 ;;',
         \ '    esac',
         \ 'done',
         \ ], l:script)
