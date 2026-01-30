@@ -3010,27 +3010,265 @@ function! s:RefreshPlotStatus() abort
 endfunction
 
 function! s:ZoomPlotPane() abort
-    " Open hi-res version in a new Kitty OS window (not pane)
+    " Open hi-res version with 9 thumbnails in interactive Kitty window
+    " Press 1-9 to switch plots, q to close
+
     let l:plot_hires = s:GetPlotFileHires()
     let l:plot_file = s:GetPlotFile()
 
     " Prefer hi-res, fall back to standard
     if filereadable(l:plot_hires)
-        let l:display_file = l:plot_hires
-        let l:size_msg = g:zzvim_r_plot_width_large . 'x' . g:zzvim_r_plot_height_large
+        let l:main_file = l:plot_hires
     elseif filereadable(l:plot_file)
-        let l:display_file = l:plot_file
-        let l:size_msg = g:zzvim_r_plot_width_small . 'x' . g:zzvim_r_plot_height_small
+        let l:main_file = l:plot_file
     else
         echom "No plot file found"
         return
     endif
 
-    " Launch in new OS window (separate from pane)
-    let l:cmd = 'kitty @ launch --type=os-window -- sh -c ' .
-              \ shellescape('kitty +kitten icat --hold ' . shellescape(l:display_file))
-    call system(l:cmd)
-    echom "Opened plot (" . l:size_msg . ") in new Kitty window"
+    " Generate zoom composite with 9 thumbnails
+    let l:zoom_composite = s:GenerateZoomComposite(l:main_file)
+    if l:zoom_composite == ''
+        " Fallback to simple display if composite fails
+        let l:cmd = 'kitty @ launch --type=os-window -- sh -c ' .
+                  \ shellescape('kitty +kitten icat --hold ' . shellescape(l:main_file))
+        call system(l:cmd)
+        return
+    endif
+
+    " Create interactive script for zoom window
+    let l:script = '/tmp/zzvim_zoom.sh'
+    let l:plots_dir = s:GetPlotsDir()
+    let l:history_dir = s:GetHistoryDir()
+
+    call writefile([
+        \ '#!/bin/bash',
+        \ 'PLOTS_DIR="' . l:plots_dir . '"',
+        \ 'HISTORY_DIR="' . l:history_dir . '"',
+        \ 'CURRENT_FILE="' . l:zoom_composite . '"',
+        \ '',
+        \ 'show_plot() {',
+        \ '    clear',
+        \ '    kitty +kitten icat --clear --align=left "$CURRENT_FILE"',
+        \ '    echo ""',
+        \ '    echo "Zoom mode | 1-9=select plot | q=close"',
+        \ '}',
+        \ '',
+        \ 'regenerate_composite() {',
+        \ '    # Called from vim via kitty send-text',
+        \ '    CURRENT_FILE="' . l:zoom_composite . '"',
+        \ '    show_plot',
+        \ '}',
+        \ '',
+        \ 'show_plot',
+        \ 'while true; do',
+        \ '    read -n1 -s key',
+        \ '    case "$key" in',
+        \ '        [1-9])',
+        \ '            # Signal vim to select plot and regenerate',
+        \ '            echo "$key" > /tmp/zzvim_zoom_select',
+        \ '            # Wait for vim to regenerate composite',
+        \ '            for i in 1 2 3 4 5; do',
+        \ '                sleep 0.05',
+        \ '                if [ "' . l:zoom_composite . '" -nt /tmp/zzvim_zoom_select ]; then break; fi',
+        \ '            done',
+        \ '            show_plot',
+        \ '            ;;',
+        \ '        r|R) show_plot ;;',
+        \ '        q|Q) exit 0 ;;',
+        \ '    esac',
+        \ 'done',
+        \ ], l:script)
+    call system('chmod +x ' . l:script)
+
+    " Launch zoom window
+    call system('kitty @ launch --type=os-window --title=zzvim-zoom ' . l:script . ' &')
+
+    " Start watching for selection
+    let s:zoom_selection_file = '/tmp/zzvim_zoom_select'
+    call delete(s:zoom_selection_file)
+    let s:zoom_selection_timer = timer_start(30, function('s:CheckZoomSelection'), {'repeat': -1})
+
+    echom "Zoom mode: 1-9 to select, q to close"
+endfunction
+
+function! s:GenerateZoomComposite(main_file) abort
+    if !executable('magick') && !executable('convert')
+        return ''
+    endif
+
+    let l:convert_cmd = executable('magick') ? 'magick' : 'convert'
+    let l:montage_cmd = executable('magick') ? 'magick montage' : 'montage'
+
+    let l:plots_dir = s:GetPlotsDir()
+    let l:history_dir = s:GetHistoryDir()
+    let l:zoom_composite = s:GetPlotsPath('zoom_composite.png')
+    let l:zoom_grid = s:GetPlotsPath('.zoom_grid.png')
+    let l:index_file = s:GetHistoryIndexFile()
+
+    if !filereadable(l:index_file)
+        return ''
+    endif
+
+    let l:json_content = join(readfile(l:index_file), '')
+    try
+        let l:index = json_decode(l:json_content)
+    catch
+        return ''
+    endtry
+
+    if !has_key(l:index, 'plots') || len(l:index.plots) == 0
+        return ''
+    endif
+
+    " Get last 9 plots for zoom
+    let l:all_plots = l:index.plots
+    let l:start_idx = max([0, len(l:all_plots) - 9])
+    let l:recent_9 = l:all_plots[l:start_idx:]
+
+    let l:thumb_files = []
+    for l:p in l:recent_9
+        let l:f = l:history_dir . '/' . l:p.file
+        if filereadable(l:f)
+            call add(l:thumb_files, l:f)
+        endif
+    endfor
+
+    if len(l:thumb_files) == 0
+        return ''
+    endif
+
+    " Pad to 9 at end if needed (plots are 1-N, empty slots at end)
+    let l:inputs = copy(l:thumb_files)
+    while len(l:inputs) < 9
+        call add(l:inputs, 'null:')
+    endwhile
+
+    " Create header for zoom grid
+    let l:n_thumbs = len(l:thumb_files)
+    let l:header_file = s:GetPlotsPath('.zoom_header.png')
+    let l:header_cmd = l:convert_cmd . ' -size 170x22 xc:"#333333" ' .
+        \ '-font Helvetica-Bold -pointsize 12 -fill "#CCCCCC" ' .
+        \ '-gravity center -annotate +0+0 "Plot History (1-' . l:n_thumbs . ')" ' .
+        \ shellescape(l:header_file)
+    call system(l:header_cmd)
+
+    " Create 1x9 vertical grid
+    let l:montage_args = join(map(copy(l:inputs), 'shellescape(v:val)'), ' ')
+    let l:montage_full = l:montage_cmd . ' ' . l:montage_args .
+        \ ' -tile 1x9 -geometry 160x120+2+2 -background "#333333" ' .
+        \ shellescape(l:zoom_grid)
+    call system(l:montage_full)
+
+    if !filereadable(l:zoom_grid)
+        return ''
+    endif
+
+    " Add number labels (only for actual plots, not empty slots)
+    let l:label_args = ''
+    for l:i in range(1, l:n_thumbs)
+        let l:x = 6
+        let l:y = (l:i - 1) * 124 + 18
+        let l:label_args .= ' -annotate +' . l:x . '+' . l:y . " '" . l:i . "'"
+    endfor
+
+    if l:label_args != ''
+        let l:label_cmd = l:convert_cmd . ' ' . shellescape(l:zoom_grid) .
+            \ ' -font Helvetica-Bold -pointsize 16 -fill "#CC0000"' . l:label_args .
+            \ ' ' . shellescape(l:zoom_grid)
+        call system(l:label_cmd)
+    endif
+
+    " Stack header on grid
+    let l:grid_with_header = s:GetPlotsPath('.zoom_grid_header.png')
+    let l:stack_header = l:convert_cmd . ' ' . shellescape(l:header_file) . ' ' .
+        \ shellescape(l:zoom_grid) . ' -append ' . shellescape(l:grid_with_header)
+    call system(l:stack_header)
+
+    " Join main plot + grid horizontally
+    let l:stack_cmd = l:convert_cmd . ' ' . shellescape(a:main_file) . ' ' .
+        \ shellescape(l:grid_with_header) . ' +append ' . shellescape(l:zoom_composite)
+    call system(l:stack_cmd)
+
+    if filereadable(l:zoom_composite)
+        return l:zoom_composite
+    endif
+    return ''
+endfunction
+
+function! s:CheckZoomSelection(timer) abort
+    " Check if zoom window still exists
+    let l:result = system('kitty @ ls 2>/dev/null')
+    if l:result !~# 'zzvim-zoom'
+        call timer_stop(a:timer)
+        if exists('s:zoom_selection_file')
+            call delete(s:zoom_selection_file)
+        endif
+        return
+    endif
+
+    " Check for selection
+    if exists('s:zoom_selection_file') && filereadable(s:zoom_selection_file)
+        let l:selection = str2nr(trim(join(readfile(s:zoom_selection_file), '')))
+        call delete(s:zoom_selection_file)
+
+        if l:selection >= 1 && l:selection <= 9
+            " Select the plot and regenerate composite
+            call s:ZoomSelectPlot(l:selection)
+        endif
+    endif
+endfunction
+
+function! s:ZoomSelectPlot(n) abort
+    let l:index_file = s:GetHistoryIndexFile()
+    if !filereadable(l:index_file)
+        return
+    endif
+
+    let l:json_content = join(readfile(l:index_file), '')
+    try
+        let l:index = json_decode(l:json_content)
+    catch
+        return
+    endtry
+
+    if !has_key(l:index, 'plots') || len(l:index.plots) == 0
+        return
+    endif
+
+    let l:all_plots = l:index.plots
+    let l:start_idx = max([0, len(l:all_plots) - 9])
+    let l:recent_9 = l:all_plots[l:start_idx:]
+
+    if a:n > len(l:recent_9)
+        return
+    endif
+
+    let l:selected = l:recent_9[a:n - 1]
+    let l:history_dir = s:GetHistoryDir()
+
+    " Try hi-res first, fall back to regular
+    let l:hires_file = l:history_dir . '/' . substitute(l:selected.file, '\.png$', '_hires.png', '')
+    let l:plot_file = l:history_dir . '/' . l:selected.file
+
+    if filereadable(l:hires_file)
+        let l:main_file = l:hires_file
+    elseif filereadable(l:plot_file)
+        let l:main_file = l:plot_file
+    else
+        return
+    endif
+
+    " Copy to current files
+    let l:current_file = s:GetPlotFile()
+    let l:current_hires = s:GetPlotFileHires()
+    call system('cp ' . shellescape(l:plot_file) . ' ' . shellescape(l:current_file))
+    if filereadable(l:hires_file)
+        call system('cp ' . shellescape(l:hires_file) . ' ' . shellescape(l:current_hires))
+    endif
+
+    " Regenerate zoom composite
+    call s:GenerateZoomComposite(l:main_file)
 endfunction
 
 " Core Operations
