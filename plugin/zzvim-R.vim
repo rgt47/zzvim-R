@@ -1750,6 +1750,17 @@ if !g:zzvim_r_disable_mappings
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pc :call <SID>PlotClose()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pr :call <SID>PlotRedisplay()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p? :call <SID>ShowPlotConfig()<CR>
+        " Plot Window (composite: main + 3x3 grid)
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pw :call <SID>PlotWindowToggle()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p1 :call <SID>PlotWindowSelect(1)<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p2 :call <SID>PlotWindowSelect(2)<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p3 :call <SID>PlotWindowSelect(3)<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p4 :call <SID>PlotWindowSelect(4)<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p5 :call <SID>PlotWindowSelect(5)<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p6 :call <SID>PlotWindowSelect(6)<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p7 :call <SID>PlotWindowSelect(7)<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p8 :call <SID>PlotWindowSelect(8)<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p9 :call <SID>PlotWindowSelect(9)<CR>
 
         " Legacy/shortcut mappings (kept for convenience)
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>[ :call <SID>OpenDockerPlotInPreview()<CR>
@@ -2306,6 +2317,14 @@ function! s:PlotSetSize() abort
     let l:lw = input('Large width: ', '1200')
     let l:lh = input('Large height: ', '900')
     call s:Send_to_r('set_plot_size(' . l:sw . ', ' . l:sh . ', ' . l:lw . ', ' . l:lh . ')', 1)
+endfunction
+
+function! s:PlotWindowToggle() abort
+    call s:Send_to_r('plot_window_toggle()', 1)
+endfunction
+
+function! s:PlotWindowSelect(n) abort
+    call s:Send_to_r('plot_window_select(' . a:n . ')', 1)
 endfunction
 
 function! s:DebugPlotWatcher() abort
