@@ -1750,7 +1750,7 @@ if !g:zzvim_r_disable_mappings
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pc :call <SID>PlotClose()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pr :call <SID>PlotRedisplay()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p? :call <SID>ShowPlotConfig()<CR>
-        " Plot Window (composite: main + 3x3 grid) - uses host ImageMagick
+        " Plot Window (composite: main + 2x4 grid) - uses host ImageMagick
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pw :call <SID>PlotWindowToggleVim()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p1 :call <SID>PlotWindowSelectVim(1)<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p2 :call <SID>PlotWindowSelectVim(2)<CR>
@@ -1760,7 +1760,6 @@ if !g:zzvim_r_disable_mappings
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p6 :call <SID>PlotWindowSelectVim(6)<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p7 :call <SID>PlotWindowSelectVim(7)<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p8 :call <SID>PlotWindowSelectVim(8)<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p9 :call <SID>PlotWindowSelectVim(9)<CR>
 
         " Legacy/shortcut mappings (kept for convenience)
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>[ :call <SID>OpenDockerPlotInPreview()<CR>
@@ -1939,9 +1938,11 @@ function! s:GenerateMissingThumbnails() abort
 endfunction
 
 "------------------------------------------------------------------------------
-" Plot Window Mode (Composite: Main + 3x3 Grid)
+" Plot Window Mode (Composite: Main + 2x4 Grid)
 "------------------------------------------------------------------------------
 " Generates composite on host side using ImageMagick (works with Docker R)
+" Grid layout: 2 columns x 4 rows, numbered 1-4 (left col), 5-8 (right col)
+" Position 1 = oldest, position 8 = newest
 
 function! s:GenerateCompositeImage() abort
     if !executable('magick') && !executable('convert')
@@ -1983,14 +1984,14 @@ function! s:GenerateCompositeImage() abort
         return l:composite_file
     endif
 
-    " Get last 9 plots
+    " Get last 8 plots
     let l:all_plots = l:index.plots
-    let l:start_idx = max([0, len(l:all_plots) - 9])
-    let l:recent_9 = l:all_plots[l:start_idx:]
+    let l:start_idx = max([0, len(l:all_plots) - 8])
+    let l:recent_8 = l:all_plots[l:start_idx:]
 
     " Build list of thumbnail files
     let l:thumb_files = []
-    for l:p in l:recent_9
+    for l:p in l:recent_8
         let l:f = l:history_dir . '/' . l:p.file
         if filereadable(l:f)
             call add(l:thumb_files, l:f)
@@ -2002,25 +2003,42 @@ function! s:GenerateCompositeImage() abort
         return l:composite_file
     endif
 
-    " Use only last 4 thumbnails (1=oldest, 4=newest in grid)
-    let l:thumb_4 = len(l:thumb_files) > 4 ? l:thumb_files[-4:] : l:thumb_files
-    let l:inputs = copy(l:thumb_4)
-    while len(l:inputs) < 4
-        call insert(l:inputs, 'null:', 0)
-    endwhile
+    " Use last 8 thumbnails (1=oldest at top-left, 8=newest at bottom-right)
+    " Montage fills row by row, so we need to reorder for column-first numbering:
+    " Display positions:  1 5    Montage order: 1 2
+    "                     2 6                   3 4
+    "                     3 7                   5 6
+    "                     4 8                   7 8
+    " So thumb_files[0,1,2,3,4,5,6,7] -> montage[0,4,1,5,2,6,3,7]
+    let l:n_thumbs = len(l:thumb_files)
+    let l:inputs = []
+    for l:row in range(4)
+        " Left column (positions 1-4)
+        if l:row < l:n_thumbs
+            call add(l:inputs, l:thumb_files[l:row])
+        else
+            call add(l:inputs, 'null:')
+        endif
+        " Right column (positions 5-8)
+        if l:row + 4 < l:n_thumbs
+            call add(l:inputs, l:thumb_files[l:row + 4])
+        else
+            call add(l:inputs, 'null:')
+        endif
+    endfor
 
     " Create header image for thumbnail strip
     let l:header_file = s:GetPlotsPath('.thumb_header.png')
-    let l:header_cmd = l:convert_cmd . ' -size 144x20 xc:"#333333" ' .
+    let l:header_cmd = l:convert_cmd . ' -size 288x20 xc:"#333333" ' .
         \ '-font Helvetica-Bold -pointsize 11 -fill "#CCCCCC" ' .
-        \ '-gravity center -annotate +0+0 "Plot History" ' .
+        \ '-gravity center -annotate +0+0 "Plot History (1-' . l:n_thumbs . ')" ' .
         \ shellescape(l:header_file)
     call system(l:header_cmd)
 
-    " Create 1x4 vertical grid with montage (thinner borders: +2+2)
+    " Create 2x4 grid with montage (2 columns, 4 rows)
     let l:montage_args = join(map(copy(l:inputs), 'shellescape(v:val)'), ' ')
     let l:montage_full = l:montage_cmd . ' ' . l:montage_args .
-        \ ' -tile 1x4 -geometry 140x105+2+2 -background "#333333" ' .
+        \ ' -tile 2x4 -geometry 140x105+2+2 -background "#333333" ' .
         \ shellescape(l:grid_file)
     call system(l:montage_full)
 
@@ -2029,12 +2047,22 @@ function! s:GenerateCompositeImage() abort
         return l:composite_file
     endif
 
-    " Add number labels to grid
-    let l:n_thumbs = len(l:thumb_4)
+    " Add number labels to grid (1-4 left column, 5-8 right column)
     let l:label_args = ''
-    for l:i in range(1, min([l:n_thumbs, 4]))
-        let l:x = 6
-        let l:y = (l:i - 1) * 109 + 18
+    let l:thumb_w = 144
+    let l:thumb_h = 109
+    for l:i in range(1, l:n_thumbs)
+        if l:i <= 4
+            " Left column: positions 1-4
+            let l:col = 0
+            let l:row = l:i - 1
+        else
+            " Right column: positions 5-8
+            let l:col = 1
+            let l:row = l:i - 5
+        endif
+        let l:x = l:col * l:thumb_w + 6
+        let l:y = l:row * l:thumb_h + 18
         let l:label_args .= ' -annotate +' . l:x . '+' . l:y . " '" . l:i . "'"
     endfor
 
@@ -2072,7 +2100,7 @@ endfunction
 function! s:PlotWindowToggleVim() abort
     let s:plot_window_mode = !s:plot_window_mode
     if s:plot_window_mode
-        echo "Plot window mode: ON (main + 4 thumbnails)"
+        echo "Plot window mode: ON (main + 8 thumbnails)"
         " Generate and display composite immediately
         let l:composite = s:GenerateCompositeImage()
         if l:composite != '' && filereadable(l:composite)
@@ -2089,8 +2117,8 @@ function! s:PlotWindowToggleVim() abort
 endfunction
 
 function! s:PlotWindowSelectVim(n) abort
-    if a:n < 1 || a:n > 4
-        echo "Select 1-4"
+    if a:n < 1 || a:n > 8
+        echo "Select 1-8"
         return
     endif
 
@@ -2114,15 +2142,15 @@ function! s:PlotWindowSelectVim(n) abort
     endif
 
     let l:all_plots = l:index.plots
-    let l:start_idx = max([0, len(l:all_plots) - 4])
-    let l:recent_4 = l:all_plots[l:start_idx:]
+    let l:start_idx = max([0, len(l:all_plots) - 8])
+    let l:recent_8 = l:all_plots[l:start_idx:]
 
-    if a:n > len(l:recent_4)
-        echo "Only " . len(l:recent_4) . " plots available"
+    if a:n > len(l:recent_8)
+        echo "Only " . len(l:recent_8) . " plots available"
         return
     endif
 
-    let l:selected = l:recent_4[a:n - 1]
+    let l:selected = l:recent_8[a:n - 1]
     let l:history_dir = s:GetHistoryDir()
     let l:plot_file = l:history_dir . '/' . l:selected.file
 
@@ -3010,8 +3038,8 @@ function! s:RefreshPlotStatus() abort
 endfunction
 
 function! s:ZoomPlotPane() abort
-    " Open hi-res version with 9 thumbnails in interactive Kitty window
-    " Press 1-9 to switch plots, q to close
+    " Open hi-res version with 2x4 thumbnail grid in interactive Kitty window
+    " Press 1-8 to switch plots, q to close
 
     let l:plot_hires = s:GetPlotFileHires()
     let l:plot_file = s:GetPlotFile()
@@ -3026,7 +3054,7 @@ function! s:ZoomPlotPane() abort
         return
     endif
 
-    " Generate zoom composite with 9 thumbnails
+    " Generate zoom composite with 2x4 thumbnail grid
     let l:zoom_composite = s:GenerateZoomComposite(l:main_file)
     if l:zoom_composite == ''
         " Fallback to simple display if composite fails
@@ -3051,7 +3079,7 @@ function! s:ZoomPlotPane() abort
         \ '    clear',
         \ '    kitty +kitten icat --clear --align=left "$CURRENT_FILE"',
         \ '    echo ""',
-        \ '    echo "Zoom mode | 1-9=select plot | q=close"',
+        \ '    echo "Zoom mode | 1-8=select plot | q=close"',
         \ '}',
         \ '',
         \ 'regenerate_composite() {',
@@ -3064,7 +3092,7 @@ function! s:ZoomPlotPane() abort
         \ 'while true; do',
         \ '    read -n1 -s key',
         \ '    case "$key" in',
-        \ '        [1-9])',
+        \ '        [1-8])',
         \ '            # Signal vim to select plot and regenerate',
         \ '            echo "$key" > /tmp/zzvim_zoom_select',
         \ '            # Wait for vim to regenerate composite',
@@ -3089,9 +3117,12 @@ function! s:ZoomPlotPane() abort
     call delete(s:zoom_selection_file)
     let s:zoom_selection_timer = timer_start(30, function('s:CheckZoomSelection'), {'repeat': -1})
 
-    echom "Zoom mode: 1-9 to select, q to close"
+    echom "Zoom mode: 1-8 to select, q to close"
 endfunction
 
+" Generate zoom composite with 2x4 grid (8 thumbnails)
+" Grid layout: 2 columns x 4 rows, numbered 1-4 (left col), 5-8 (right col)
+" Position 1 = oldest, position 8 = newest
 function! s:GenerateZoomComposite(main_file) abort
     if !executable('magick') && !executable('convert')
         return ''
@@ -3121,13 +3152,13 @@ function! s:GenerateZoomComposite(main_file) abort
         return ''
     endif
 
-    " Get last 9 plots for zoom
+    " Get last 8 plots for zoom
     let l:all_plots = l:index.plots
-    let l:start_idx = max([0, len(l:all_plots) - 9])
-    let l:recent_9 = l:all_plots[l:start_idx:]
+    let l:start_idx = max([0, len(l:all_plots) - 8])
+    let l:recent_8 = l:all_plots[l:start_idx:]
 
     let l:thumb_files = []
-    for l:p in l:recent_9
+    for l:p in l:recent_8
         let l:f = l:history_dir . '/' . l:p.file
         if filereadable(l:f)
             call add(l:thumb_files, l:f)
@@ -3138,25 +3169,40 @@ function! s:GenerateZoomComposite(main_file) abort
         return ''
     endif
 
-    " Pad to 9 at end if needed (plots are 1-N, empty slots at end)
-    let l:inputs = copy(l:thumb_files)
-    while len(l:inputs) < 9
-        call add(l:inputs, 'null:')
-    endwhile
+    " Reorder for 2x4 grid with column-first numbering:
+    " Display positions:  1 5    Montage order: 1 2
+    "                     2 6                   3 4
+    "                     3 7                   5 6
+    "                     4 8                   7 8
+    let l:n_thumbs = len(l:thumb_files)
+    let l:inputs = []
+    for l:row in range(4)
+        " Left column (positions 1-4)
+        if l:row < l:n_thumbs
+            call add(l:inputs, l:thumb_files[l:row])
+        else
+            call add(l:inputs, 'null:')
+        endif
+        " Right column (positions 5-8)
+        if l:row + 4 < l:n_thumbs
+            call add(l:inputs, l:thumb_files[l:row + 4])
+        else
+            call add(l:inputs, 'null:')
+        endif
+    endfor
 
     " Create header for zoom grid
-    let l:n_thumbs = len(l:thumb_files)
     let l:header_file = s:GetPlotsPath('.zoom_header.png')
-    let l:header_cmd = l:convert_cmd . ' -size 170x22 xc:"#333333" ' .
+    let l:header_cmd = l:convert_cmd . ' -size 328x22 xc:"#333333" ' .
         \ '-font Helvetica-Bold -pointsize 12 -fill "#CCCCCC" ' .
         \ '-gravity center -annotate +0+0 "Plot History (1-' . l:n_thumbs . ')" ' .
         \ shellescape(l:header_file)
     call system(l:header_cmd)
 
-    " Create 1x9 vertical grid
+    " Create 2x4 grid (2 columns, 4 rows)
     let l:montage_args = join(map(copy(l:inputs), 'shellescape(v:val)'), ' ')
     let l:montage_full = l:montage_cmd . ' ' . l:montage_args .
-        \ ' -tile 1x9 -geometry 160x120+2+2 -background "#333333" ' .
+        \ ' -tile 2x4 -geometry 160x120+2+2 -background "#333333" ' .
         \ shellescape(l:zoom_grid)
     call system(l:montage_full)
 
@@ -3164,11 +3210,22 @@ function! s:GenerateZoomComposite(main_file) abort
         return ''
     endif
 
-    " Add number labels (only for actual plots, not empty slots)
+    " Add number labels (1-4 left column, 5-8 right column)
     let l:label_args = ''
+    let l:thumb_w = 164
+    let l:thumb_h = 124
     for l:i in range(1, l:n_thumbs)
-        let l:x = 6
-        let l:y = (l:i - 1) * 124 + 18
+        if l:i <= 4
+            " Left column: positions 1-4
+            let l:col = 0
+            let l:row = l:i - 1
+        else
+            " Right column: positions 5-8
+            let l:col = 1
+            let l:row = l:i - 5
+        endif
+        let l:x = l:col * l:thumb_w + 6
+        let l:y = l:row * l:thumb_h + 18
         let l:label_args .= ' -annotate +' . l:x . '+' . l:y . " '" . l:i . "'"
     endfor
 
@@ -3212,7 +3269,7 @@ function! s:CheckZoomSelection(timer) abort
         let l:selection = str2nr(trim(join(readfile(s:zoom_selection_file), '')))
         call delete(s:zoom_selection_file)
 
-        if l:selection >= 1 && l:selection <= 9
+        if l:selection >= 1 && l:selection <= 8
             " Select the plot and regenerate composite
             call s:ZoomSelectPlot(l:selection)
         endif
@@ -3238,12 +3295,12 @@ function! s:ZoomSelectPlot(n) abort
 
     let l:history_dir = s:GetHistoryDir()
     let l:all_plots = l:index.plots
-    let l:start_idx = max([0, len(l:all_plots) - 9])
-    let l:recent_9 = l:all_plots[l:start_idx:]
+    let l:start_idx = max([0, len(l:all_plots) - 8])
+    let l:recent_8 = l:all_plots[l:start_idx:]
 
     " Filter to only plots with existing files (must match GenerateZoomComposite)
     let l:valid_plots = []
-    for l:p in l:recent_9
+    for l:p in l:recent_8
         let l:f = l:history_dir . '/' . l:p.file
         if filereadable(l:f)
             call add(l:valid_plots, l:p)

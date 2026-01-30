@@ -28,8 +28,8 @@
 #   close_plot_pane()          : Close the plot pane
 #   plot_split(scale)          : Display in split pane
 #   plot_redisplay_if_resized(): Redisplay after terminal resize
-#   plot_window_toggle()       : Toggle window mode (main + 3x3 grid)
-#   plot_window_select(n)      : Select plot 1-9 from grid
+#   plot_window_toggle()       : Toggle window mode (main + 2x4 grid)
+#   plot_window_select(n)      : Select plot 1-8 from grid
 # =============================================================================
 
 
@@ -380,20 +380,20 @@ Plot family (<LocalLeader>p + action):
   <LocalLeader>pc     - Close pane
   <LocalLeader>pr     - Redisplay
   <LocalLeader>p?     - Show config
-  <LocalLeader>pw     - Toggle window mode (main + 3x3 grid)
-  <LocalLeader>p1-p9  - Select from thumbnail grid
+  <LocalLeader>pw     - Toggle window mode (main + 2x4 grid)
+  <LocalLeader>p1-p8  - Select from thumbnail grid
 
 Gallery/Thumbnail navigation:
-  - Press 1-9 to select plot by number
+  - Press 1-8 to select plot by number
   - Press Enter on a line to select that plot
   - Press q or Esc to close
 ")
 
 
 # -----------------------------------------------------------------------------
-# SECTION 21: plot_window_toggle() - Window Mode (Main + 3x3 Grid)
+# SECTION 21: plot_window_toggle() - Window Mode (Main + 2x4 Grid)
 # -----------------------------------------------------------------------------
-# Expected: Toggles composite display with main plot + 3x3 thumbnail grid
+# Expected: Toggles composite display with main plot + 2x4 thumbnail grid
 
 cat("\n=== Section 21: plot_window_toggle() ===\n")
 cat("Enabling plot window mode...\n")
@@ -413,7 +413,7 @@ plot_window_toggle()
 # -----------------------------------------------------------------------------
 # SECTION 22: plot_window_select() - Select from Thumbnail Grid
 # -----------------------------------------------------------------------------
-# Expected: Selects plot 1-9 from the thumbnail grid and displays it
+# Expected: Selects plot 1-8 from the thumbnail grid and displays it
 
 cat("\n=== Section 22: plot_window_select() ===\n")
 cat("Re-enabling window mode to test selection...\n")

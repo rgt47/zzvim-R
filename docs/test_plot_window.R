@@ -1,5 +1,5 @@
 # =============================================================================
-# Test Script: Plot Window Mode (Main + 3x3 Thumbnail Grid)
+# Test Script: Plot Window Mode (Main + 2x4 Thumbnail Grid)
 # =============================================================================
 # Quick workflow to test the composite plot window feature
 # Requires: Kitty terminal, ImageMagick on HOST (not in Docker)
@@ -50,9 +50,9 @@ zzplot(1:30, (1:30)^2, type = "l", main = "Plot H: Quadratic", .name = "plot_h")
 # 4. Select from grid (USE VIM MAPPINGS)
 # -----------------------------------------------------------------------------
 cat("\n--- To select from grid ---\n")
-cat("Press <Space>p1 through <Space>p9 in Vim to select plots\n")
+cat("Press <Space>p1 through <Space>p8 in Vim to select plots\n")
 cat("  <Space>p1 - Select oldest plot in grid\n")
-cat("  <Space>p9 - Select newest plot in grid\n\n")
+cat("  <Space>p8 - Select newest plot in grid\n\n")
 
 
 # -----------------------------------------------------------------------------
@@ -60,15 +60,15 @@ cat("  <Space>p9 - Select newest plot in grid\n\n")
 # -----------------------------------------------------------------------------
 cat("\n--- To view thumbnail gallery ---\n")
 cat("Press <Space>T in Vim to open thumbnail gallery pane\n")
-cat("Press 1-9 to select, q to close\n\n")
+cat("Press 1-8 to select, q to close\n\n")
 
 
 # -----------------------------------------------------------------------------
 # 6. Available Vim mappings for plot window mode
 # -----------------------------------------------------------------------------
 cat("\n=== Plot Window Mode Vim Mappings ===\n")
-cat("  <Space>pw     - Toggle window mode (main + 3x3 grid)\n")
-cat("  <Space>p1-p9  - Select plot from grid\n")
+cat("  <Space>pw     - Toggle window mode (main + 2x4 grid)\n")
+cat("  <Space>p1-p8  - Select plot from grid\n")
 cat("  <Space>T      - Open thumbnail gallery pane\n")
 cat("  <Space>G      - Open full plot gallery\n\n")
 
