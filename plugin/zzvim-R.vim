@@ -1734,6 +1734,9 @@ if !g:zzvim_r_disable_mappings
         " Quick navigation (without opening HUD)
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>< :call <SID>PlotPrev()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>> :call <SID>PlotNext()<CR>
+        " Plot history and save
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>[ :call <SID>PlotHistory()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>\ :call <SID>PlotSave()<CR>
 
         " R Markdown rendering (rk = render knit)
         autocmd FileType rmd,qmd nnoremap <buffer> <silent> <localleader>rp :RMarkdownPreview<CR>
@@ -2050,12 +2053,20 @@ endfunction
 "------------------------------------------------------------------------------
 " Plot Export (via R)
 "------------------------------------------------------------------------------
+function! s:PlotSave() abort
+    let l:filename = input('Save plot to: ', getcwd() . '/plot.pdf')
+    if empty(l:filename)
+        return
+    endif
+    call s:Send_to_r('show_save("' . l:filename . '")', 1)
+endfunction
+
 function! s:PlotSavePdf() abort
     let l:filename = input('Save PDF to: ', getcwd() . '/plot.pdf')
     if empty(l:filename)
         return
     endif
-    call s:Send_to_r('save_plot("' . l:filename . '")', 1)
+    call s:Send_to_r('show_save("' . l:filename . '")', 1)
 endfunction
 
 function! s:PlotSavePng() abort
@@ -2063,7 +2074,7 @@ function! s:PlotSavePng() abort
     if empty(l:filename)
         return
     endif
-    call s:Send_to_r('save_plot("' . l:filename . '")', 1)
+    call s:Send_to_r('show_save("' . l:filename . '")', 1)
 endfunction
 
 "------------------------------------------------------------------------------

@@ -134,7 +134,7 @@ if (.terminal != "none" && Sys.info()["sysname"] %in% c("Darwin", "Linux")) {
   # Zoom - Open the PDF (vector, infinite zoom)
   # ==========================================================================
 
-  plot_zoom <- function() {
+  show_zoom <- function() {
     pdf_file <- .current_pdf()
     if (!file.exists(pdf_file)) {
       cat("No plot available. Use show() first.\n")
@@ -148,13 +148,13 @@ if (.terminal != "none" && Sys.info()["sysname"] %in% c("Darwin", "Linux")) {
     cat("Opened PDF (vector, zoomable)\n")
   }
 
-  assign("plot_zoom", plot_zoom, envir = .GlobalEnv)
+  assign("show_zoom", show_zoom, envir = .GlobalEnv)
 
   # ==========================================================================
   # Export
   # ==========================================================================
 
-  save_plot <- function(filename) {
+  show_save <- function(filename) {
     if (grepl("\\.pdf$", filename, ignore.case = TRUE)) {
       if (file.exists(.current_pdf())) {
         file.copy(.current_pdf(), filename, overwrite = TRUE)
@@ -174,7 +174,7 @@ if (.terminal != "none" && Sys.info()["sysname"] %in% c("Darwin", "Linux")) {
     }
   }
 
-  assign("save_plot", save_plot, envir = .GlobalEnv)
+  assign("show_save", show_save, envir = .GlobalEnv)
 
   # ==========================================================================
   # Persistent History
@@ -289,7 +289,7 @@ if (.terminal != "none" && Sys.info()["sysname"] %in% c("Darwin", "Linux")) {
     cat(sprintf("%s (%s)\n", entry$name, entry$created))
   }
 
-  plot_prev <- function() {
+  show_prev <- function() {
     index <- .read_index()
     if (length(index$plots) == 0) {
       cat("No plot history\n")
@@ -310,7 +310,7 @@ if (.terminal != "none" && Sys.info()["sysname"] %in% c("Darwin", "Linux")) {
     .display_from_history(entry)
   }
 
-  plot_next <- function() {
+  show_next <- function() {
     index <- .read_index()
     if (length(index$plots) == 0) {
       cat("No plot history\n")
@@ -329,7 +329,7 @@ if (.terminal != "none" && Sys.info()["sysname"] %in% c("Darwin", "Linux")) {
     .display_from_history(entry)
   }
 
-  plot_goto <- function(name_or_id) {
+  show_goto <- function(name_or_id) {
     index <- .read_index()
     if (length(index$plots) == 0) {
       cat("No plot history\n")
@@ -356,7 +356,7 @@ if (.terminal != "none" && Sys.info()["sysname"] %in% c("Darwin", "Linux")) {
     .display_from_history(entry)
   }
 
-  plot_history <- function() {
+  show_history <- function() {
     index <- .read_index()
     if (length(index$plots) == 0) {
       cat("No plot history\n")
@@ -371,7 +371,7 @@ if (.terminal != "none" && Sys.info()["sysname"] %in% c("Darwin", "Linux")) {
     }
   }
 
-  plot_search <- function(pattern) {
+  show_search <- function(pattern) {
     index <- .read_index()
     if (length(index$plots) == 0) {
       cat("No plot history\n")
@@ -401,22 +401,30 @@ if (.terminal != "none" && Sys.info()["sysname"] %in% c("Darwin", "Linux")) {
     .display_from_history(entry)
   }
 
-  assign("plot_prev", plot_prev, envir = .GlobalEnv)
-  assign("plot_next", plot_next, envir = .GlobalEnv)
-  assign("plot_goto", plot_goto, envir = .GlobalEnv)
-  assign("plot_history", plot_history, envir = .GlobalEnv)
-  assign("plot_search", plot_search, envir = .GlobalEnv)
+  assign("show_prev", show_prev, envir = .GlobalEnv)
+  assign("show_next", show_next, envir = .GlobalEnv)
+  assign("show_goto", show_goto, envir = .GlobalEnv)
+  assign("show_history", show_history, envir = .GlobalEnv)
+  assign("show_search", show_search, envir = .GlobalEnv)
 
   # ==========================================================================
   # Startup Message
   # ==========================================================================
   if (interactive()) {
     cat(sprintf("Terminal graphics: %s (PDF + PNG)\n", toupper(.terminal)))
-    cat("  show(expr)      Any plot (base R or ggplot)\n")
-    cat("  plot_zoom()     Open PDF (vector)\n")
-    cat("  plot_history()  View history\n")
-    cat("  plot_prev/next  Navigate\n")
-    cat("  save_plot(f)    Export\n")
+    cat("  show(expr)        Any plot (base R or ggplot)\n")
+    cat("  show_zoom()       Open PDF in viewer          SPC ]\n")
+    cat("  show_prev/next    Navigate history            SPC < / SPC >\n")
+    cat("  show_history()    List all plots              SPC [\n")
+    cat("  show_save(file)   Export to file              SPC \\\n")
+    cat("\n")
+    cat("Vim HUDs:\n")
+    cat("  :RPlotHUD         Plot gallery                SPC P\n")
+    cat("  :RDataFrameHUD    Data frames                 SPC e\n")
+    cat("  :RMemoryHUD       Memory usage                SPC m\n")
+    cat("  :RPackageHUD      Loaded packages             SPC z\n")
+    cat("  :RDataViewer      RStudio-style viewer        SPC v\n")
+    cat("  :RHUDDashboard    All 6 HUDs in tabs          SPC 0\n")
     cat("\n")
   }
 }

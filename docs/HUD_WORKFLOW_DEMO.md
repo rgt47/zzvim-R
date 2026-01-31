@@ -83,50 +83,50 @@ summary_stats <- patients |>
 # -----------------------------------------------------------------------------
 
 # Plot 1: Scatter plot
-zzplot(mtcars$wt, mtcars$mpg,
-       main = "Weight vs MPG",
-       xlab = "Weight (1000 lbs)",
-       ylab = "Miles per Gallon",
-       pch = 19, col = "steelblue",
-       .name = "scatter_wt_mpg")
+show(plot(mtcars$wt, mtcars$mpg,
+          main = "Weight vs MPG",
+          xlab = "Weight (1000 lbs)",
+          ylab = "Miles per Gallon",
+          pch = 19, col = "steelblue"),
+     .name = "scatter_wt_mpg")
 
 # Plot 2: Histogram
-zzplot(hist(patients$age, breaks = 15,
-            main = "Patient Age Distribution",
-            xlab = "Age", col = "coral"),
-       .name = "histogram_age")
+show(hist(patients$age, breaks = 15,
+          main = "Patient Age Distribution",
+          xlab = "Age", col = "coral"),
+     .name = "histogram_age")
 
 # Plot 3: Box plot
-zzplot(boxplot(outcome ~ treatment, data = patients,
-               main = "Outcome by Treatment",
-               col = c("lightblue", "lightgreen", "lightyellow")),
-       .name = "boxplot_treatment")
+show(boxplot(outcome ~ treatment, data = patients,
+             main = "Outcome by Treatment",
+             col = c("lightblue", "lightgreen", "lightyellow")),
+     .name = "boxplot_treatment")
 
 # Plot 4: ggplot scatter with regression
-p1 <- ggplot(mtcars, aes(x = hp, y = mpg, color = factor(cyl))) +
-  geom_point(size = 3) +
-  geom_smooth(method = "lm", se = FALSE) +
-  labs(title = "Horsepower vs MPG by Cylinder",
-       x = "Horsepower", y = "MPG", color = "Cylinders") +
-  theme_minimal()
-zzggplot(p1, .name = "ggplot_hp_mpg")
+show(ggplot(mtcars, aes(x = hp, y = mpg, color = factor(cyl))) +
+       geom_point(size = 3) +
+       geom_smooth(method = "lm", se = FALSE) +
+       labs(title = "Horsepower vs MPG by Cylinder",
+            x = "Horsepower", y = "MPG", color = "Cylinders") +
+       theme_minimal(),
+     .name = "ggplot_hp_mpg")
 
 # Plot 5: Time series
-p2 <- ggplot(daily_sales, aes(x = date, y = revenue)) +
-  geom_line(color = "darkgreen") +
-  geom_smooth(method = "loess", color = "red", se = TRUE) +
-  labs(title = "Daily Revenue Trend",
-       x = "Date", y = "Cumulative Revenue ($)") +
-  theme_minimal()
-zzggplot(p2, .name = "timeseries_revenue")
+show(ggplot(daily_sales, aes(x = date, y = revenue)) +
+       geom_line(color = "darkgreen") +
+       geom_smooth(method = "loess", color = "red", se = TRUE) +
+       labs(title = "Daily Revenue Trend",
+            x = "Date", y = "Cumulative Revenue ($)") +
+       theme_minimal(),
+     .name = "timeseries_revenue")
 
 # Plot 6: Faceted plot
-p3 <- ggplot(iris, aes(x = Sepal.Length, y = Sepal.Width)) +
-  geom_point(aes(color = Species)) +
-  facet_wrap(~Species) +
-  labs(title = "Iris Sepal Dimensions") +
-  theme_bw()
-zzggplot(p3, .name = "faceted_iris")
+show(ggplot(iris, aes(x = Sepal.Length, y = Sepal.Width)) +
+       geom_point(aes(color = Species)) +
+       facet_wrap(~Species) +
+       labs(title = "Iris Sepal Dimensions") +
+       theme_bw(),
+     .name = "faceted_iris")
 
 cat("\n✓ Demo environment ready!\n")
 cat("  Objects: ", length(ls()), "\n")
@@ -264,12 +264,12 @@ Enter=display | z=zoom PDF | s=save | d=delete | q=close | /=search
 
   #   Name                 Created              Code
 ----------------------------------------------------------------------
-> [1] scatter_wt_mpg       2026-01-30T14:30     zzplot(mtcars$wt, mt...
-  [2] histogram_age        2026-01-30T14:30     zzplot(hist(patients...
-  [3] boxplot_treatment    2026-01-30T14:30     zzplot(boxplot(outco...
-  [4] ggplot_hp_mpg        2026-01-30T14:31     zzggplot(p1, .name =...
-  [5] timeseries_revenue   2026-01-30T14:31     zzggplot(p2, .name =...
-  [6] faceted_iris         2026-01-30T14:31     zzggplot(p3, .name =...
+> [1] scatter_wt_mpg       2026-01-30T14:30     show(plot(mtcars$wt...
+  [2] histogram_age        2026-01-30T14:30     show(hist(patients$...
+  [3] boxplot_treatment    2026-01-30T14:30     show(boxplot(outcom...
+  [4] ggplot_hp_mpg        2026-01-30T14:31     show(ggplot(mtcars,...
+  [5] timeseries_revenue   2026-01-30T14:31     show(ggplot(daily_s...
+  [6] faceted_iris         2026-01-30T14:31     show(ggplot(iris, a...
 
 Total: 6 plots | Current: 6
 ```
@@ -416,6 +416,8 @@ q           " Close current HUD tab
 | `<LocalLeader>]` | R file | Zoom current plot |
 | `<LocalLeader><` | R file | Previous plot |
 | `<LocalLeader>>` | R file | Next plot |
+| `<LocalLeader>[` | R file | Show plot history |
+| `<LocalLeader>\` | R file | Save current plot |
 | `Enter` | HUD buffer | Select/inspect item |
 | `z` | Plot HUD | Zoom (open PDF) |
 | `s` | Plot HUD | Save plot |
