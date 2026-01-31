@@ -4,11 +4,17 @@ This document provides comprehensive information about the zzvim-R plugin, its c
 
 ## Document Status
 
-**Last Updated**: January 28, 2026
+**Last Updated**: January 30, 2026
 **Plugin Version**: 1.0
 **Documentation Status**: Comprehensive accuracy review completed
 **Test Coverage**: Full test suite + clean execution validation with automated CI workflows
 **Release Readiness**: Production ready with clean terminal output and professional UX
+
+### Recent Changes (Jan 30, 2026)
+- **Plot System Refactoring**: Simplified from 1629 to 312 lines (81% reduction)
+- **PDF Master + PNG Preview**: Vector PDF for zoom, raster PNG for display
+- **Removed**: Adaptive polling, composite images, thumbnail gallery, config sync
+- **HUD Integration Planned**: Plot management to follow HUD UX patterns
 
 ### Key Features
 - **Code Execution**: Pattern-based detection with non-interactive execution
@@ -135,8 +141,13 @@ zzvim-R/
 - `<LocalLeader>y`: help()
 
 ### Plot Display (Kitty Terminal)
-- `<LocalLeader>[`: Open current plot in macOS Preview
-- `<LocalLeader>]`: Open hi-res plot in new Kitty window (zoom)
+- `<LocalLeader>]`: Zoom - open PDF in system viewer (vector, infinite zoom)
+- `<LocalLeader>pp`: Previous plot
+- `<LocalLeader>pn`: Next plot
+- `<LocalLeader>ph`: Plot history
+- `<LocalLeader>pG`: Plot gallery (Vim buffer)
+- `<LocalLeader>ps`: Save as PDF
+- `<LocalLeader>pS`: Save as PNG
 
 ### Control Keys
 - `<LocalLeader>q`: Quit R session
@@ -160,7 +171,7 @@ zzvim-R/
 
 **Sep 2025 - IDE Enhancement**
 - SendToRWithComments: Code documentation feature
-- HUD Functions: Workspace overview dashboard
+- HUD Functions: RStudio-inspired workspace overview (see HUD System below)
 - LSP Integration: Cross-platform Vim/Neovim support
 
 **Oct-Nov 2025 - Advanced Features**
@@ -172,35 +183,63 @@ zzvim-R/
 - Temp File Strategy: Improved reliability with validation
 - Competitive Analysis: Honest research-focused comparisons
 
-**Jan 2026 - Kitty Plot Display & Dual Resolution**
-- Docker Plot Watcher: Signal-based detection with adaptive polling (100ms active, 1s idle)
-- Kitty Terminal Integration: Display plots in dedicated pane using `kitty +kitten icat`
-- Plot Pane Management: Auto-creates pane to the right of R terminal using splits layout
-- Pre-warmed Pane: Updates image in-place instead of recreating (faster refresh)
-- Plot Commands: `:RPlotShow`, `:RPlotPreview`, `:RPlotZoom`, `:RPlotZoomPreview`, `:RPlotGallery`
-- Key Mappings:
-  - `<LocalLeader>[` opens current plot in Preview
-  - `<LocalLeader>]` opens hi-res plot in new Kitty window
-- VimResized Autocmd: Auto-equalizes vim window splits when kitty pane changes
-- Plot Cleanup: Auto-closes plot pane when R terminal exits (TermClose event)
-- Race Condition Prevention: Lock mechanism prevents duplicate plot panes
-- **Dual-Resolution Plots**: `zzplot()`/`zzggplot()` render both sizes:
-  - Small (600x450): Displayed in pane, crisp without scaling
-  - Large (1800x1350): Used for zoom/export, 3x detail
-- **Persistent History**: Plots saved to `.plots/history/` with thumbnails
-  - `plot_goto(name_or_id)`: Navigate to specific plot
-  - `plot_search(pattern)`: Search plots by name or code
-  - `plot_history_persistent()`: List all saved plots
-  - `:RPlotGallery`: Vim buffer with plot gallery navigation
-- **Statusline Integration**: `ZzvimRPlotStatus()` function for statusline
-- **Unified Configuration**: `.plots/.config.json` shared between Vim and R
-  - `:RPlotConfig`: Show current configuration
-  - `:RPlotSize 800 600`: Set plot dimensions (large = 3x small)
-  - `g:zzvim_r_plot_*` variables for customization
-  - R reads config on startup via `.read_vim_config()`
-- Template Versioning: Auto-detects outdated `.Rprofile.local`, prompts to update with backup
-- `ZR` mapping: Quick access to Docker R terminal (same as `<LocalLeader>r`)
-- Comprehensive vignette: `docs/plot-display-vignette.md` documents all plot features
+**Jan 2026 - Plot System Refactoring (v7)**
+- **Simplified Architecture**: PDF master + PNG preview (replaces dual-resolution PNG)
+  - PDF: Vector format, infinite zoom, publication-ready
+  - PNG: 600x450 raster for kitty pane display
+- **Code Reduction**: Plot section reduced from 1629 to 312 lines (81%)
+- **Removed Features** (over-engineering cleanup):
+  - Adaptive polling (was 50ms/1000ms switching)
+  - Composite image generation (ImageMagick montage)
+  - Plot window mode (2x4 thumbnail grid)
+  - Thumbnail gallery
+  - Display mode management (inline/pane/auto)
+  - Config JSON sync (Vim → R)
+  - Terminal size tracking
+- **Retained Features**:
+  - Plot watcher with fixed 100ms polling
+  - Kitty pane display via `kitty +kitten icat`
+  - Persistent history in `.plots/history/`
+  - Gallery buffer for navigation
+  - Template versioning (now v7)
+- **Plot Commands**: `:RPlotShow`, `:RPlotZoom`, `:RPlotGallery`, `:RPlotPrev`, `:RPlotNext`
+- **Future Direction**: Plot HUD to integrate with existing HUD system (see `docs/PLOT_HUD_DESIGN.md`)
+
+## HUD System (RStudio-Inspired Workspace Tools)
+
+The HUD (Heads-Up Display) system provides RStudio-like workspace visibility with
+consistent UX patterns across all tools.
+
+### HUD Functions
+
+| HUD | Command | Key | Description |
+|-----|---------|-----|-------------|
+| Memory | `:RMemoryHUD` | `<LocalLeader>m` | Workspace object memory usage |
+| Data Frames | `:RDataFrameHUD` | `<LocalLeader>e` | All data frames with dimensions |
+| Packages | `:RPackageHUD` | `<LocalLeader>z` | Loaded packages list |
+| Environment | `:REnvironmentHUD` | `<LocalLeader>x` | System environment variables |
+| Options | `:ROptionsHUD` | `<LocalLeader>a` | R session options |
+| Data Viewer | `:RDataViewer` | `<LocalLeader>v` | RStudio-style data viewer |
+| Dashboard | `:RHUDDashboard` | `<LocalLeader>0` | Opens all 5 HUDs in tabs |
+
+### Consistent UX Patterns
+
+All HUD buffers share:
+- Open in Vim splits or tabs
+- Tabulated data display (Tabularize integration if available)
+- `q` or `Esc` to close
+- `/` to search
+- Read-only buffers with viewer settings
+- `<LocalLeader>` + single key for quick access
+
+### Design Philosophy
+
+The HUD system is inspired by RStudio's panes (Environment, Plots, Packages, etc.)
+but adapted for terminal/Vim workflow. The goal is to provide equivalent
+functionality without leaving Vim or requiring a mouse.
+
+**Future Direction**: Plot management will be unified with the HUD system to
+provide consistent UX. See `docs/PLOT_HUD_DESIGN.md` for the design proposal.
 
 ### Key Technical Achievements
 - Clean execution system (source command elimination)
