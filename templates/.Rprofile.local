@@ -46,7 +46,6 @@ if (.terminal != "none" && Sys.info()["sysname"] %in% c("Darwin", "Linux")) {
   # ==========================================================================
   # PDF master + PNG preview system:
   # - PDF: vector format, infinite zoom, publication-ready
-
   # - PNG: raster preview for kitty terminal display
 
   .plot_width <- 6        # inches (for PDF)
