@@ -75,9 +75,9 @@ if (.terminal != "none" && Sys.info()["sysname"] %in% c("Darwin", "Linux")) {
   # ==========================================================================
 
   # Universal plot function - works with any plotting function or ggplot
-  # Usage: zzplot(plot(x, y)), zzplot(boxplot(x)), zzplot(hist(y))
-  #        zzplot(ggplot(df, aes(x, y)) + geom_point())
-  zzplot <- function(expr, .name = NULL, .save = TRUE) {
+  # Usage: show(plot(x, y)), show(boxplot(x)), show(hist(y))
+  #        show(ggplot(df, aes(x, y)) + geom_point())
+  show <- function(expr, .name = NULL, .save = TRUE) {
     .ensure_dirs()
 
     # Capture the plot call for re-evaluation and history
@@ -113,7 +113,7 @@ if (.terminal != "none" && Sys.info()["sysname"] %in% c("Darwin", "Linux")) {
     invisible(NULL)
   }
 
-  assign("zzplot", zzplot, envir = .GlobalEnv)
+  assign("show", show, envir = .GlobalEnv)
 
   # ==========================================================================
   # Configuration
@@ -137,7 +137,7 @@ if (.terminal != "none" && Sys.info()["sysname"] %in% c("Darwin", "Linux")) {
   plot_zoom <- function() {
     pdf_file <- .current_pdf()
     if (!file.exists(pdf_file)) {
-      cat("No plot available. Use zzplot() first.\n")
+      cat("No plot available. Use show() first.\n")
       return(invisible(NULL))
     }
     if (.is_docker()) {
@@ -412,7 +412,7 @@ if (.terminal != "none" && Sys.info()["sysname"] %in% c("Darwin", "Linux")) {
   # ==========================================================================
   if (interactive()) {
     cat(sprintf("Terminal graphics: %s (PDF + PNG)\n", toupper(.terminal)))
-    cat("  zzplot(expr)    Any plot (base R or ggplot)\n")
+    cat("  show(expr)      Any plot (base R or ggplot)\n")
     cat("  plot_zoom()     Open PDF (vector)\n")
     cat("  plot_history()  View history\n")
     cat("  plot_prev/next  Navigate\n")

@@ -612,8 +612,11 @@ function! s:ConfigureTerminal(terminal_name, is_docker) abort
     let t:is_r_term = 1
     wincmd p
 
-    if a:is_docker
-        let b:r_terminal_id = current_terminal
+    " Associate terminal with buffer
+    let b:r_terminal_id = current_terminal
+
+    " Start plot watcher if terminal supports graphics (works for both Docker and local R)
+    if s:TerminalSupportsGraphics()
         " Initialize signal mtime to current file time (if exists) to avoid
         " displaying stale plots on terminal open
         let l:signal_file = s:GetSignalFile()
@@ -1766,12 +1769,67 @@ endif
 " Architecture: Vim watches .plots/.signal, displays PNG, opens PDF for zoom
 " R renders: PDF (vector master) + PNG (preview)
 " Removed: adaptive polling, composite images, thumbnail gallery, config sync
+"
+" Terminal Support:
+"   - Kitty: Full support (dedicated pane via kitty @, icat display)
+"   - Ghostty/WezTerm: Inline display only (kitty graphics protocol, no remote control)
+"   - iTerm2: Inline display via imgcat
+"   - Other: No image display (PDF zoom still works)
 
 " Track Docker R terminal buffer
 let s:docker_r_terminal_bufnr = -1
 let s:pane_title = 'zzvim-plot'
 let s:poll_interval = 100
 let s:plot_signal_mtime = 0
+
+"------------------------------------------------------------------------------
+" Terminal Type Detection
+"------------------------------------------------------------------------------
+" Detect terminal emulator for choosing display strategy
+" Returns: 'kitty', 'ghostty', 'wezterm', 'iterm2', or 'none'
+function! s:DetectTerminalType() abort
+    " Cache the result
+    if exists('s:terminal_type')
+        return s:terminal_type
+    endif
+
+    " Kitty
+    if !empty($KITTY_WINDOW_ID)
+        let s:terminal_type = 'kitty'
+        return s:terminal_type
+    endif
+
+    " Ghostty (supports Kitty graphics protocol but not kitty @ commands)
+    if !empty($GHOSTTY_RESOURCES_DIR) || $TERM ==# 'xterm-ghostty'
+        let s:terminal_type = 'ghostty'
+        return s:terminal_type
+    endif
+
+    " WezTerm (supports Kitty graphics protocol but not kitty @ commands)
+    if !empty($WEZTERM_EXECUTABLE) || $TERM_PROGRAM =~? 'WezTerm'
+        let s:terminal_type = 'wezterm'
+        return s:terminal_type
+    endif
+
+    " iTerm2
+    if !empty($ITERM_SESSION_ID) || $TERM_PROGRAM =~? 'iTerm'
+        let s:terminal_type = 'iterm2'
+        return s:terminal_type
+    endif
+
+    let s:terminal_type = 'none'
+    return s:terminal_type
+endfunction
+
+" Check if terminal supports graphics
+function! s:TerminalSupportsGraphics() abort
+    return s:DetectTerminalType() !=# 'none'
+endfunction
+
+" Check if terminal supports dedicated pane (kitty @ remote control)
+function! s:TerminalSupportsPanes() abort
+    return s:DetectTerminalType() ==# 'kitty'
+endfunction
 
 "------------------------------------------------------------------------------
 " Path Helpers
@@ -1832,9 +1890,12 @@ function! s:CheckForNewPlot(timer) abort
 endfunction
 
 "------------------------------------------------------------------------------
-" Plot Display
+" Plot Display (Terminal-Aware)
 "------------------------------------------------------------------------------
 function! s:PlotPaneExists() abort
+    if !s:TerminalSupportsPanes()
+        return 0
+    endif
     let l:result = system('kitty @ ls 2>/dev/null')
     return l:result =~# s:pane_title
 endfunction
@@ -1845,16 +1906,47 @@ function! s:DisplayPlot() abort
         return
     endif
 
-    if s:PlotPaneExists()
-        " Refresh existing pane
-        call system('kitty @ send-text --match title:' . s:pane_title . " r")
+    let l:term_type = s:DetectTerminalType()
+
+    if l:term_type ==# 'kitty'
+        " Kitty: Use dedicated pane with remote control
+        if s:PlotPaneExists()
+            call system('kitty @ send-text --match title:' . s:pane_title . " r")
+        else
+            call s:CreatePlotPane(l:plot_file)
+        endif
+    elseif l:term_type ==# 'ghostty' || l:term_type ==# 'wezterm'
+        " Ghostty/WezTerm: Inline display using kitty graphics protocol
+        call s:DisplayPlotInline(l:plot_file)
+    elseif l:term_type ==# 'iterm2'
+        " iTerm2: Use imgcat
+        call s:DisplayPlotITerm2(l:plot_file)
     else
-        " Create new pane
-        call s:CreatePlotPane(l:plot_file)
+        " No graphics support - just notify
+        echom "Plot saved: " . l:plot_file
     endif
 
     " Auto-refresh any open Plot HUD buffer
     call s:RefreshPlotHUDIfOpen()
+endfunction
+
+" Inline display for Ghostty/WezTerm (kitty graphics protocol without remote control)
+function! s:DisplayPlotInline(plot_file) abort
+    " Display in terminal using kitty +kitten icat
+    " This works because Ghostty/WezTerm support the kitty graphics protocol
+    let l:cmd = 'kitty +kitten icat --clear --align=left ' . shellescape(a:plot_file)
+    call system(l:cmd)
+    echom "Plot displayed inline"
+endfunction
+
+" Display for iTerm2 using imgcat
+function! s:DisplayPlotITerm2(plot_file) abort
+    if executable('imgcat')
+        call system('imgcat ' . shellescape(a:plot_file))
+        echom "Plot displayed (iTerm2)"
+    else
+        echom "Install imgcat for iTerm2 plot display. Plot saved: " . a:plot_file
+    endif
 endfunction
 
 " Refresh Plot HUD if it's open (called when new plot is displayed)
