@@ -1723,23 +1723,12 @@ if !g:zzvim_r_disable_mappings
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>0 :call <SID>RHUDDashboard()<CR>
 
         " ---------------------------------------------------------------------
-        " Plot Family: <LocalLeader>p + action (simplified v7)
+        " Plot HUD: <LocalLeader>P opens Plot HUD (consistent with other HUDs)
         " ---------------------------------------------------------------------
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>P :RPlotHUD<CR>
         " Zoom - open PDF (vector)
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>] :call <SID>ZoomPlot()<CR>
-        " Navigation
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pp :call <SID>PlotPrev()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pn :call <SID>PlotNext()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pg :call <SID>PlotGoto()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p/ :call <SID>PlotSearch()<CR>
-        " History
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>ph :call <SID>PlotHistory()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pG :RPlotGallery<CR>
-        " Save/Export
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>ps :call <SID>PlotSavePdf()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pS :call <SID>PlotSavePng()<CR>
-        " Shortcuts
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>G :RPlotGallery<CR>
+        " Quick navigation (without opening HUD)
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>< :call <SID>PlotPrev()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>> :call <SID>PlotNext()<CR>
 
@@ -1958,9 +1947,12 @@ function! s:PlotSavePng() abort
 endfunction
 
 "------------------------------------------------------------------------------
-" Plot Gallery (Vim buffer with history)
+" Plot HUD - RStudio-inspired plot history viewer
 "------------------------------------------------------------------------------
-function! s:OpenPlotGallery() abort
+" Follows the same UX patterns as other HUD functions (Memory, DataFrames, etc.)
+" Opens in a Vim split with consistent key bindings
+
+function! s:RPlotHUD() abort
     let l:index_file = s:GetHistoryIndex()
     if !filereadable(l:index_file)
         call s:Error("No plot history. Create plots with zzplot() first.")
@@ -1980,59 +1972,298 @@ function! s:OpenPlotGallery() abort
         return
     endif
 
-    " Create gallery buffer
+    " Create HUD buffer (consistent with other HUDs)
     vnew
-    setlocal buftype=nofile bufhidden=wipe noswapfile
-    setlocal nonumber norelativenumber signcolumn=no
-    file [Plot\ Gallery]
+    call s:SetupViewerBuffer()
+    file [Plot\ HUD]
 
+    " Store plot data for buffer-local functions
+    let b:plot_index = l:index
+
+    " Generate and display content
+    call s:GeneratePlotHUDContent()
+
+    " Set up HUD-style key mappings
+    call s:SetupPlotHUDMappings()
+
+    " Position cursor on first plot line
+    normal! 5G
+
+    echo "Plot HUD: Enter=display, z=zoom PDF, s=save, d=delete, q=close"
+endfunction
+
+" Generate Plot HUD content (also used by dashboard)
+function! s:GeneratePlotHUDContent() abort
+    if !exists('b:plot_index')
+        return
+    endif
+
+    let l:index = b:plot_index
     let l:lines = []
-    call add(l:lines, 'Plot Gallery')
-    call add(l:lines, '============')
-    call add(l:lines, 'Press 1-9 to view, Enter on line, q to close')
+
+    " Header (consistent with other HUDs)
+    call add(l:lines, 'Plot History                                              [HUD]')
+    call add(l:lines, '====================================================================')
+    call add(l:lines, 'Enter=display | z=zoom PDF | s=save | d=delete | q=close | /=search')
     call add(l:lines, '')
 
+    " Column headers
+    call add(l:lines, printf('  %-3s %-20s %-20s %s', '#', 'Name', 'Created', 'Code'))
+    call add(l:lines, repeat('-', 70))
+
+    " Plot entries
     let l:current = get(l:index, 'current', 0)
     for i in range(len(l:index.plots))
         let l:p = l:index.plots[i]
         let l:marker = (l:p.id == l:current) ? '> ' : '  '
-        call add(l:lines, printf('%s[%d] %-20s %s', l:marker, i+1, l:p.name, l:p.created))
+        let l:name = strpart(get(l:p, 'name', 'unnamed'), 0, 18)
+        let l:created = strpart(get(l:p, 'created', ''), 0, 18)
+        let l:code = strpart(get(l:p, 'code', ''), 0, 25)
+        call add(l:lines, printf('%s[%d] %-18s %-18s %s', l:marker, i+1, l:name, l:created, l:code))
     endfor
 
+    " Footer
     call add(l:lines, '')
-    call add(l:lines, 'Total: ' . len(l:index.plots) . ' plots')
+    call add(l:lines, printf('Total: %d plots | Current: %d', len(l:index.plots), l:current))
 
+    " Write to buffer
+    setlocal modifiable noreadonly
+    silent! %delete _
     call setline(1, l:lines)
     setlocal readonly nomodifiable
+endfunction
 
-    let b:plot_index = l:index
-
+" Set up Plot HUD key mappings (consistent with other HUDs)
+function! s:SetupPlotHUDMappings() abort
+    " Navigation and close (standard HUD)
     nnoremap <buffer> <silent> q :bwipe<CR>
     nnoremap <buffer> <silent> <Esc> :bwipe<CR>
-    nnoremap <buffer> <silent> <CR> :call <SID>GallerySelectCurrent()<CR>
+
+    " Plot-specific actions
+    nnoremap <buffer> <silent> <CR> :call <SID>PlotHUDSelect()<CR>
+    nnoremap <buffer> <silent> z :call <SID>PlotHUDZoom()<CR>
+    nnoremap <buffer> <silent> s :call <SID>PlotHUDSave()<CR>
+    nnoremap <buffer> <silent> d :call <SID>PlotHUDDelete()<CR>
+    nnoremap <buffer> <silent> r :call <SID>PlotHUDRefresh()<CR>
+
+    " Quick number selection (1-9)
     for i in range(1, 9)
-        execute 'nnoremap <buffer> <silent> ' . i . ' :call <SID>GallerySelect(' . i . ')<CR>'
+        execute 'nnoremap <buffer> <silent> ' . i . ' :call <SID>PlotHUDSelectNum(' . i . ')<CR>'
     endfor
 endfunction
 
-function! s:GallerySelect(num) abort
-    if !exists('b:plot_index')
-        return
-    endif
-    if a:num > len(b:plot_index.plots)
-        echom "Plot " . a:num . " not in history"
-        return
-    endif
-    call s:Send_to_r('plot_goto(' . a:num . ')', 1)
-    echom "Displaying plot " . a:num
-endfunction
-
-function! s:GallerySelectCurrent() abort
+" Get plot number from current line
+function! s:PlotHUDGetNum() abort
     let l:line = getline('.')
     let l:match = matchstr(l:line, '\[\zs\d\+\ze\]')
     if !empty(l:match)
-        call s:GallerySelect(str2nr(l:match))
+        return str2nr(l:match)
     endif
+    return 0
+endfunction
+
+" Get plot entry from number
+function! s:PlotHUDGetEntry(num) abort
+    if !exists('b:plot_index') || a:num < 1
+        return {}
+    endif
+    if a:num > len(b:plot_index.plots)
+        return {}
+    endif
+    return b:plot_index.plots[a:num - 1]
+endfunction
+
+" Select and display plot under cursor
+function! s:PlotHUDSelect() abort
+    let l:num = s:PlotHUDGetNum()
+    if l:num > 0
+        call s:PlotHUDSelectNum(l:num)
+    endif
+endfunction
+
+" Select plot by number
+function! s:PlotHUDSelectNum(num) abort
+    let l:entry = s:PlotHUDGetEntry(a:num)
+    if empty(l:entry)
+        echom "Plot " . a:num . " not in history"
+        return
+    endif
+
+    " Update current in index
+    let b:plot_index.current = l:entry.id
+
+    " Copy plot files to current for display
+    let l:hist_dir = s:GetHistoryDir()
+    let l:png_src = l:hist_dir . '/' . get(l:entry, 'png', '')
+    let l:pdf_src = l:hist_dir . '/' . get(l:entry, 'pdf', '')
+
+    if filereadable(l:png_src)
+        call system('cp ' . shellescape(l:png_src) . ' ' . shellescape(s:GetPlotFile()))
+    endif
+    if filereadable(l:pdf_src)
+        call system('cp ' . shellescape(l:pdf_src) . ' ' . shellescape(s:GetPlotPdf()))
+    endif
+
+    " Trigger display
+    let s:plot_signal_mtime = 0
+    call s:DisplayPlot()
+
+    " Refresh HUD to show new current marker
+    call s:GeneratePlotHUDContent()
+
+    echom "Displaying: " . get(l:entry, 'name', 'plot ' . a:num)
+endfunction
+
+" Zoom: open PDF of plot under cursor
+function! s:PlotHUDZoom() abort
+    let l:num = s:PlotHUDGetNum()
+    if l:num == 0
+        call s:ZoomPlot()
+        return
+    endif
+
+    let l:entry = s:PlotHUDGetEntry(l:num)
+    if empty(l:entry)
+        return
+    endif
+
+    let l:hist_dir = s:GetHistoryDir()
+    let l:pdf_file = l:hist_dir . '/' . get(l:entry, 'pdf', '')
+
+    if filereadable(l:pdf_file)
+        call system('open ' . shellescape(l:pdf_file))
+        echom "Opened PDF: " . get(l:entry, 'name', '')
+    else
+        call s:Error("PDF not found for this plot")
+    endif
+endfunction
+
+" Save: export plot under cursor
+function! s:PlotHUDSave() abort
+    let l:num = s:PlotHUDGetNum()
+    let l:entry = s:PlotHUDGetEntry(l:num)
+
+    let l:default_name = get(l:entry, 'name', 'plot')
+    let l:filename = input('Save as: ', getcwd() . '/' . l:default_name . '.pdf')
+
+    if empty(l:filename)
+        return
+    endif
+
+    let l:hist_dir = s:GetHistoryDir()
+    if l:num > 0 && !empty(l:entry)
+        " Save specific plot from history
+        if l:filename =~# '\.pdf$'
+            let l:src = l:hist_dir . '/' . get(l:entry, 'pdf', '')
+        else
+            let l:src = l:hist_dir . '/' . get(l:entry, 'png', '')
+        endif
+    else
+        " Save current plot
+        if l:filename =~# '\.pdf$'
+            let l:src = s:GetPlotPdf()
+        else
+            let l:src = s:GetPlotFile()
+        endif
+    endif
+
+    if filereadable(l:src)
+        call system('cp ' . shellescape(l:src) . ' ' . shellescape(l:filename))
+        echom "Saved: " . l:filename
+    else
+        call s:Error("Source file not found")
+    endif
+endfunction
+
+" Delete: remove plot from history
+function! s:PlotHUDDelete() abort
+    let l:num = s:PlotHUDGetNum()
+    if l:num == 0
+        echom "Position cursor on a plot line"
+        return
+    endif
+
+    let l:entry = s:PlotHUDGetEntry(l:num)
+    if empty(l:entry)
+        return
+    endif
+
+    let l:confirm = input('Delete "' . get(l:entry, 'name', 'plot') . '"? (y/n): ')
+    if l:confirm !=# 'y'
+        echo " Cancelled"
+        return
+    endif
+
+    " Remove files
+    let l:hist_dir = s:GetHistoryDir()
+    let l:png_file = l:hist_dir . '/' . get(l:entry, 'png', '')
+    let l:pdf_file = l:hist_dir . '/' . get(l:entry, 'pdf', '')
+
+    if filereadable(l:png_file)
+        call delete(l:png_file)
+    endif
+    if filereadable(l:pdf_file)
+        call delete(l:pdf_file)
+    endif
+
+    " Update index
+    call remove(b:plot_index.plots, l:num - 1)
+
+    " Write updated index
+    let l:index_file = s:GetHistoryIndex()
+    try
+        call writefile([json_encode(b:plot_index)], l:index_file)
+    catch
+        call s:Error("Failed to update index")
+    endtry
+
+    " Refresh display
+    call s:GeneratePlotHUDContent()
+    echom "Deleted plot " . l:num
+endfunction
+
+" Refresh: reload plot history from disk
+function! s:PlotHUDRefresh() abort
+    let l:index_file = s:GetHistoryIndex()
+    if !filereadable(l:index_file)
+        call s:Error("No plot history")
+        return
+    endif
+
+    let l:json_content = join(readfile(l:index_file), '')
+    try
+        let b:plot_index = json_decode(l:json_content)
+    catch
+        call s:Error("Failed to parse plot history")
+        return
+    endtry
+
+    call s:GeneratePlotHUDContent()
+    echom "Plot HUD refreshed"
+endfunction
+
+" Generate Plot HUD for dashboard tab (wrapper for CreateHUDTab)
+function! s:GeneratePlotHUD() abort
+    " Read plot history
+    let l:index_file = s:GetHistoryIndex()
+    if filereadable(l:index_file)
+        let l:json_content = join(readfile(l:index_file), '')
+        try
+            let b:plot_index = json_decode(l:json_content)
+        catch
+            let b:plot_index = {'plots': [], 'current': 0}
+        endtry
+    else
+        let b:plot_index = {'plots': [], 'current': 0}
+    endif
+
+    call s:GeneratePlotHUDContent()
+    call s:SetupPlotHUDMappings()
+endfunction
+
+" Legacy alias for backward compatibility
+function! s:OpenPlotGallery() abort
+    call s:RPlotHUD()
 endfunction
 
 "------------------------------------------------------------------------------
@@ -2063,7 +2294,8 @@ command! -bar RPlotZoom call s:ZoomPlot()
 command! -bar RPlotPrev call s:PlotPrev()
 command! -bar RPlotNext call s:PlotNext()
 command! -bar RPlotHistory call s:PlotHistory()
-command! -bar RPlotGallery call s:OpenPlotGallery()
+command! -bar RPlotHUD call s:RPlotHUD()
+command! -bar RPlotGallery call s:RPlotHUD()
 command! -bar RPlotSavePdf call s:PlotSavePdf()
 command! -bar RPlotSavePng call s:PlotSavePng()
 command! -bar RPlotWatchStart call s:StartPlotWatcher()
@@ -2715,13 +2947,16 @@ function! s:RHUDDashboard() abort
     " Tab 4: Environment Variables
     call s:CreateHUDTab('Environment', 'environment', function('s:GenerateEnvironmentHUD'), l:source_file, l:r_terminal_id)
     
-    " Tab 5: R Options  
+    " Tab 5: R Options
     call s:CreateHUDTab('Options', 'options', function('s:GenerateOptionsHUD'), l:source_file, l:r_terminal_id)
-    
+
+    " Tab 6: Plot History
+    call s:CreateHUDTab('Plots', 'plots', function('s:GeneratePlotHUD'), l:source_file, l:r_terminal_id)
+
     " Go to first HUD tab
     1tabnext
-    
-    echo "HUD Dashboard: 5 tabs created. Use gt/gT to navigate, <LocalLeader>0 to refresh"
+
+    echo "HUD Dashboard: 6 tabs created. Use gt/gT to navigate, <LocalLeader>0 to refresh"
 endfunction
 
 " Helper: Close existing HUD tabs to prevent accumulation

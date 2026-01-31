@@ -140,14 +140,19 @@ zzvim-R/
 - `<LocalLeader>u`: tail()
 - `<LocalLeader>y`: help()
 
-### Plot Display (Kitty Terminal)
+### Plot HUD (Kitty Terminal)
+- `<LocalLeader>P`: Open Plot HUD (consistent with other HUDs)
 - `<LocalLeader>]`: Zoom - open PDF in system viewer (vector, infinite zoom)
-- `<LocalLeader>pp`: Previous plot
-- `<LocalLeader>pn`: Next plot
-- `<LocalLeader>ph`: Plot history
-- `<LocalLeader>pG`: Plot gallery (Vim buffer)
-- `<LocalLeader>ps`: Save as PDF
-- `<LocalLeader>pS`: Save as PNG
+- `<LocalLeader><`: Previous plot
+- `<LocalLeader>>`: Next plot
+
+In Plot HUD buffer:
+- `Enter`: Display selected plot in kitty pane
+- `z`: Zoom - open PDF of selected plot
+- `s`: Save plot (prompts for filename)
+- `d`: Delete plot from history
+- `1-9`: Quick select by number
+- `q`/`Esc`: Close HUD
 
 ### Control Keys
 - `<LocalLeader>q`: Quit R session
@@ -220,7 +225,8 @@ consistent UX patterns across all tools.
 | Environment | `:REnvironmentHUD` | `<LocalLeader>x` | System environment variables |
 | Options | `:ROptionsHUD` | `<LocalLeader>a` | R session options |
 | Data Viewer | `:RDataViewer` | `<LocalLeader>v` | RStudio-style data viewer |
-| Dashboard | `:RHUDDashboard` | `<LocalLeader>0` | Opens all 5 HUDs in tabs |
+| Plots | `:RPlotHUD` | `<LocalLeader>P` | Plot history with navigation |
+| Dashboard | `:RHUDDashboard` | `<LocalLeader>0` | Opens all 6 HUDs in tabs |
 
 ### Consistent UX Patterns
 
@@ -238,8 +244,9 @@ The HUD system is inspired by RStudio's panes (Environment, Plots, Packages, etc
 but adapted for terminal/Vim workflow. The goal is to provide equivalent
 functionality without leaving Vim or requiring a mouse.
 
-**Future Direction**: Plot management will be unified with the HUD system to
-provide consistent UX. See `docs/PLOT_HUD_DESIGN.md` for the design proposal.
+**Implementation Status**: Plot HUD implemented (Jan 30, 2026). The `:RPlotHUD`
+command provides consistent UX with other HUDs, and is included as the 6th tab
+in the Dashboard.
 
 ### Key Technical Achievements
 - Clean execution system (source command elimination)
