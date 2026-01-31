@@ -575,13 +575,30 @@ nnoremap <LocalLeader>G :RPlotGallery<CR>
 
 ## Appendix: Line Count Comparison
 
-| Component | Current | Target | Reduction |
-|-----------|---------|--------|-----------|
-| `.Rprofile.local` | 1025 | ~400 | 60% |
-| VimScript (plot code) | ~1000 | ~400 | 60% |
+### Actual Results (Completed 2026-01-30)
+
+| Component | Before | After | Reduction |
+|-----------|--------|-------|-----------|
+| `.Rprofile.local` | 1025 | 445 | **57%** |
+| `plugin/zzvim-R.vim` | 4508 | 3164 | **30%** |
 | `terminal_graphics.vim` | 264 | 264 | 0% |
-| Documentation | ~2500 | ~1000 | 60% |
-| **Total** | ~4800 | ~2000 | **58%** |
+
+**Plot code specifically:**
+| Section | Before | After | Reduction |
+|---------|--------|-------|-----------|
+| Plot functions (lines 1800-3429) | 1629 | 312 | **81%** |
+
+### Removed Features
+- Adaptive polling (50ms/1000ms switching)
+- Composite image generation (ImageMagick montage)
+- Plot window mode (2x4 thumbnail grid)
+- Thumbnail gallery (kitty pane with montage)
+- Dual-resolution PNG (replaced with PDF + PNG)
+- Display mode management (inline/pane/auto)
+- Config JSON sync (Vim → R)
+- Terminal size tracking
+- Session-based history (kept only persistent)
+- Multiple zoom variants (kept only PDF zoom)
 
 ---
 

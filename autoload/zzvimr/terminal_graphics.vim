@@ -7,7 +7,8 @@
 " Works with zzcollab workspaces and standalone R projects
 
 " Current template version - increment when template changes significantly
-let s:template_version = 5
+" v7: Simplified architecture - PDF master + PNG preview
+let s:template_version = 7
 
 " Detect terminal type
 " Returns 'kitty' for terminals supporting Kitty graphics protocol

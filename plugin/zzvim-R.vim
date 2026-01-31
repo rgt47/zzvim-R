@@ -1723,12 +1723,10 @@ if !g:zzvim_r_disable_mappings
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>0 :call <SID>RHUDDashboard()<CR>
 
         " ---------------------------------------------------------------------
-        " Plot Family: <LocalLeader>p + action
+        " Plot Family: <LocalLeader>p + action (simplified v7)
         " ---------------------------------------------------------------------
-        " Zoom/View
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pz :call <SID>OpenDockerPlotInPreview()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pk :call <SID>ZoomPlotPane()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pv :call <SID>PlotSplit()<CR>
+        " Zoom - open PDF (vector)
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>] :call <SID>ZoomPlot()<CR>
         " Navigation
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pp :call <SID>PlotPrev()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pn :call <SID>PlotNext()<CR>
@@ -1736,36 +1734,12 @@ if !g:zzvim_r_disable_mappings
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p/ :call <SID>PlotSearch()<CR>
         " History
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>ph :call <SID>PlotHistory()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pH :call <SID>PlotHistoryPersistent()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pG :RPlotGallery<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pt :RPlotThumbs<CR>
         " Save/Export
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>ps :call <SID>PlotSavePng()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pS :call <SID>PlotSavePdf()<CR>
-        " Configuration
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pm :call <SID>PlotSetMode()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pa :call <SID>PlotSetAlign()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pd :call <SID>PlotSetSize()<CR>
-        " Control
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pc :call <SID>PlotClose()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pr :call <SID>PlotRedisplay()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p? :call <SID>ShowPlotConfig()<CR>
-        " Plot Window (composite: main + 2x4 grid) - uses host ImageMagick
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pw :call <SID>PlotWindowToggleVim()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p1 :call <SID>PlotWindowSelectVim(1)<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p2 :call <SID>PlotWindowSelectVim(2)<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p3 :call <SID>PlotWindowSelectVim(3)<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p4 :call <SID>PlotWindowSelectVim(4)<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p5 :call <SID>PlotWindowSelectVim(5)<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p6 :call <SID>PlotWindowSelectVim(6)<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p7 :call <SID>PlotWindowSelectVim(7)<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p8 :call <SID>PlotWindowSelectVim(8)<CR>
-
-        " Legacy/shortcut mappings (kept for convenience)
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>[ :call <SID>OpenDockerPlotInPreview()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>] :call <SID>ZoomPlotPane()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>ps :call <SID>PlotSavePdf()<CR>
+        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>pS :call <SID>PlotSavePng()<CR>
+        " Shortcuts
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>G :RPlotGallery<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>T :RPlotThumbs<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>< :call <SID>PlotPrev()<CR>
         autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>> :call <SID>PlotNext()<CR>
 
@@ -1797,403 +1771,102 @@ if !g:zzvim_r_disable_mappings
     augroup END
 endif
 
-" Track active Docker R terminal buffer number
+" ===========================================================================
+" SIMPLIFIED PLOT MANAGEMENT
+" ===========================================================================
+" Architecture: Vim watches .plots/.signal, displays PNG, opens PDF for zoom
+" R renders: PDF (vector master) + PNG (preview)
+" Removed: adaptive polling, composite images, thumbnail gallery, config sync
+
+" Track Docker R terminal buffer
 let s:docker_r_terminal_bufnr = -1
-
-" Called when Docker R terminal job ends (R exits via q() or otherwise)
-function! s:OnDockerRTerminalClose() abort
-    " Stop the plot watcher
-    call s:StopPlotWatcher()
-    " Close the plot pane
-    call system('kitty @ close-window --match title:zzvim-plot 2>/dev/null')
-    " Clear the tracked terminal
-    let s:docker_r_terminal_bufnr = -1
-endfunction
-
-function! s:CleanupPlotPaneIfRTerminal() abort
-    " Check if the closed buffer was an R terminal
-    let l:bufname = expand('<afile>')
-    " Match various R terminal naming patterns
-    if l:bufname =~? 'R-\|r-\|R$\|!/.*R\|terminal.*R'
-        call s:OnDockerRTerminalClose()
-    endif
-endfunction
-
-" Exit callback for term_start() - called when terminal job ends
-" This is the primary mechanism for detecting R terminal close (TermClose
-" event is not available in all Vim builds)
-function! s:RTerminalExitCallback(job, exit_status) abort
-    call s:OnDockerRTerminalClose()
-endfunction
-
-"------------------------------------------------------------------------------
-" Docker Plot Watcher (Dual Resolution)
-"------------------------------------------------------------------------------
-" Watches .plots/.signal for changes and displays .plots/current.png via kitty
-" Dual resolution: current.png (600x450) for pane, current_hires.png for zoom
-" This enables inline plot display when R runs inside Docker container
-
+let s:pane_title = 'zzvim-plot'
+let s:poll_interval = 100
 let s:plot_signal_mtime = 0
-let s:plots_dir_cache = ''
-let s:plots_dir_cwd = ''
-let s:plot_window_mode = 0
 
-" Centralized path helper for .plots/ directory and subpaths
-" Caches result to avoid repeated filesystem lookups in hot polling path
+"------------------------------------------------------------------------------
+" Path Helpers
+"------------------------------------------------------------------------------
 function! s:GetPlotsDir() abort
-    " Cache invalidation: if cwd changed, recalculate
-    let l:current_cwd = getcwd()
-    if s:plots_dir_cache != '' && s:plots_dir_cwd == l:current_cwd
-        return s:plots_dir_cache
-    endif
-
-    let l:project_root = s:GetProjectRoot()
-    if empty(l:project_root)
-        let l:project_root = l:current_cwd
-    endif
-
-    let s:plots_dir_cache = l:project_root . '/.plots'
-    let s:plots_dir_cwd = l:current_cwd
-    return s:plots_dir_cache
+    return getcwd() . '/.plots'
 endfunction
 
-" Get path within .plots/ directory
-function! s:GetPlotsPath(subpath) abort
-    return s:GetPlotsDir() . '/' . a:subpath
-endfunction
-
-" Convenience accessors using centralized helper
 function! s:GetPlotFile() abort
-    return s:GetPlotsPath('current.png')
+    return s:GetPlotsDir() . '/current.png'
 endfunction
 
-function! s:GetPlotFileHires() abort
-    return s:GetPlotsPath('current_hires.png')
+function! s:GetPlotPdf() abort
+    return s:GetPlotsDir() . '/current.pdf'
 endfunction
 
 function! s:GetSignalFile() abort
-    return s:GetPlotsPath('.signal')
-endfunction
-
-function! s:GetConfigFile() abort
-    return s:GetPlotsPath('.config.json')
-endfunction
-
-function! s:GetHistoryIndexFile() abort
-    return s:GetPlotsPath('history/index.json')
-endfunction
-
-function! s:GetCompositeFile() abort
-    return s:GetPlotsPath('composite.png')
+    return s:GetPlotsDir() . '/.signal'
 endfunction
 
 function! s:GetHistoryDir() abort
-    return s:GetPlotsPath('history')
+    return s:GetPlotsDir() . '/history'
+endfunction
+
+function! s:GetHistoryIndex() abort
+    return s:GetHistoryDir() . '/index.json'
 endfunction
 
 "------------------------------------------------------------------------------
-" Host-side Thumbnail Generation
+" Plot Watcher (Fixed 100ms polling)
 "------------------------------------------------------------------------------
-" Generates missing thumbnails using host ImageMagick (for Docker R workflow)
-
-function! s:GenerateMissingThumbnails() abort
-    if !executable('magick') && !executable('convert')
-        return
+function! s:StartPlotWatcher() abort
+    if exists('s:plot_watcher_timer')
+        call timer_stop(s:plot_watcher_timer)
     endif
-
-    let l:convert_cmd = executable('magick') ? 'magick' : 'convert'
-    let l:history_dir = s:GetHistoryDir()
-    let l:index_file = s:GetHistoryIndexFile()
-
-    if !filereadable(l:index_file)
-        return
-    endif
-
-    let l:json_content = join(readfile(l:index_file), '')
-    try
-        let l:index = json_decode(l:json_content)
-    catch
-        return
-    endtry
-
-    if !has_key(l:index, 'plots')
-        return
-    endif
-
-    let l:updated = 0
-    for l:plot in l:index.plots
-        let l:plot_file = l:history_dir . '/' . get(l:plot, 'file', '')
-        let l:thumb_file = l:history_dir . '/' . get(l:plot, 'thumb', '')
-
-        " Generate thumbnail if plot exists but thumb doesn't
-        if filereadable(l:plot_file) && !filereadable(l:thumb_file) && l:thumb_file != l:history_dir . '/'
-            let l:cmd = l:convert_cmd . ' ' . shellescape(l:plot_file) .
-                \ ' -resize 200x ' . shellescape(l:thumb_file)
-            call system(l:cmd)
-            let l:updated = 1
-        endif
-    endfor
-
-    return l:updated
+    let s:plot_watcher_timer = timer_start(s:poll_interval,
+        \ function('s:CheckForNewPlot'), {'repeat': -1})
 endfunction
 
-"------------------------------------------------------------------------------
-" Plot Window Mode (Composite: Main + 2x4 Grid)
-"------------------------------------------------------------------------------
-" Generates composite on host side using ImageMagick (works with Docker R)
-" Grid layout: 2 columns x 4 rows, numbered 1-4 (left col), 5-8 (right col)
-" Position 1 = oldest, position 8 = newest
-
-function! s:GenerateCompositeImage() abort
-    if !executable('magick') && !executable('convert')
-        echom "ImageMagick required for plot window mode"
-        return ''
-    endif
-
-    let l:convert_cmd = executable('magick') ? 'magick' : 'convert'
-    let l:montage_cmd = executable('magick') ? 'magick montage' : 'montage'
-
-    let l:plots_dir = s:GetPlotsDir()
-    let l:history_dir = s:GetHistoryDir()
-    let l:composite_file = s:GetCompositeFile()
-    let l:current_file = s:GetPlotFile()
-    let l:grid_file = s:GetPlotsPath('.thumb_grid.png')
-
-    if !filereadable(l:current_file)
-        return ''
-    endif
-
-    " Read history index
-    let l:index_file = s:GetHistoryIndexFile()
-    if !filereadable(l:index_file)
-        " No history - just copy current
-        call system('cp ' . shellescape(l:current_file) . ' ' . shellescape(l:composite_file))
-        return l:composite_file
-    endif
-
-    let l:json_content = join(readfile(l:index_file), '')
-    try
-        let l:index = json_decode(l:json_content)
-    catch
-        call system('cp ' . shellescape(l:current_file) . ' ' . shellescape(l:composite_file))
-        return l:composite_file
-    endtry
-
-    if !has_key(l:index, 'plots') || len(l:index.plots) == 0
-        call system('cp ' . shellescape(l:current_file) . ' ' . shellescape(l:composite_file))
-        return l:composite_file
-    endif
-
-    " Get last 8 plots
-    let l:all_plots = l:index.plots
-    let l:start_idx = max([0, len(l:all_plots) - 8])
-    let l:recent_8 = l:all_plots[l:start_idx:]
-
-    " Build list of thumbnail files
-    let l:thumb_files = []
-    for l:p in l:recent_8
-        let l:f = l:history_dir . '/' . l:p.file
-        if filereadable(l:f)
-            call add(l:thumb_files, l:f)
-        endif
-    endfor
-
-    if len(l:thumb_files) == 0
-        call system('cp ' . shellescape(l:current_file) . ' ' . shellescape(l:composite_file))
-        return l:composite_file
-    endif
-
-    " Use last 8 thumbnails (1=oldest at top-left, 8=newest at bottom-right)
-    " Montage fills row by row, so we need to reorder for column-first numbering:
-    " Display positions:  1 5    Montage order: 1 2
-    "                     2 6                   3 4
-    "                     3 7                   5 6
-    "                     4 8                   7 8
-    " So thumb_files[0,1,2,3,4,5,6,7] -> montage[0,4,1,5,2,6,3,7]
-    let l:n_thumbs = len(l:thumb_files)
-    let l:inputs = []
-    for l:row in range(4)
-        " Left column (positions 1-4)
-        if l:row < l:n_thumbs
-            call add(l:inputs, l:thumb_files[l:row])
-        else
-            call add(l:inputs, 'null:')
-        endif
-        " Right column (positions 5-8)
-        if l:row + 4 < l:n_thumbs
-            call add(l:inputs, l:thumb_files[l:row + 4])
-        else
-            call add(l:inputs, 'null:')
-        endif
-    endfor
-
-    " Create header image for thumbnail strip
-    let l:header_file = s:GetPlotsPath('.thumb_header.png')
-    let l:header_cmd = l:convert_cmd . ' -size 288x20 xc:"#333333" ' .
-        \ '-font Helvetica-Bold -pointsize 11 -fill "#CCCCCC" ' .
-        \ '-gravity center -annotate +0+0 "Plot History (1-' . l:n_thumbs . ')" ' .
-        \ shellescape(l:header_file)
-    call system(l:header_cmd)
-
-    " Create 2x4 grid with montage (2 columns, 4 rows)
-    let l:montage_args = join(map(copy(l:inputs), 'shellescape(v:val)'), ' ')
-    let l:montage_full = l:montage_cmd . ' ' . l:montage_args .
-        \ ' -tile 2x4 -geometry 140x105+2+2 -background "#333333" ' .
-        \ shellescape(l:grid_file)
-    call system(l:montage_full)
-
-    if !filereadable(l:grid_file)
-        call system('cp ' . shellescape(l:current_file) . ' ' . shellescape(l:composite_file))
-        return l:composite_file
-    endif
-
-    " Add number labels to grid (1-4 left column, 5-8 right column)
-    let l:label_args = ''
-    let l:thumb_w = 144
-    let l:thumb_h = 109
-    for l:i in range(1, l:n_thumbs)
-        if l:i <= 4
-            " Left column: positions 1-4
-            let l:col = 0
-            let l:row = l:i - 1
-        else
-            " Right column: positions 5-8
-            let l:col = 1
-            let l:row = l:i - 5
-        endif
-        let l:x = l:col * l:thumb_w + 6
-        let l:y = l:row * l:thumb_h + 18
-        let l:label_args .= ' -annotate +' . l:x . '+' . l:y . " '" . l:i . "'"
-    endfor
-
-    if l:label_args != ''
-        let l:label_cmd = l:convert_cmd . ' ' . shellescape(l:grid_file) .
-            \ ' -font Helvetica-Bold -pointsize 16 -fill "#CC0000"' . l:label_args .
-            \ ' ' . shellescape(l:grid_file)
-        call system(l:label_cmd)
-    endif
-
-    " Stack header on top of grid
-    let l:grid_with_header = s:GetPlotsPath('.thumb_grid_header.png')
-    let l:stack_header_cmd = l:convert_cmd . ' ' . shellescape(l:header_file) . ' ' .
-        \ shellescape(l:grid_file) . ' -append ' . shellescape(l:grid_with_header)
-    call system(l:stack_header_cmd)
-    let l:grid_file = l:grid_with_header
-
-    " Resize main plot 20% larger
-    let l:resized_file = s:GetPlotsPath('.main_resized.png')
-    let l:resize_cmd = l:convert_cmd . ' ' . shellescape(l:current_file) .
-        \ ' -resize 120% ' . shellescape(l:resized_file)
-    call system(l:resize_cmd)
-
-    " Join grid to right side of resized plot (+append = horizontal)
-    let l:stack_cmd = l:convert_cmd . ' ' . shellescape(l:resized_file) . ' ' .
-        \ shellescape(l:grid_file) . ' +append ' . shellescape(l:composite_file)
-    call system(l:stack_cmd)
-
-    if filereadable(l:composite_file)
-        return l:composite_file
-    endif
-    return ''
-endfunction
-
-function! s:PlotWindowToggleVim() abort
-    let s:plot_window_mode = !s:plot_window_mode
-    if s:plot_window_mode
-        echo "Plot window mode: ON (main + 8 thumbnails)"
-        " Generate and display composite immediately
-        let l:composite = s:GenerateCompositeImage()
-        if l:composite != '' && filereadable(l:composite)
-            call s:ForceDisplayDockerPlotFile(l:composite)
-        endif
-    else
-        echo "Plot window mode: OFF"
-        " Display normal plot
-        let l:plot_file = s:GetPlotFile()
-        if filereadable(l:plot_file)
-            call s:ForceDisplayDockerPlotFile(l:plot_file)
-        endif
+function! s:StopPlotWatcher() abort
+    if exists('s:plot_watcher_timer')
+        call timer_stop(s:plot_watcher_timer)
+        unlet s:plot_watcher_timer
     endif
 endfunction
 
-function! s:PlotWindowSelectVim(n) abort
-    if a:n < 1 || a:n > 8
-        echo "Select 1-8"
+function! s:CheckForNewPlot(timer) abort
+    let l:signal = s:GetSignalFile()
+    if !filereadable(l:signal)
         return
     endif
-
-    let l:index_file = s:GetHistoryIndexFile()
-    if !filereadable(l:index_file)
-        echo "No plot history"
+    let l:mtime = getftime(l:signal)
+    if l:mtime <= s:plot_signal_mtime
         return
     endif
+    let s:plot_signal_mtime = l:mtime
+    call s:DisplayPlot()
+endfunction
 
-    let l:json_content = join(readfile(l:index_file), '')
-    try
-        let l:index = json_decode(l:json_content)
-    catch
-        echo "Error reading history"
-        return
-    endtry
+"------------------------------------------------------------------------------
+" Plot Display
+"------------------------------------------------------------------------------
+function! s:PlotPaneExists() abort
+    let l:result = system('kitty @ ls 2>/dev/null')
+    return l:result =~# s:pane_title
+endfunction
 
-    if !has_key(l:index, 'plots') || len(l:index.plots) == 0
-        echo "No plots in history"
-        return
-    endif
-
-    let l:all_plots = l:index.plots
-    let l:start_idx = max([0, len(l:all_plots) - 8])
-    let l:recent_8 = l:all_plots[l:start_idx:]
-
-    if a:n > len(l:recent_8)
-        echo "Only " . len(l:recent_8) . " plots available"
-        return
-    endif
-
-    let l:selected = l:recent_8[a:n - 1]
-    let l:history_dir = s:GetHistoryDir()
-    let l:plot_file = l:history_dir . '/' . l:selected.file
-
+function! s:DisplayPlot() abort
+    let l:plot_file = s:GetPlotFile()
     if !filereadable(l:plot_file)
-        echo "Plot file not found"
         return
     endif
 
-    " Copy selected to current.png
-    let l:current_file = s:GetPlotFile()
-    call system('cp ' . shellescape(l:plot_file) . ' ' . shellescape(l:current_file))
-
-    echo "Selected plot " . a:n . ": " . l:selected.name
-
-    " Display (composite if window mode, otherwise plain)
-    if s:plot_window_mode
-        let l:composite = s:GenerateCompositeImage()
-        if l:composite != '' && filereadable(l:composite)
-            call s:ForceDisplayDockerPlotFile(l:composite)
-        endif
+    if s:PlotPaneExists()
+        " Refresh existing pane
+        call system('kitty @ send-text --match title:' . s:pane_title . " r")
     else
-        call s:ForceDisplayDockerPlotFile(l:current_file)
+        " Create new pane
+        call s:CreatePlotPane(l:plot_file)
     endif
-
-    " Touch signal file to sync state
-    let l:signal_file = s:GetSignalFile()
-    call writefile([localtime()], l:signal_file)
 endfunction
 
-" Helper to display a specific file (used by window mode)
-" Always creates/updates pane with the specified file (doesn't just refresh)
-" In window mode, watches composite.png for changes and auto-refreshes
-function! s:ForceDisplayDockerPlotFile(plot_file) abort
-    if !filereadable(a:plot_file)
-        return
-    endif
-
-    " Close existing pane first (we need to show a different file)
-    call system('kitty @ close-window --match title:' . s:pane_title . ' 2>/dev/null')
-    sleep 100m
-
-    " Create new pane with the specified file
-    let l:script = '/tmp/zzvim_plot_show.sh'
+function! s:CreatePlotPane(plot_file) abort
+    let l:script = '/tmp/zzvim_plot.sh'
     call writefile([
         \ '#!/bin/bash',
         \ 'PLOT_FILE="' . a:plot_file . '"',
@@ -2210,374 +1883,29 @@ function! s:ForceDisplayDockerPlotFile(plot_file) abort
         \ '        r|R) show_plot ;;',
         \ '        q|Q) exit 0 ;;',
         \ '    esac',
-        \ 'done',
-        \ ], l:script)
-    call system('chmod +x ' . l:script)
-    call system('kitty @ launch --location=' . g:zzvim_r_plot_location . ' --keep-focus --title=' . s:pane_title . ' ' . l:script . ' &')
-endfunction
-
-"------------------------------------------------------------------------------
-" Unified Configuration System
-"------------------------------------------------------------------------------
-" Single source of truth for plot settings - Vim writes, R reads
-
-" Default plot configuration
-let g:zzvim_r_plot_width_small = get(g:, 'zzvim_r_plot_width_small', 600)
-let g:zzvim_r_plot_height_small = get(g:, 'zzvim_r_plot_height_small', 450)
-let g:zzvim_r_plot_width_large = get(g:, 'zzvim_r_plot_width_large', 1800)
-let g:zzvim_r_plot_height_large = get(g:, 'zzvim_r_plot_height_large', 1350)
-let g:zzvim_r_plot_dpi = get(g:, 'zzvim_r_plot_dpi', 96)
-let g:zzvim_r_plot_align = get(g:, 'zzvim_r_plot_align', 'center')
-let g:zzvim_r_plot_mode = get(g:, 'zzvim_r_plot_mode', 'pane')
-let g:zzvim_r_plot_location = get(g:, 'zzvim_r_plot_location', 'vsplit')
-let g:zzvim_r_plot_history_limit = get(g:, 'zzvim_r_plot_history_limit', 50)
-
-" Write current config to .plots/.config.json for R to read
-function! s:WriteConfigForR() abort
-    let l:plots_dir = s:GetPlotsDir()
-    if !isdirectory(l:plots_dir)
-        call mkdir(l:plots_dir, 'p')
-    endif
-
-    let l:config = {
-        \ 'width_small': g:zzvim_r_plot_width_small,
-        \ 'height_small': g:zzvim_r_plot_height_small,
-        \ 'width_large': g:zzvim_r_plot_width_large,
-        \ 'height_large': g:zzvim_r_plot_height_large,
-        \ 'dpi': g:zzvim_r_plot_dpi,
-        \ 'align': g:zzvim_r_plot_align,
-        \ 'mode': g:zzvim_r_plot_mode,
-        \ 'location': g:zzvim_r_plot_location,
-        \ 'history_limit': g:zzvim_r_plot_history_limit
-    \ }
-
-    let l:json = json_encode(l:config)
-    let l:config_file = s:GetConfigFile()
-    call writefile([l:json], l:config_file)
-endfunction
-
-" Show current plot configuration
-function! s:ShowPlotConfig() abort
-    echo "=== zzvim-R Plot Configuration ==="
-    echo "Small size:    " . g:zzvim_r_plot_width_small . "x" . g:zzvim_r_plot_height_small
-    echo "Large size:    " . g:zzvim_r_plot_width_large . "x" . g:zzvim_r_plot_height_large
-    echo "DPI:           " . g:zzvim_r_plot_dpi
-    echo "Align:         " . g:zzvim_r_plot_align
-    echo "Mode:          " . g:zzvim_r_plot_mode
-    echo "Location:      " . g:zzvim_r_plot_location . " (vsplit, hsplit, tab)"
-    echo "History limit: " . g:zzvim_r_plot_history_limit
-    echo ""
-    echo "Config file: " . s:GetConfigFile()
-    echo "  Exists: " . filereadable(s:GetConfigFile())
-endfunction
-
-" Set plot size and write config
-function! s:SetPlotSize(small_w, small_h, ...) abort
-    let g:zzvim_r_plot_width_small = a:small_w
-    let g:zzvim_r_plot_height_small = a:small_h
-
-    " Optional large dimensions (default 3x small)
-    if a:0 >= 2
-        let g:zzvim_r_plot_width_large = a:1
-        let g:zzvim_r_plot_height_large = a:2
-    else
-        let g:zzvim_r_plot_width_large = a:small_w * 3
-        let g:zzvim_r_plot_height_large = a:small_h * 3
-    endif
-
-    call s:WriteConfigForR()
-    echo "Plot size set: " . g:zzvim_r_plot_width_small . "x" . g:zzvim_r_plot_height_small .
-        \ " (zoom: " . g:zzvim_r_plot_width_large . "x" . g:zzvim_r_plot_height_large . ")"
-    echo "Run set_plot_size() in R to apply, or restart R session"
-endfunction
-
-command! -bar RPlotConfig call s:ShowPlotConfig()
-command! -bar RPlotConfigWrite call s:WriteConfigForR()
-command! -nargs=+ RPlotSize call s:SetPlotSize(<f-args>)
-
-let s:plot_display_in_progress = 0
-let s:pane_title = 'zzvim-plot'
-
-" Check if plot pane already exists
-function! s:PlotPaneExists() abort
-    let l:result = system('kitty @ ls 2>/dev/null')
-    return l:result =~# s:pane_title
-endfunction
-
-" Refresh plot in existing pane (no flicker) or create new pane
-function! s:RefreshPlotInPane(plot_file) abort
-    if s:PlotPaneExists()
-        " Pane exists - send 'r' to trigger refresh in the running script
-        " The script uses 'read -n1 -s' which accepts single char immediately
-        call system('kitty @ send-text --match title:' . s:pane_title . " r 2>/dev/null")
-        return 1
-    endif
-    return 0
-endfunction
-
-function! s:DisplayDockerPlot() abort
-    " Prevent duplicate pane creation
-    if s:plot_display_in_progress
-        return
-    endif
-
-    " Check signal file instead of plot file (faster, more reliable)
-    let l:signal_file = s:GetSignalFile()
-    if filereadable(l:signal_file)
-        let l:mtime = getftime(l:signal_file)
-        if l:mtime <= s:plot_signal_mtime
-            return
-        endif
-        let s:plot_signal_mtime = l:mtime
-    else
-        " Fallback to checking plot file directly
-        let l:plot_file = s:GetPlotFile()
-        if !filereadable(l:plot_file)
-            return
-        endif
-        let l:mtime = getftime(l:plot_file)
-        if l:mtime <= s:plot_signal_mtime
-            return
-        endif
-        let s:plot_signal_mtime = l:mtime
-    endif
-
-    let l:plot_file = s:GetPlotFile()
-    if !filereadable(l:plot_file)
-        return
-    endif
-
-    " Generate any missing thumbnails (host-side, for Docker workflow)
-    call s:GenerateMissingThumbnails()
-
-    " Lock to prevent race conditions
-    let s:plot_display_in_progress = 1
-
-    " If window mode is ON, generate and display composite instead
-    if s:plot_window_mode
-        let l:composite = s:GenerateCompositeImage()
-        if l:composite != '' && filereadable(l:composite)
-            call s:ForceDisplayDockerPlotFile(l:composite)
-        endif
-        call timer_start(200, {-> execute('let s:plot_display_in_progress = 0')})
-        call timer_start(300, {-> s:RefreshPlotStatus()})
-        return
-    endif
-
-    " Try to refresh existing pane first (flicker-free)
-    if s:RefreshPlotInPane(l:plot_file)
-        " Release lock quickly since we just sent a key
-        call timer_start(200, {-> execute('let s:plot_display_in_progress = 0')})
-        call timer_start(300, {-> s:RefreshPlotStatus()})
-        return
-    endif
-
-    " No existing pane - create new one with display script
-    let l:script = '/tmp/zzvim_plot_show.sh'
-    let l:size_str = g:zzvim_r_plot_width_small . 'x' . g:zzvim_r_plot_height_small
-    call writefile([
-        \ '#!/bin/bash',
-        \ 'PLOT_FILE="' . l:plot_file . '"',
-        \ 'show_plot() {',
-        \ '    clear',
-        \ '    kitty +kitten icat --clear --align=left "$PLOT_FILE"',
-        \ '    echo ""',
-        \ '    echo "Plot ' . l:size_str . ' | r=refresh | q=close"',
-        \ '}',
-        \ 'show_plot',
-        \ 'while true; do',
-        \ '    read -n1 -s key',
-        \ '    case "$key" in',
-        \ '        r|R) show_plot ;;',
-        \ '        q|Q|"") exit 0 ;;',
-        \ '    esac',
         \ 'done'
         \ ], l:script)
     call system('chmod +x ' . l:script)
+    call system('kitty @ launch --location=vsplit --keep-focus --title ' .
+        \ s:pane_title . ' ' . l:script . ' 2>/dev/null')
+endfunction
 
-    " Launch the plot pane using configured location
-    let l:location = g:zzvim_r_plot_location
-    if l:location == 'tab'
-        call system('kitty @ launch --type=tab --keep-focus --title ' . s:pane_title . ' /tmp/zzvim_plot_show.sh 2>/dev/null')
+"------------------------------------------------------------------------------
+" Zoom - Open PDF (vector, infinite zoom)
+"------------------------------------------------------------------------------
+function! s:ZoomPlot() abort
+    let l:pdf = s:GetPlotPdf()
+    if filereadable(l:pdf)
+        call system('open ' . shellescape(l:pdf))
+        echom "Opened PDF (vector)"
     else
-        call system('kitty @ launch --location=' . l:location . ' --keep-focus --title ' . s:pane_title . ' /tmp/zzvim_plot_show.sh 2>/dev/null')
-    endif
-    redraw!
-
-    " Release lock after a delay to prevent rapid re-triggers
-    call timer_start(500, {-> execute('let s:plot_display_in_progress = 0')})
-
-    " Update plot status for statusline
-    call timer_start(600, {-> s:RefreshPlotStatus()})
-endfunction
-
-function! s:OpenDockerPlotInPreview() abort
-    " Open small version in Preview
-    let l:plot_file = s:GetPlotFile()
-    if filereadable(l:plot_file)
-        call system('open ' . shellescape(l:plot_file))
-        let l:size = g:zzvim_r_plot_width_small . 'x' . g:zzvim_r_plot_height_small
-        echom "Opened plot (" . l:size . ") in Preview"
-    else
-        call s:Error("No plot file found at " . l:plot_file)
-    endif
-endfunction
-
-function! s:OpenDockerPlotHiresInPreview() abort
-    " Open hi-res version in Preview (preferred for zoom)
-    let l:plot_hires = s:GetPlotFileHires()
-    let l:plot_file = s:GetPlotFile()
-
-    let l:size_small = g:zzvim_r_plot_width_small . 'x' . g:zzvim_r_plot_height_small
-    let l:size_large = g:zzvim_r_plot_width_large . 'x' . g:zzvim_r_plot_height_large
-
-    if filereadable(l:plot_hires)
-        call system('open ' . shellescape(l:plot_hires))
-        echom "Opened hi-res plot (" . l:size_large . ") in Preview"
-    elseif filereadable(l:plot_file)
-        call system('open ' . shellescape(l:plot_file))
-        echom "Opened plot (" . l:size_small . ") in Preview (hi-res not available)"
-    else
-        call s:Error("No plot file found")
-    endif
-endfunction
-
-" Adaptive polling configuration
-let s:poll_fast = get(g:, 'zzvim_r_poll_fast', 50)    " Fast polling during active work (ms)
-let s:poll_slow = get(g:, 'zzvim_r_poll_slow', 1000)  " Slow polling when idle (ms)
-let s:poll_current = s:poll_fast                       " Current polling rate
-let s:last_r_activity = 0   " Timestamp of last R activity
-let s:idle_threshold = 30   " Seconds of inactivity before slowing down
-
-" Track R activity for adaptive polling
-function! s:OnRActivity() abort
-    let s:last_r_activity = localtime()
-    if s:poll_current != s:poll_fast
-        let s:poll_current = s:poll_fast
-        call s:RestartPlotWatcher()
-    endif
-endfunction
-
-" Check if we should slow down polling
-function! s:MaybeSlowDown() abort
-    if s:last_r_activity == 0
-        return
-    endif
-    if localtime() - s:last_r_activity > s:idle_threshold
-        if s:poll_current != s:poll_slow
-            let s:poll_current = s:poll_slow
-            call s:RestartPlotWatcher()
-        endif
-    endif
-endfunction
-
-function! s:StartPlotWatcher() abort
-    " Write config for R to read on startup (only once)
-    call s:WriteConfigForR()
-    call s:RestartPlotWatcherTimer()
-endfunction
-
-" Restart just the timer without re-writing config (for adaptive polling)
-function! s:RestartPlotWatcherTimer() abort
-    if exists('s:plot_watcher_timer')
-        call timer_stop(s:plot_watcher_timer)
-    endif
-    let s:plot_watcher_timer = timer_start(s:poll_current, {-> s:PlotWatcherTick()}, {'repeat': -1})
-    let s:last_r_activity = localtime()
-endfunction
-
-function! s:RestartPlotWatcher() abort
-    " For adaptive polling, only restart timer (don't rewrite config)
-    call s:RestartPlotWatcherTimer()
-endfunction
-
-function! s:PlotWatcherTick() abort
-    call s:DisplayDockerPlot()
-    call s:MaybeSlowDown()
-endfunction
-
-function! s:StopPlotWatcher() abort
-    if exists('s:plot_watcher_timer')
-        call timer_stop(s:plot_watcher_timer)
-        unlet s:plot_watcher_timer
+        call s:Error("No plot PDF available")
     endif
 endfunction
 
 "------------------------------------------------------------------------------
-" Ex Commands
+" Plot Navigation (via R)
 "------------------------------------------------------------------------------
-
-" Plot commands
-command! -bar RPlotShow call s:ForceDisplayDockerPlot()
-
-function! s:ForceDisplayDockerPlot() abort
-    " Stop watcher temporarily
-    if exists('s:plot_watcher_timer')
-        call timer_stop(s:plot_watcher_timer)
-        unlet s:plot_watcher_timer
-    endif
-
-    " Display directly without mtime check
-    let l:plot_file = s:GetPlotFile()
-    if !filereadable(l:plot_file)
-        echom "Plot file not found: " . l:plot_file
-        return
-    endif
-
-    " Close existing pane if present
-    call system('kitty @ close-window --match title:' . s:pane_title . ' 2>/dev/null')
-    sleep 50m
-
-    " Create the same refresh-capable script used by DisplayDockerPlot
-    let l:script = '/tmp/zzvim_plot_show.sh'
-    let l:size_str = g:zzvim_r_plot_width_small . 'x' . g:zzvim_r_plot_height_small
-    call writefile([
-        \ '#!/bin/bash',
-        \ 'PLOT_FILE="' . l:plot_file . '"',
-        \ 'show_plot() {',
-        \ '    clear',
-        \ '    kitty +kitten icat --clear --align=left "$PLOT_FILE"',
-        \ '    echo ""',
-        \ '    echo "Plot ' . l:size_str . ' | r=refresh | q=close"',
-        \ '}',
-        \ 'show_plot',
-        \ 'while true; do',
-        \ '    read -n1 -s key',
-        \ '    case "$key" in',
-        \ '        r|R) show_plot ;;',
-        \ '        q|Q|"") exit 0 ;;',
-        \ '    esac',
-        \ 'done'
-        \ ], l:script)
-    call system('chmod +x ' . l:script)
-
-    " Launch the plot pane with refresh-capable script
-    let l:location = g:zzvim_r_plot_location
-    if l:location == 'tab'
-        call system('kitty @ launch --type=tab --keep-focus --title ' . s:pane_title . ' ' . l:script . ' 2>/dev/null')
-    else
-        call system('kitty @ launch --location=' . l:location . ' --keep-focus --title ' . s:pane_title . ' ' . l:script . ' 2>/dev/null')
-    endif
-    echom "Launching plot pane"
-
-    " Update mtime cache (use same variable as DisplayDockerPlot)
-    let s:plot_signal_mtime = getftime(l:plot_file)
-
-    " Restart watcher using adaptive polling rate
-    call s:RestartPlotWatcherTimer()
-endfunction
-command! -bar RPlotPreview call s:OpenDockerPlotInPreview()
-command! -bar RPlotZoom call s:ZoomPlotPane()
-command! -bar RPlotZoomPreview call s:OpenDockerPlotHiresInPreview()
-command! -bar RPlotWatchStart call s:StartPlotWatcher()
-command! -bar RPlotWatchStop call s:StopPlotWatcher()
-command! -bar RPlotDebug call s:DebugPlotWatcher()
-command! -bar RPlotGallery call s:OpenPlotGallery()
-command! -bar RPlotReset let s:plot_signal_mtime = 0 | let s:plot_display_in_progress = 0 | echo "Plot watcher reset"
-command! -bar RPlotPrev call s:PlotPrev()
-command! -bar RPlotNext call s:PlotNext()
-
-" Navigate plot history via R
 function! s:PlotPrev() abort
     call s:Send_to_r('plot_prev()', 1)
 endfunction
@@ -2588,10 +1916,6 @@ endfunction
 
 function! s:PlotHistory() abort
     call s:Send_to_r('plot_history()', 1)
-endfunction
-
-function! s:PlotHistoryPersistent() abort
-    call s:Send_to_r('plot_history_persistent()', 1)
 endfunction
 
 function! s:PlotGoto() abort
@@ -2614,6 +1938,17 @@ function! s:PlotSearch() abort
     call s:Send_to_r('plot_search("' . l:pattern . '")', 1)
 endfunction
 
+"------------------------------------------------------------------------------
+" Plot Export (via R)
+"------------------------------------------------------------------------------
+function! s:PlotSavePdf() abort
+    let l:filename = input('Save PDF to: ', getcwd() . '/plot.pdf')
+    if empty(l:filename)
+        return
+    endif
+    call s:Send_to_r('save_plot("' . l:filename . '")', 1)
+endfunction
+
 function! s:PlotSavePng() abort
     let l:filename = input('Save PNG to: ', getcwd() . '/plot.png')
     if empty(l:filename)
@@ -2622,102 +1957,21 @@ function! s:PlotSavePng() abort
     call s:Send_to_r('save_plot("' . l:filename . '")', 1)
 endfunction
 
-function! s:PlotSavePdf() abort
-    let l:filename = input('Save PDF to: ', getcwd() . '/plot.pdf')
-    if empty(l:filename)
-        return
-    endif
-    call s:Send_to_r('plot_to_pdf("' . l:filename . '")', 1)
-endfunction
-
-function! s:PlotClose() abort
-    call s:Send_to_r('close_plot_pane()', 1)
-endfunction
-
-function! s:PlotSplit() abort
-    call s:Send_to_r('plot_split()', 1)
-endfunction
-
-function! s:PlotRedisplay() abort
-    call s:Send_to_r('plot_redisplay_if_resized()', 1)
-endfunction
-
-function! s:PlotSetMode() abort
-    let l:mode = input('Plot mode (pane/inline/auto): ', 'pane')
-    if empty(l:mode)
-        return
-    endif
-    call s:Send_to_r('set_plot_mode("' . l:mode . '")', 1)
-endfunction
-
-function! s:PlotSetAlign() abort
-    let l:align = input('Plot alignment (left/center/right): ', 'center')
-    if empty(l:align)
-        return
-    endif
-    call s:Send_to_r('set_plot_align("' . l:align . '")', 1)
-endfunction
-
-function! s:PlotSetSize() abort
-    let l:sw = input('Small width: ', '600')
-    let l:sh = input('Small height: ', '450')
-    let l:lw = input('Large width: ', '1200')
-    let l:lh = input('Large height: ', '900')
-    call s:Send_to_r('set_plot_size(' . l:sw . ', ' . l:sh . ', ' . l:lw . ', ' . l:lh . ')', 1)
-endfunction
-
-function! s:PlotWindowToggle() abort
-    call s:Send_to_r('plot_window_toggle()', 1)
-endfunction
-
-function! s:PlotWindowSelect(n) abort
-    call s:Send_to_r('plot_window_select(' . a:n . ')', 1)
-endfunction
-
-function! s:DebugPlotWatcher() abort
-    echo "=== Plot Watcher Debug ==="
-    let l:signal_file = s:GetSignalFile()
-    echo "Signal file: " . l:signal_file
-    echo "  Exists: " . filereadable(l:signal_file)
-    echo "  Mtime: " . getftime(l:signal_file)
-    echo "  Cached mtime: " . s:plot_signal_mtime
-    echo ""
-    let l:plot_file = s:GetPlotFile()
-    echo "Plot file (small): " . l:plot_file
-    echo "  Exists: " . filereadable(l:plot_file)
-    echo "  Mtime: " . getftime(l:plot_file)
-    echo ""
-    let l:plot_hires = s:GetPlotFileHires()
-    echo "Plot file (hi-res): " . l:plot_hires
-    echo "  Exists: " . filereadable(l:plot_hires)
-    echo "  Mtime: " . getftime(l:plot_hires)
-    echo ""
-    echo "Plot pane exists: " . s:PlotPaneExists()
-    echo "  Pane title: " . s:pane_title
-    echo ""
-    echo "Docker R terminal bufnr: " . s:docker_r_terminal_bufnr
-    echo "Adaptive polling: " . s:poll_current . "ms (fast=" . s:poll_fast . ", slow=" . s:poll_slow . ")"
-    echo "Plots dir cache: " . s:plots_dir_cache
-endfunction
-
 "------------------------------------------------------------------------------
-" Plot Gallery
+" Plot Gallery (Vim buffer with history)
 "------------------------------------------------------------------------------
-" Opens a Vim buffer showing the plot history with navigation
-
 function! s:OpenPlotGallery() abort
-    let l:index_file = s:GetHistoryIndexFile()
+    let l:index_file = s:GetHistoryIndex()
     if !filereadable(l:index_file)
-        call s:Error("No plot history found. Create plots with zzplot() first.")
+        call s:Error("No plot history. Create plots with zzplot() first.")
         return
     endif
 
-    " Read and parse JSON
     let l:json_content = join(readfile(l:index_file), '')
     try
         let l:index = json_decode(l:json_content)
     catch
-        call s:Error("Failed to parse plot history: " . v:exception)
+        call s:Error("Failed to parse plot history")
         return
     endtry
 
@@ -2730,42 +1984,19 @@ function! s:OpenPlotGallery() abort
     vnew
     setlocal buftype=nofile bufhidden=wipe noswapfile
     setlocal nonumber norelativenumber signcolumn=no
-    setlocal filetype=zzvim-gallery
     file [Plot\ Gallery]
 
-    " Build gallery content
     let l:lines = []
-    call add(l:lines, '╔══════════════════════════════════════════════════════════════════╗')
-    call add(l:lines, '║                         Plot Gallery                             ║')
-    call add(l:lines, '║  Press number (1-9) to view, Enter on line, q to close          ║')
-    call add(l:lines, '║  /pattern to search, n/N for next/prev match                    ║')
-    call add(l:lines, '╚══════════════════════════════════════════════════════════════════╝')
+    call add(l:lines, 'Plot Gallery')
+    call add(l:lines, '============')
+    call add(l:lines, 'Press 1-9 to view, Enter on line, q to close')
     call add(l:lines, '')
 
-    let l:current_idx = get(l:index, 'current_index', 0)
-    let l:display_num = 1
-    let l:line_to_id = {}  " Map line numbers to plot IDs
-    let l:header_lines = 6  " Number of header lines before plot list
-
-    for plot in l:index.plots
-        let l:marker = (plot.id == l:current_idx) ? '▶ ' : '  '
-        let l:name = get(plot, 'name', 'unnamed')
-        let l:created = get(plot, 'created', '')
-        let l:code = get(plot, 'code', '')
-        let l:plot_id = get(plot, 'id', l:display_num)
-        " Truncate code for display
-        if len(l:code) > 40
-            let l:code = l:code[:37] . '...'
-        endif
-        " Clean display without internal ID marker
-        let l:line = printf('%s[%d] %-20s  %s', l:marker, l:display_num, l:name, l:created)
-        call add(l:lines, l:line)
-        " Store mapping from line number to plot ID
-        let l:line_to_id[len(l:lines) + l:header_lines] = l:plot_id
-        if !empty(l:code)
-            call add(l:lines, '       ' . l:code)
-        endif
-        let l:display_num += 1
+    let l:current = get(l:index, 'current', 0)
+    for i in range(len(l:index.plots))
+        let l:p = l:index.plots[i]
+        let l:marker = (l:p.id == l:current) ? '> ' : '  '
+        call add(l:lines, printf('%s[%d] %-20s %s', l:marker, i+1, l:p.name, l:p.created))
     endfor
 
     call add(l:lines, '')
@@ -2774,48 +2005,30 @@ function! s:OpenPlotGallery() abort
     call setline(1, l:lines)
     setlocal readonly nomodifiable
 
-    " Store index and line mapping in buffer variables for navigation
     let b:plot_index = l:index
-    let b:line_to_id = l:line_to_id
 
-    " Key mappings for gallery
     nnoremap <buffer> <silent> q :bwipe<CR>
-    nnoremap <buffer> <silent> <CR> :call <SID>GallerySelectCurrent()<CR>
     nnoremap <buffer> <silent> <Esc> :bwipe<CR>
+    nnoremap <buffer> <silent> <CR> :call <SID>GallerySelectCurrent()<CR>
     for i in range(1, 9)
         execute 'nnoremap <buffer> <silent> ' . i . ' :call <SID>GallerySelect(' . i . ')<CR>'
     endfor
 endfunction
 
-function! s:GallerySelect(display_num) abort
+function! s:GallerySelect(num) abort
     if !exists('b:plot_index')
         return
     endif
-    if a:display_num > len(b:plot_index.plots)
-        echom "Plot " . a:display_num . " not in history"
+    if a:num > len(b:plot_index.plots)
+        echom "Plot " . a:num . " not in history"
         return
     endif
-    " Get the actual plot ID (not display number) for correct selection
-    let l:plot = b:plot_index.plots[a:display_num - 1]
-    let l:plot_id = get(l:plot, 'id', a:display_num)
-    let l:plot_name = get(l:plot, 'name', 'unnamed')
-    " Send command to R using the actual plot ID
-    call s:Send_to_r('plot_goto(' . l:plot_id . ')', 1)
-    echom "Displaying: " . l:plot_name . " (id:" . l:plot_id . ")"
+    call s:Send_to_r('plot_goto(' . a:num . ')', 1)
+    echom "Displaying plot " . a:num
 endfunction
 
 function! s:GallerySelectCurrent() abort
-    " First try line-to-ID mapping (preferred method)
-    if exists('b:line_to_id')
-        let l:line_num = line('.')
-        if has_key(b:line_to_id, l:line_num)
-            let l:plot_id = b:line_to_id[l:line_num]
-            call s:Send_to_r('plot_goto(' . l:plot_id . ')', 1)
-            echom "Displaying plot id:" . l:plot_id
-            return
-        endif
-    endif
-    " Fallback to display number from [N] marker
+    let l:line = getline('.')
     let l:match = matchstr(l:line, '\[\zs\d\+\ze\]')
     if !empty(l:match)
         call s:GallerySelect(str2nr(l:match))
@@ -2823,610 +2036,53 @@ function! s:GallerySelectCurrent() abort
 endfunction
 
 "------------------------------------------------------------------------------
-" Thumbnail Gallery (Kitty pane with visual thumbnails)
+" Cleanup
 "------------------------------------------------------------------------------
-" Opens a Kitty pane showing thumbnail images of plot history
-" Creates a montage image with ImageMagick and displays it
-
-let s:thumb_pane_title = 'zzvim-thumbs'
-
-function! s:OpenThumbnailGallery() abort
-    let l:index_file = s:GetHistoryIndexFile()
-    if !filereadable(l:index_file)
-        call s:Error("No plot history found. Create plots with zzplot() first.")
-        return
-    endif
-
-    " Check for ImageMagick montage command
-    if system('which montage') == ''
-        call s:Error("ImageMagick 'montage' command required for thumbnail gallery")
-        return
-    endif
-
-    " Read and parse JSON
-    let l:json_content = join(readfile(l:index_file), '')
-    try
-        let l:index = json_decode(l:json_content)
-    catch
-        call s:Error("Failed to parse plot history: " . v:exception)
-        return
-    endtry
-
-    let l:plots = get(l:index, 'plots', [])
-    if empty(l:plots)
-        call s:Error("No plots in history")
-        return
-    endif
-
-    " Get history directory
-    let l:history_dir = s:GetPlotsPath('history')
-
-    " Build list of thumbnail files (most recent first, limit to 9)
-    let l:thumbs = []
-    let l:count = 0
-    for l:i in range(len(l:plots) - 1, 0, -1)
-        let l:plot = l:plots[l:i]
-        let l:thumb_file = l:history_dir . '/' . get(l:plot, 'thumb', '')
-        let l:plot_file = l:history_dir . '/' . get(l:plot, 'file', '')
-        if filereadable(l:thumb_file) && filereadable(l:plot_file)
-            call add(l:thumbs, {
-                \ 'thumb': l:thumb_file,
-                \ 'plot': l:plot_file,
-                \ 'name': get(l:plot, 'name', 'plot'),
-                \ 'id': get(l:plot, 'id', 0)
-                \ })
-            let l:count += 1
-            if l:count >= 9
-                break
-            endif
-        endif
-    endfor
-
-    if empty(l:thumbs)
-        call s:Error("No thumbnails found. Thumbnails require ImageMagick 'convert' command.")
-        return
-    endif
-
-    " Close existing thumbnail pane if present
-    call system('kitty @ close-window --match title:' . s:thumb_pane_title . ' 2>/dev/null')
-    sleep 50m
-
-    " Store thumbs for selection callback
-    let s:thumb_gallery_items = l:thumbs
-
-    " Create montage image with labels
-    let l:montage_file = '/tmp/zzvim_montage.png'
-    let l:montage_cmd = 'montage -label ""'
-    let l:num = 1
-    for l:thumb in l:thumbs
-        " Add label with number and name
-        let l:label = l:num . ': ' . l:thumb.name
-        let l:montage_cmd .= ' -label ' . shellescape(l:label) . ' ' . shellescape(l:thumb.thumb)
-        let l:num += 1
-    endfor
-    " 3 columns, with spacing and border
-    let l:montage_cmd .= ' -tile 3x -geometry 200x150+5+5 -background "#1e1e2e" -fill white ' . shellescape(l:montage_file)
-    call system(l:montage_cmd)
-
-    " Create selection file path
-    let l:selection_file = '/tmp/zzvim_thumb_selection'
-    call delete(l:selection_file)
-
-    " Create shell script to display montage and handle input
-    let l:script = '/tmp/zzvim_thumbs.sh'
-    let l:script_lines = [
-        \ '#!/bin/bash',
-        \ 'SELECTION_FILE="' . l:selection_file . '"',
-        \ 'clear',
-        \ 'kitty +kitten icat --align=left ' . shellescape(l:montage_file),
-        \ 'echo ""',
-        \ 'echo "Press 1-' . len(l:thumbs) . ' to select plot, q to close"',
-        \ 'while true; do',
-        \ '    read -n1 -s key',
-        \ '    case "$key" in'
-        \ ]
-
-    " Add case for each thumbnail number - write display number to file
-    let l:num = 1
-    for l:thumb in l:thumbs
-        call add(l:script_lines, '        ' . l:num . ') echo "' . l:num . '" > "$SELECTION_FILE"; exit 0 ;;')
-        let l:num += 1
-    endfor
-
-    call add(l:script_lines, '        q|Q) exit 0 ;;')
-    call add(l:script_lines, '    esac')
-    call add(l:script_lines, 'done')
-
-    call writefile(l:script_lines, l:script)
-    call system('chmod +x ' . l:script)
-
-    " Launch the thumbnail pane
-    let l:cmd = 'kitty @ launch --location=vsplit --keep-focus --title ' . s:thumb_pane_title . ' ' . l:script
-    call system(l:cmd)
-
-    " Start a timer to check for selection
-    let s:thumb_selection_file = l:selection_file
-    let s:thumb_selection_timer = timer_start(200, function('s:CheckThumbSelection'), {'repeat': -1})
+function! s:OnRTerminalClose() abort
+    call s:StopPlotWatcher()
+    call system('kitty @ close-window --match title:' . s:pane_title . ' 2>/dev/null')
+    let s:docker_r_terminal_bufnr = -1
 endfunction
 
-" Check if user made a selection in the thumbnail gallery
-function! s:CheckThumbSelection(timer) abort
-    " Check if thumbnail pane still exists
-    let l:result = system('kitty @ ls 2>/dev/null')
-    if l:result !~# s:thumb_pane_title
-        " Pane closed - stop timer and check for selection
-        call timer_stop(a:timer)
-
-        if filereadable(s:thumb_selection_file)
-            let l:selection = str2nr(trim(join(readfile(s:thumb_selection_file), '')))
-            call delete(s:thumb_selection_file)
-            if l:selection > 0 && l:selection <= len(s:thumb_gallery_items)
-                " Get the plot file from our stored mapping (1-indexed)
-                let l:item = s:thumb_gallery_items[l:selection - 1]
-                let l:plot_file = l:item.plot
-
-                " Copy to current.png for display
-                let l:current_file = s:GetPlotFile()
-                call system('cp ' . shellescape(l:plot_file) . ' ' . shellescape(l:current_file))
-
-                " Update signal file to trigger watcher
-                let l:signal_file = s:GetSignalFile()
-                call writefile([string(localtime())], l:signal_file)
-
-                " Reset cached mtime so watcher will detect the change
-                let s:plot_signal_mtime = 0
-
-                echom "Displaying: " . l:item.name
-            endif
-        endif
+function! s:CleanupPlotPaneIfRTerminal() abort
+    let l:bufname = expand('<afile>')
+    if l:bufname =~? 'R-\|r-\|R$\|!/.*R\|terminal.*R'
+        call s:OnRTerminalClose()
     endif
 endfunction
 
-command! -bar RPlotThumbs call s:OpenThumbnailGallery()
+function! s:RTerminalExitCallback(job, exit_status) abort
+    call s:OnRTerminalClose()
+endfunction
 
 "------------------------------------------------------------------------------
-" Statusline Integration
+" Ex Commands
 "------------------------------------------------------------------------------
-" Provides plot status for users to add to their statusline
-" Uses mtime caching to avoid re-reading JSON on every statusline update
+command! -bar RPlotShow call s:DisplayPlot()
+command! -bar RPlotZoom call s:ZoomPlot()
+command! -bar RPlotPrev call s:PlotPrev()
+command! -bar RPlotNext call s:PlotNext()
+command! -bar RPlotHistory call s:PlotHistory()
+command! -bar RPlotGallery call s:OpenPlotGallery()
+command! -bar RPlotSavePdf call s:PlotSavePdf()
+command! -bar RPlotSavePng call s:PlotSavePng()
+command! -bar RPlotWatchStart call s:StartPlotWatcher()
+command! -bar RPlotWatchStop call s:StopPlotWatcher()
 
-let s:plot_status_index = 0
-let s:plot_status_total = 0
-let s:plot_status_mtime = 0
+" Debug command
+command! -bar RPlotDebug echo "Signal: " . s:GetSignalFile() . " mtime=" . getftime(s:GetSignalFile()) . " cached=" . s:plot_signal_mtime . " | Pane exists: " . s:PlotPaneExists()
 
-" Public function for statusline - returns [Plot N/M] or empty string
-function! ZzvimRPlotStatus() abort
-    if s:plot_status_total == 0
-        return ''
-    endif
-    return printf('[Plot %d/%d]', s:plot_status_index, s:plot_status_total)
-endfunction
-
-" Update plot status from history index file (with mtime caching)
-function! s:UpdatePlotStatus() abort
-    let l:index_file = s:GetHistoryIndexFile()
-    if !filereadable(l:index_file)
-        let s:plot_status_index = 0
-        let s:plot_status_total = 0
-        let s:plot_status_mtime = 0
-        return
-    endif
-
-    " Check if file has changed since last read (mtime caching)
-    let l:mtime = getftime(l:index_file)
-    if l:mtime == s:plot_status_mtime
-        " No change, skip re-reading
-        return
-    endif
-    let s:plot_status_mtime = l:mtime
-
-    try
-        let l:json_content = join(readfile(l:index_file), '')
-        let l:index = json_decode(l:json_content)
-        let s:plot_status_total = len(get(l:index, 'plots', []))
-        let s:plot_status_index = get(l:index, 'current_index', 0)
-    catch
-        let s:plot_status_index = 0
-        let s:plot_status_total = 0
-    endtry
-endfunction
-
-" Call this after displaying a plot to update status
-function! s:RefreshPlotStatus() abort
-    call s:UpdatePlotStatus()
-    redrawstatus
-endfunction
-
-function! s:ZoomPlotPane() abort
-    " Open hi-res version with 2x4 thumbnail grid in interactive Kitty window
-    " Press 1-8 to switch plots, q to close
-
-    let l:plot_hires = s:GetPlotFileHires()
-    let l:plot_file = s:GetPlotFile()
-
-    " Prefer hi-res, fall back to standard
-    if filereadable(l:plot_hires)
-        let l:main_file = l:plot_hires
-    elseif filereadable(l:plot_file)
-        let l:main_file = l:plot_file
-    else
-        echom "No plot file found"
-        return
-    endif
-
-    " Generate zoom composite with 2x4 thumbnail grid
-    let l:zoom_composite = s:GenerateZoomComposite(l:main_file)
-    if l:zoom_composite == ''
-        " Fallback to simple display if composite fails
-        let l:cmd = 'kitty @ launch --type=os-window -- sh -c ' .
-                  \ shellescape('kitty +kitten icat --hold ' . shellescape(l:main_file))
-        call system(l:cmd)
-        return
-    endif
-
-    " Create interactive script for zoom window
-    let l:script = '/tmp/zzvim_zoom.sh'
-    let l:plots_dir = s:GetPlotsDir()
-    let l:history_dir = s:GetHistoryDir()
-
-    call writefile([
-        \ '#!/bin/bash',
-        \ 'PLOTS_DIR="' . l:plots_dir . '"',
-        \ 'HISTORY_DIR="' . l:history_dir . '"',
-        \ 'CURRENT_FILE="' . l:zoom_composite . '"',
-        \ '',
-        \ 'show_plot() {',
-        \ '    clear',
-        \ '    kitty +kitten icat --clear --align=left "$CURRENT_FILE"',
-        \ '    echo ""',
-        \ '    echo "Zoom mode | 1-8=select plot | q=close"',
-        \ '}',
-        \ '',
-        \ 'regenerate_composite() {',
-        \ '    # Called from vim via kitty send-text',
-        \ '    CURRENT_FILE="' . l:zoom_composite . '"',
-        \ '    show_plot',
-        \ '}',
-        \ '',
-        \ 'show_plot',
-        \ 'while true; do',
-        \ '    read -n1 -s key',
-        \ '    case "$key" in',
-        \ '        [1-8])',
-        \ '            # Signal vim to select plot and regenerate',
-        \ '            echo "$key" > /tmp/zzvim_zoom_select',
-        \ '            # Wait for vim to regenerate composite',
-        \ '            for i in 1 2 3 4 5; do',
-        \ '                sleep 0.05',
-        \ '                if [ "' . l:zoom_composite . '" -nt /tmp/zzvim_zoom_select ]; then break; fi',
-        \ '            done',
-        \ '            show_plot',
-        \ '            ;;',
-        \ '        r|R) show_plot ;;',
-        \ '        q|Q) exit 0 ;;',
-        \ '    esac',
-        \ 'done',
-        \ ], l:script)
-    call system('chmod +x ' . l:script)
-
-    " Launch zoom window
-    call system('kitty @ launch --type=os-window --title=zzvim-zoom ' . l:script . ' &')
-
-    " Start watching for selection
-    let s:zoom_selection_file = '/tmp/zzvim_zoom_select'
-    call delete(s:zoom_selection_file)
-    let s:zoom_selection_timer = timer_start(30, function('s:CheckZoomSelection'), {'repeat': -1})
-
-    echom "Zoom mode: 1-8 to select, q to close"
-endfunction
-
-" Generate zoom composite with 2x4 grid (8 thumbnails)
-" Grid layout: 2 columns x 4 rows, numbered 1-4 (left col), 5-8 (right col)
-" Position 1 = oldest, position 8 = newest
-function! s:GenerateZoomComposite(main_file) abort
-    if !executable('magick') && !executable('convert')
-        return ''
-    endif
-
-    let l:convert_cmd = executable('magick') ? 'magick' : 'convert'
-    let l:montage_cmd = executable('magick') ? 'magick montage' : 'montage'
-
-    let l:plots_dir = s:GetPlotsDir()
-    let l:history_dir = s:GetHistoryDir()
-    let l:zoom_composite = s:GetPlotsPath('zoom_composite.png')
-    let l:zoom_grid = s:GetPlotsPath('.zoom_grid.png')
-    let l:index_file = s:GetHistoryIndexFile()
-
-    if !filereadable(l:index_file)
-        return ''
-    endif
-
-    let l:json_content = join(readfile(l:index_file), '')
-    try
-        let l:index = json_decode(l:json_content)
-    catch
-        return ''
-    endtry
-
-    if !has_key(l:index, 'plots') || len(l:index.plots) == 0
-        return ''
-    endif
-
-    " Get last 8 plots for zoom
-    let l:all_plots = l:index.plots
-    let l:start_idx = max([0, len(l:all_plots) - 8])
-    let l:recent_8 = l:all_plots[l:start_idx:]
-
-    let l:thumb_files = []
-    for l:p in l:recent_8
-        let l:f = l:history_dir . '/' . l:p.file
-        if filereadable(l:f)
-            call add(l:thumb_files, l:f)
-        endif
-    endfor
-
-    if len(l:thumb_files) == 0
-        return ''
-    endif
-
-    " Reorder for 2x4 grid with column-first numbering:
-    " Display positions:  1 5    Montage order: 1 2
-    "                     2 6                   3 4
-    "                     3 7                   5 6
-    "                     4 8                   7 8
-    let l:n_thumbs = len(l:thumb_files)
-    let l:inputs = []
-    for l:row in range(4)
-        " Left column (positions 1-4)
-        if l:row < l:n_thumbs
-            call add(l:inputs, l:thumb_files[l:row])
-        else
-            call add(l:inputs, 'null:')
-        endif
-        " Right column (positions 5-8)
-        if l:row + 4 < l:n_thumbs
-            call add(l:inputs, l:thumb_files[l:row + 4])
-        else
-            call add(l:inputs, 'null:')
-        endif
-    endfor
-
-    " Create header for zoom grid
-    let l:header_file = s:GetPlotsPath('.zoom_header.png')
-    let l:header_cmd = l:convert_cmd . ' -size 328x22 xc:"#333333" ' .
-        \ '-font Helvetica-Bold -pointsize 12 -fill "#CCCCCC" ' .
-        \ '-gravity center -annotate +0+0 "Plot History (1-' . l:n_thumbs . ')" ' .
-        \ shellescape(l:header_file)
-    call system(l:header_cmd)
-
-    " Create 2x4 grid (2 columns, 4 rows)
-    let l:montage_args = join(map(copy(l:inputs), 'shellescape(v:val)'), ' ')
-    let l:montage_full = l:montage_cmd . ' ' . l:montage_args .
-        \ ' -tile 2x4 -geometry 160x120+2+2 -background "#333333" ' .
-        \ shellescape(l:zoom_grid)
-    call system(l:montage_full)
-
-    if !filereadable(l:zoom_grid)
-        return ''
-    endif
-
-    " Add number labels (1-4 left column, 5-8 right column)
-    let l:label_args = ''
-    let l:thumb_w = 164
-    let l:thumb_h = 124
-    for l:i in range(1, l:n_thumbs)
-        if l:i <= 4
-            " Left column: positions 1-4
-            let l:col = 0
-            let l:row = l:i - 1
-        else
-            " Right column: positions 5-8
-            let l:col = 1
-            let l:row = l:i - 5
-        endif
-        let l:x = l:col * l:thumb_w + 6
-        let l:y = l:row * l:thumb_h + 18
-        let l:label_args .= ' -annotate +' . l:x . '+' . l:y . " '" . l:i . "'"
-    endfor
-
-    if l:label_args != ''
-        let l:label_cmd = l:convert_cmd . ' ' . shellescape(l:zoom_grid) .
-            \ ' -font Helvetica-Bold -pointsize 16 -fill "#CC0000"' . l:label_args .
-            \ ' ' . shellescape(l:zoom_grid)
-        call system(l:label_cmd)
-    endif
-
-    " Stack header on grid
-    let l:grid_with_header = s:GetPlotsPath('.zoom_grid_header.png')
-    let l:stack_header = l:convert_cmd . ' ' . shellescape(l:header_file) . ' ' .
-        \ shellescape(l:zoom_grid) . ' -append ' . shellescape(l:grid_with_header)
-    call system(l:stack_header)
-
-    " Join main plot + grid horizontally
-    let l:stack_cmd = l:convert_cmd . ' ' . shellescape(a:main_file) . ' ' .
-        \ shellescape(l:grid_with_header) . ' +append ' . shellescape(l:zoom_composite)
-    call system(l:stack_cmd)
-
-    if filereadable(l:zoom_composite)
-        return l:zoom_composite
-    endif
-    return ''
-endfunction
-
-let s:zoom_selection_made = 0
-
-function! s:CheckZoomSelection(timer) abort
-    " Check if zoom window still exists
-    let l:result = system('kitty @ ls 2>/dev/null')
-    if l:result !~# 'zzvim-zoom'
-        call timer_stop(a:timer)
-        if exists('s:zoom_selection_file')
-            call delete(s:zoom_selection_file)
-        endif
-        " Refresh plot pane if a selection was made during zoom
-        if s:zoom_selection_made
-            let s:zoom_selection_made = 0
-            call s:RefreshPlotPaneAfterZoom()
-        endif
-        return
-    endif
-
-    " Check for selection
-    if exists('s:zoom_selection_file') && filereadable(s:zoom_selection_file)
-        let l:selection = str2nr(trim(join(readfile(s:zoom_selection_file), '')))
-        call delete(s:zoom_selection_file)
-
-        if l:selection >= 1 && l:selection <= 8
-            " Select the plot and regenerate composite
-            call s:ZoomSelectPlot(l:selection)
-            let s:zoom_selection_made = 1
-        endif
-    endif
-endfunction
-
-" Refresh plot pane after zoom selection
-function! s:RefreshPlotPaneAfterZoom() abort
-    if !s:PlotPaneExists()
-        return
-    endif
-
-    " If window mode, regenerate composite and display
-    if s:plot_window_mode
-        let l:composite = s:GenerateCompositeImage()
-        if l:composite != '' && filereadable(l:composite)
-            call s:ForceDisplayDockerPlotFile(l:composite)
-        endif
-    else
-        " Normal mode - just refresh with current.png
-        call system('kitty @ send-text --match title:' . s:pane_title . " r 2>/dev/null")
-    endif
-endfunction
-
-function! s:ZoomSelectPlot(n) abort
-    let l:index_file = s:GetHistoryIndexFile()
-    if !filereadable(l:index_file)
-        return
-    endif
-
-    let l:json_content = join(readfile(l:index_file), '')
-    try
-        let l:index = json_decode(l:json_content)
-    catch
-        return
-    endtry
-
-    if !has_key(l:index, 'plots') || len(l:index.plots) == 0
-        return
-    endif
-
-    let l:history_dir = s:GetHistoryDir()
-    let l:all_plots = l:index.plots
-    let l:start_idx = max([0, len(l:all_plots) - 8])
-    let l:recent_8 = l:all_plots[l:start_idx:]
-
-    " Filter to only plots with existing files (must match GenerateZoomComposite)
-    let l:valid_plots = []
-    for l:p in l:recent_8
-        let l:f = l:history_dir . '/' . l:p.file
-        if filereadable(l:f)
-            call add(l:valid_plots, l:p)
-        endif
-    endfor
-
-    if a:n > len(l:valid_plots)
-        return
-    endif
-
-    let l:selected = l:valid_plots[a:n - 1]
-
-    " Try hi-res first, fall back to regular
-    let l:hires_file = l:history_dir . '/' . substitute(l:selected.file, '\.png$', '_hires.png', '')
-    let l:plot_file = l:history_dir . '/' . l:selected.file
-
-    if filereadable(l:hires_file)
-        let l:main_file = l:hires_file
-    elseif filereadable(l:plot_file)
-        let l:main_file = l:plot_file
-    else
-        return
-    endif
-
-    " Copy to current files
-    let l:current_file = s:GetPlotFile()
-    let l:current_hires = s:GetPlotFileHires()
-    call system('cp ' . shellescape(l:plot_file) . ' ' . shellescape(l:current_file))
-    if filereadable(l:hires_file)
-        call system('cp ' . shellescape(l:hires_file) . ' ' . shellescape(l:current_hires))
-    endif
-
-    " Regenerate zoom composite
-    call s:GenerateZoomComposite(l:main_file)
-endfunction
-
-" Core Operations
-command! -bar ROpenTerminal call s:OpenRTerminal()
-command! -bar RDockerTerminal call s:OpenDockerRTerminal()
-command! -bar RDockerTerminalForce call s:OpenDockerRTerminal(s:GetTerminalName(), 1)
-command! -bar RTerminalLocal call s:OpenLocalRTerminal()
-command! -bar RTerminalVanilla call s:OpenLocalRTerminalVanilla()
-command! -bar RSendLine call s:SendToR('line')
-command! -bar RSendSelection call s:SendToR('selection')
-command! -bar RSendFunction call s:SendToR('function')
-command! -bar RSendSmart call s:SendToR('')
-command! -bar RSendWithComments call s:SendToRWithComments('')
-command! -bar RAddPipe call s:AddPipeAndNewLine()
-
-" Chunk Navigation and Execution
-command! -bar RNextChunk call s:MoveNextChunk()
-command! -bar RPrevChunk call s:MovePrevChunk()
-command! -bar RSendChunk call s:SubmitChunk()
-command! -bar RSendPreviousChunks call s:SendToR('previous_chunks')
-
-" R Markdown Rendering Commands
-command! -bar -nargs=? RMarkdownRender call s:RMarkdownRender(<q-args>)
-command! -bar RMarkdownPreview call s:RMarkdownPreview()
-command! -bar RChunkInsert call s:InsertRChunk(0)
-command! -bar RChunkInsertAbove call s:InsertRChunk(1)
-
-" Help in Buffer Command (displays help in Vim buffer, not terminal)
-command! -bar -nargs=? RHelpBuffer call s:RHelpBuffer(<q-args>)
-
-" Object Inspection Commands (with optional arguments)
-command! -bar -nargs=? RHead call s:RCommandWithArg('head', <q-args>)
-command! -bar -nargs=? RStr call s:RCommandWithArg('str', <q-args>)
-command! -bar -nargs=? RDim call s:RCommandWithArg('dim', <q-args>)
-command! -bar -nargs=? RPrint call s:RCommandWithArg('print', <q-args>)
-command! -bar -nargs=? RNames call s:RCommandWithArg('names', <q-args>)
-command! -bar -nargs=? RLength call s:RCommandWithArg('length', <q-args>)
-command! -bar -nargs=? RGlimpse call s:RCommandWithArg('glimpse', <q-args>)
-command! -bar -nargs=? RTail call s:RCommandWithArg('tail', <q-args>)
-command! -bar -nargs=? RHelp call s:RCommandWithArg('help', <q-args>)
-command! -bar -nargs=? RSummary call s:RCommandWithArg('summary', <q-args>)
-
-" Control Commands
-command! -bar RQuit call s:SendControlKeys("Q")
-command! -bar RInterrupt call s:SendControlKeys("\<C-c>")
-
-" Advanced Commands with Argument Handling
-command! -bar -nargs=1 RSend call s:RSendCommand(<q-args>)
-command! -bar -nargs=1 RSource call s:RSourceCommand(<q-args>)
-command! -bar -nargs=1 RLibrary call s:RLibraryCommand(<q-args>)
-command! -bar -nargs=1 RInstall call s:RInstallCommand(<q-args>)
-command! -bar -nargs=1 RLoad call s:RLoadCommand(<q-args>)
-command! -bar -nargs=1 RSave call s:RSaveCommand(<q-args>)
-
-" Utility Commands
-command! -bar -nargs=? RSetwd call s:RSetwdCommand(<q-args>)
-command! -bar RGetwd call s:Send_to_r('getwd()', 1)
-command! -bar RLs call s:Send_to_r('ls()', 1)
-command! -bar RRm call s:Send_to_r('rm(list=ls())', 1)
-
-" Terminal Association Commands
-command! -bar RShowTerminal call s:RShowTerminalCommand()
-command! -bar RListTerminals call s:RListTerminalsCommand()
-command! -bar RSwitchToTerminal call s:RSwitchToTerminalCommand()
-command! -bar -nargs=? ROpenSplit call s:ROpenSplitCommand(<q-args>)
-
+"------------------------------------------------------------------------------
+" Key Mappings (to be added to autocmd section)
+"------------------------------------------------------------------------------
+" Plot commands:
+"   <LocalLeader>]    Zoom plot (open PDF)
+"   <LocalLeader>pp   Previous plot
+"   <LocalLeader>pn   Next plot
+"   <LocalLeader>ph   Plot history
+"   <LocalLeader>pG   Plot gallery
+"   <LocalLeader>ps   Save as PDF
+"   <LocalLeader>pS   Save as PNG
 " Simple Object Inspection Commands
 command! -bar RWorkspace call s:RWorkspaceOverview()  
 command! -bar -nargs=? RInspect call s:RInspectObject(<q-args>)
