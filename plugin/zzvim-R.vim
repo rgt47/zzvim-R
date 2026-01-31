@@ -1852,6 +1852,34 @@ function! s:DisplayPlot() abort
         " Create new pane
         call s:CreatePlotPane(l:plot_file)
     endif
+
+    " Auto-refresh any open Plot HUD buffer
+    call s:RefreshPlotHUDIfOpen()
+endfunction
+
+" Refresh Plot HUD if it's open (called when new plot is displayed)
+function! s:RefreshPlotHUDIfOpen() abort
+    " Find buffer named [Plot HUD] or HUD_*_Plots
+    for l:bufnr in range(1, bufnr('$'))
+        if bufexists(l:bufnr)
+            let l:name = bufname(l:bufnr)
+            if l:name =~# '\[Plot HUD\]\|HUD_.*_Plots'
+                " Save current window
+                let l:cur_win = winnr()
+                let l:cur_buf = bufnr('%')
+
+                " Switch to HUD buffer and refresh
+                let l:hud_win = bufwinnr(l:bufnr)
+                if l:hud_win > 0
+                    execute l:hud_win . 'wincmd w'
+                    call s:PlotHUDRefresh()
+                    " Return to original window
+                    execute l:cur_win . 'wincmd w'
+                endif
+                break
+            endif
+        endif
+    endfor
 endfunction
 
 function! s:CreatePlotPane(plot_file) abort

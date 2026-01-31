@@ -158,8 +158,19 @@ endfunction
 4. Add to Dashboard as 6th tab
 5. Deprecate old `<LocalLeader>p*` mappings in favor of HUD buffer actions
 
-## Open Questions
+## Design Decisions (Resolved Jan 30, 2026)
 
-1. Should kitty pane auto-open when Plot HUD is opened?
-2. Should Plot HUD auto-refresh when new plot is created?
-3. Should we show thumbnail previews in Vim using ASCII art or sixel?
+1. **Should kitty pane auto-open when Plot HUD is opened?**
+   - **Decision: No**
+   - Rationale: Keep HUD lightweight. User presses Enter to display a plot.
+
+2. **Should Plot HUD auto-refresh when new plot is created?**
+   - **Decision: Yes**
+   - Implemented: `s:RefreshPlotHUDIfOpen()` called from `s:DisplayPlot()`
+   - If Plot HUD buffer is open, it refreshes automatically when a new plot appears.
+
+3. **Should we show thumbnail previews in Vim using ASCII art or sixel?**
+   - **Decision: No**
+   - Rationale: Kitty pane already displays the actual image. Adding inline graphics
+     to Vim buffers adds complexity for little benefit. Text-based list with
+     Enter to preview is simpler and works everywhere.
