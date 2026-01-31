@@ -212,8 +212,8 @@ In Plot HUD buffer:
   - Persistent history in `.plots/history/`
   - Gallery buffer for navigation
   - Template versioning (now v7)
-- **Plot Commands**: `:RPlotShow`, `:RPlotZoom`, `:RPlotGallery`, `:RPlotPrev`, `:RPlotNext`
-- **Future Direction**: Plot HUD to integrate with existing HUD system (see `docs/PLOT_HUD_DESIGN.md`)
+- **Plot Commands**: `:RPlotHUD`, `:RPlotZoom`, `:RPlotPrev`, `:RPlotNext`
+- **Plot HUD**: Integrated with HUD system, auto-refreshes when new plots created
 
 ## HUD System (RStudio-Inspired Workspace Tools)
 
@@ -251,7 +251,9 @@ functionality without leaving Vim or requiring a mouse.
 
 **Implementation Status**: Plot HUD implemented (Jan 30, 2026). The `:RPlotHUD`
 command provides consistent UX with other HUDs, and is included as the 6th tab
-in the Dashboard.
+in the Dashboard. Plot HUD auto-refreshes when new plots are created.
+
+**Documentation**: See `docs/HUD_WORKFLOW_DEMO.md` for complete tutorial.
 
 ### Key Technical Achievements
 - Clean execution system (source command elimination)
