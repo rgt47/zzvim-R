@@ -17,7 +17,7 @@ The HUD functions provide workspace visibility with consistent patterns:
 | Packages | `:RPackageHUD` | `<LocalLeader>z` | Vim split |
 | Environment | `:REnvironmentHUD` | `<LocalLeader>x` | Vim split |
 | Options | `:ROptionsHUD` | `<LocalLeader>a` | Vim split |
-| Dashboard | `:RHUDDashboard` | `<LocalLeader>0` | 5 tabs |
+| Dashboard | `:RHUDDashboard` | `<LocalLeader>0` | 6 tabs |
 
 **Consistent UX patterns:**
 

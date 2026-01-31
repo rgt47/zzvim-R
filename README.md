@@ -36,7 +36,7 @@ R integration plugin for Vim and Neovim providing code execution, terminal manag
 | `<LocalLeader>rh` | Host R without renv (vanilla mode) |
 | `<LocalLeader>w` | Open R terminal in vertical split |
 | **HUD & Workspace** |
-| `<LocalLeader>0` | HUD Dashboard - open all 5 workspace tabs |
+| `<LocalLeader>0` | HUD Dashboard - open all 6 workspace tabs |
 | `<LocalLeader>m` | Memory Usage HUD |
 | `<LocalLeader>e` | Data Frames HUD |  
 | `<LocalLeader>z` | Package Status HUD |
@@ -303,7 +303,7 @@ data(iris)
 data(mtcars)
 
 # Press <LocalLeader>0 to open workspace tabs
-# Displays 5 tabs with workspace state:
+# Displays 6 tabs with workspace state:
 ```
 
 **Available Display Functions:**

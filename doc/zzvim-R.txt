@@ -402,7 +402,7 @@ HUD and Workspace Analysis Commands               *zzvim-r-commands-hud*
     Usage: Position cursor on data frame name and execute command.
 
 :RHUDDashboard                                                *:RHUDDashboard*
-    Unified HUD Dashboard - open all 5 HUD displays in separate tabs.
+    Unified HUD Dashboard - open all 6 HUD displays in separate tabs.
     Creates comprehensive workspace overview for situational awareness.
     Navigation: Use gt/gT to cycle tabs, :q to close, repeat command to refresh.
 
@@ -465,7 +465,7 @@ Individual HUD Displays:
 Unified HUD Dashboard                            *zzvim-r-mappings-dashboard*
 
 Complete Workspace Overview:
-    <localleader>0    HUD Dashboard - open all 5 HUD displays in tabs
+    <localleader>0    HUD Dashboard - open all 6 HUD displays in tabs
                       Creates tabbed workspace overview for situational awareness
                       Use gt/gT to navigate tabs, :q to close, <localleader>0 to refresh
 

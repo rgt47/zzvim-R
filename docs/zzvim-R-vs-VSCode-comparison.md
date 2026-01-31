@@ -47,7 +47,7 @@ VS Code follows a modern, extensible IDE approach with comprehensive language su
 | R Development Aspect | zzvim-R | VS Code R Extension | Advantage |
 |----------------------|---------|-------------------|-----------|
 | **Code Execution** | Smart pattern detection + terminal | Code regions + integrated terminals | zzvim-R more intelligent, VS Code more visual |
-| **Object Browsing** | **HUD Dashboard System** - 5 comprehensive workspace tabs + RStudio-style data viewer | Visual workspace viewer with data grid | **Feature Parity** - zzvim-R now matches VS Code capabilities |
+| **Object Browsing** | **HUD Dashboard System** - 6 comprehensive workspace tabs + RStudio-style data viewer | Visual workspace viewer with data grid | **Feature Parity** - zzvim-R now matches VS Code capabilities |
 | **Debugging** | R browser() + terminal debugging | Visual debugger with GUI breakpoints | VS Code significantly better |
 | **Multiple R Sessions** | Buffer-specific terminals | Multiple integrated R terminals | Both excellent, different approaches |
 | **Plot Viewing** | External viewer + terminal graphics | Integrated plot panel with httpgd | VS Code better integration |

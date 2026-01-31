@@ -47,7 +47,7 @@
 ### HUD Dashboard & Workspace
 | Key | Action |
 |-----|--------|
-| `SPC 0` | **HUD Dashboard** (all 5 tabs) |
+| `SPC 0` | **HUD Dashboard** (all 6 tabs) |
 | `SPC m` | Memory Usage HUD |
 | `SPC e` | Data Frames HUD |
 | `SPC z` | Package Status HUD |
@@ -127,7 +127,7 @@
 ### HUD Dashboard & Workspace Tools
 | Command | Action |
 |---------|--------|
-| `:RHUDDashboard` | **HUD Dashboard** (all 5 tabs) |
+| `:RHUDDashboard` | **HUD Dashboard** (all 6 tabs) |
 | `:RMemoryHUD` | Memory Usage HUD |
 | `:RDataFrameHUD` | Data Frames HUD |
 | `:RPackageHUD` | Package Status HUD |
