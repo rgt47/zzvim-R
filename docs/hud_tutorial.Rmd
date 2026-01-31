@@ -1,0 +1,373 @@
+---
+title: "zzvim-R HUD System Tutorial"
+author: "zzvim-R Documentation"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+# Introduction to the HUD System
+
+The zzvim-R plugin provides a Heads-Up Display (HUD) system that brings
+RStudio-style workspace visibility to terminal Vim. This tutorial walks through
+the key HUD features for exploring R objects and plots.
+
+## Prerequisites
+
+Before starting, ensure you have:
+
+- Kitty terminal (or Ghostty/WezTerm for image support)
+- R with `jsonlite` package installed
+- zzvim-R plugin loaded in Vim
+
+## Starting an R Session
+
+Open this file in Vim and launch R with one of these mappings:
+
+| Mapping | Action |
+|---------|--------|
+| `<LocalLeader>r` | Start Docker R (with renv) |
+| `<LocalLeader>rr` | Start host R (with renv) |
+| `<LocalLeader>rh` | Start host R (vanilla) |
+
+Try it now: press `<LocalLeader>r` to start R.
+
+# Part 1: Creating Demo Data
+
+Run each chunk below by placing your cursor inside and pressing `<CR>`.
+Alternatively, select lines visually and press `<CR>`.
+
+## Load Packages
+
+```{r packages}
+library(dplyr)
+library(ggplot2)
+```
+
+## Create Workspace Objects
+
+These objects demonstrate Memory HUD capabilities:
+
+```{r objects}
+# Small objects
+x <- 1:100
+y <- rnorm(100)
+greeting <- "Hello, HUD!"
+
+# Medium objects
+mtcars_copy <- mtcars
+iris_subset <- iris |> filter(Species == "setosa")
+
+# Large object (notice this in Memory HUD)
+big_matrix <- matrix(rnorm(1e6), nrow = 1000, ncol = 1000)
+
+# List object
+config <- list(
+  name = "demo",
+  settings = list(a = 1, b = 2, c = 3),
+  data = head(mtcars)
+)
+```
+
+## Create Data Frames
+
+These demonstrate the Data Frames HUD:
+
+```{r dataframes}
+# Patient data
+patients <- data.frame(
+  id = 1:50,
+  age = sample(20:80, 50, replace = TRUE),
+  treatment = sample(c("A", "B", "Control"), 50, replace = TRUE),
+  outcome = rnorm(50, mean = 100, sd = 15)
+)
+
+# Time series data
+daily_sales <- data.frame(
+  date = seq.Date(as.Date("2024-01-01"), by = "day", length.out = 365),
+  revenue = cumsum(rnorm(365, mean = 1000, sd = 200)),
+  units = sample(50:150, 365, replace = TRUE)
+)
+
+# Summary statistics
+summary_stats <- patients |>
+  group_by(treatment) |>
+  summarise(
+    n = n(),
+    mean_age = mean(age),
+    mean_outcome = mean(outcome),
+    .groups = "drop"
+  )
+```
+
+# Part 2: Exploring HUD Features
+
+Now that we have data, explore the HUD system.
+
+## Memory HUD (`<LocalLeader>m`)
+
+Press `<LocalLeader>m` to see memory usage of all workspace objects.
+
+**What to observe:**
+
+- Objects sorted by size (largest first)
+- `big_matrix` should appear at the top (~7.6 MB)
+- Total workspace memory at the bottom
+
+**Use case:** Identify memory-heavy objects during analysis.
+
+## Data Frames HUD (`<LocalLeader>e`)
+
+Press `<LocalLeader>e` to see all data frames with dimensions.
+
+**What to observe:**
+
+- Each data frame with row x column counts
+- Quick overview without typing `dim()` repeatedly
+
+**Use case:** Verify dataset dimensions after joins or filters.
+
+## Workspace Overview (`<LocalLeader>'`)
+
+Press `<LocalLeader>'` to see a compact workspace summary.
+
+**What to observe:**
+
+- All objects grouped by type
+- Quick reference for variable names
+
+## Object Inspection (`<LocalLeader>i`)
+
+Position cursor on `patients` and press `<LocalLeader>i`.
+
+**What to observe:**
+
+- Detailed structure of the object
+- Works with data frames, lists, vectors, models
+
+## Data Viewer (`<LocalLeader>v`)
+
+Position cursor on `patients` and press `<LocalLeader>v`.
+
+**What to observe:**
+
+- Tabular display similar to RStudio's viewer
+- First rows of the data frame
+
+**Use case:** Quick data inspection without leaving Vim.
+
+## Packages HUD (`<LocalLeader>z`)
+
+Press `<LocalLeader>z` to see loaded packages.
+
+**What to observe:**
+
+- List of currently loaded packages
+- Verify required packages are available
+
+## Environment HUD (`<LocalLeader>x`)
+
+Press `<LocalLeader>x` to see R environment variables.
+
+**What to observe:**
+
+- R_HOME, R_LIBS_USER paths
+- Useful for debugging configuration issues
+
+## Options HUD (`<LocalLeader>a`)
+
+Press `<LocalLeader>a` to see R session options.
+
+**What to observe:**
+
+- Current values of digits, warn, width, etc.
+- Settings that affect output formatting
+
+# Part 3: Creating and Managing Plots
+
+The Plot HUD manages plot history with thumbnail display.
+
+## Create Base R Plots
+
+```{r base-plots}
+# Scatter plot
+zzplot(
+  plot(mpg ~ wt, data = mtcars,
+       main = "Weight vs MPG",
+       xlab = "Weight (1000 lbs)",
+       ylab = "Miles per Gallon",
+       pch = 19, col = "steelblue"),
+  .name = "scatter_wt_mpg"
+)
+
+# Histogram
+zzplot(
+  hist(patients$age, breaks = 15,
+       main = "Patient Age Distribution",
+       xlab = "Age", col = "coral"),
+  .name = "histogram_age"
+)
+
+# Box plot
+zzplot(
+  boxplot(outcome ~ treatment, data = patients,
+          main = "Outcome by Treatment",
+          col = c("lightblue", "lightgreen", "lightyellow")),
+  .name = "boxplot_treatment"
+)
+```
+
+## Create ggplot2 Plots
+
+```{r ggplots}
+# Scatter with regression lines
+p1 <- ggplot(mtcars, aes(x = hp, y = mpg, color = factor(cyl))) +
+  geom_point(size = 3) +
+  geom_smooth(method = "lm", se = FALSE) +
+  labs(
+    title = "Horsepower vs MPG by Cylinder",
+    x = "Horsepower",
+    y = "MPG",
+    color = "Cylinders"
+  ) +
+  theme_minimal()
+zzggplot(p1, .name = "ggplot_hp_mpg")
+
+# Time series
+p2 <- ggplot(daily_sales, aes(x = date, y = revenue)) +
+  geom_line(color = "darkgreen") +
+  geom_smooth(method = "loess", color = "red", se = TRUE) +
+  labs(
+    title = "Daily Revenue Trend",
+    x = "Date",
+    y = "Cumulative Revenue ($)"
+  ) +
+  theme_minimal()
+zzggplot(p2, .name = "timeseries_revenue")
+
+# Faceted plot
+p3 <- ggplot(iris, aes(x = Sepal.Length, y = Sepal.Width)) +
+  geom_point(aes(color = Species)) +
+  facet_wrap(~Species) +
+  labs(title = "Iris Sepal Dimensions") +
+  theme_bw()
+zzggplot(p3, .name = "faceted_iris")
+```
+
+## Using the Plot HUD (`<LocalLeader>P`)
+
+Press `<LocalLeader>P` to open the Plot HUD.
+
+**Navigation:**
+
+| Key | Action |
+|-----|--------|
+| `j`/`k` | Move cursor down/up |
+| `1`-`9` | Jump to plot by number |
+| `Enter` | Display selected plot |
+| `z` | Zoom (open PDF in viewer) |
+| `s` | Save plot to file |
+| `d` | Delete plot from history |
+| `r` | Refresh the HUD |
+| `/` | Search plots |
+| `q` | Close HUD |
+
+**Try these actions:**
+
+1. Press `j` to move down to plot 2
+2. Press `Enter` to display it in the kitty pane
+3. Press `z` to open the PDF for detailed viewing
+4. Press `q` to close the HUD
+
+## Quick Plot Navigation
+
+Without opening the HUD, navigate plots directly:
+
+| Key | Action |
+|-----|--------|
+| `<LocalLeader><` | Previous plot |
+| `<LocalLeader>>` | Next plot |
+| `<LocalLeader>]` | Zoom current plot (open PDF) |
+
+# Part 4: The HUD Dashboard
+
+## Opening the Full Dashboard (`<LocalLeader>0`)
+
+Press `<LocalLeader>0` to open all HUDs in tabs:
+
+```
+[Memory] [DataFrames] [Packages] [Environment] [Options] [Plots]
+```
+
+## Tab Navigation
+
+| Key | Action |
+|-----|--------|
+| `gt` | Next tab |
+| `gT` | Previous tab |
+| `1gt` | Go to tab 1 (Memory) |
+| `6gt` | Go to tab 6 (Plots) |
+
+## Dashboard Workflow
+
+1. Press `<LocalLeader>0` to open dashboard
+2. Use `gt`/`gT` to navigate between HUD tabs
+3. Review workspace state across all views
+4. Press `q` in any tab to close it
+5. Use `:tabonly` to close all tabs except current
+
+# Part 5: Quick Reference
+
+## All HUD Mappings
+
+| Mapping | HUD | Description |
+|---------|-----|-------------|
+| `<LocalLeader>m` | Memory | Object sizes |
+| `<LocalLeader>e` | Data Frames | Data frame dimensions |
+| `<LocalLeader>z` | Packages | Loaded packages |
+| `<LocalLeader>v` | Data Viewer | View object under cursor |
+| `<LocalLeader>x` | Environment | R environment variables |
+| `<LocalLeader>a` | Options | R session options |
+| `<LocalLeader>'` | Workspace | Compact object list |
+| `<LocalLeader>i` | Inspect | Object structure |
+| `<LocalLeader>P` | Plot HUD | Plot history manager |
+| `<LocalLeader>0` | Dashboard | All HUDs in tabs |
+
+## Object Inspection Shortcuts
+
+These work on the word under the cursor:
+
+| Mapping | Action |
+|---------|--------|
+| `<LocalLeader>h` | head() |
+| `<LocalLeader>u` | tail() |
+| `<LocalLeader>s` | str() |
+| `<LocalLeader>p` | print() |
+| `<LocalLeader>n` | names() |
+| `<LocalLeader>d` | dim() |
+| `<LocalLeader>g` | glimpse() |
+| `<LocalLeader>c` | class() |
+| `K` | help() |
+
+## Comparison with RStudio
+
+| RStudio Pane | zzvim-R Equivalent | Key |
+|--------------|-------------------|-----|
+| Environment | Memory + DataFrames HUD | `<LocalLeader>m`, `<LocalLeader>e` |
+| Plots | Plot HUD + Kitty pane | `<LocalLeader>P` |
+| Packages | Packages HUD | `<LocalLeader>z` |
+| Help | K on function | `K` |
+| Viewer | Data Viewer | `<LocalLeader>v` |
+| Console | Vim terminal | `<LocalLeader>r` |
+
+# Conclusion
+
+The HUD system provides RStudio-style workspace visibility while maintaining
+Vim's keyboard-driven efficiency. Key takeaways:
+
+1. **Quick inspection**: Use `<LocalLeader>m/e/z` for instant workspace overview
+2. **Plot management**: `<LocalLeader>P` for history, `<LocalLeader>]` for zoom
+3. **Full dashboard**: `<LocalLeader>0` when you need all information at once
+4. **Object shortcuts**: Single-key inspection (`h`, `s`, `p`, etc.) on cursor
+
+Practice these mappings and they become muscle memory for efficient R
+development in Vim.
