@@ -14,7 +14,9 @@ This document provides comprehensive information about the zzvim-R plugin, its c
 - **Plot System Refactoring**: Simplified from 1629 to 312 lines (81% reduction)
 - **PDF Master + PNG Preview**: Vector PDF for zoom, raster PNG for display
 - **Removed**: Adaptive polling, composite images, thumbnail gallery, config sync
-- **HUD Integration Planned**: Plot management to follow HUD UX patterns
+- **Plot HUD Implemented**: Plot management unified with HUD system (`<LocalLeader>P`)
+- **Dashboard Extended**: Now 6 tabs including Plots
+- **Workflow Documentation**: See `docs/HUD_WORKFLOW_DEMO.md` for complete demo
 
 ### Key Features
 - **Code Execution**: Pattern-based detection with non-interactive execution
@@ -41,7 +43,10 @@ zzvim-R/
 ├── .github/workflows/      # GitHub Actions CI/CD
 ├── CHANGELOG.md            # Version history & detailed session notes
 ├── LICENSE, README.md      # User documentation
-├── docs/                   # Comparison documentation
+├── docs/                   # Documentation
+│   ├── HUD_WORKFLOW_DEMO.md      # Complete HUD system tutorial
+│   ├── PLOT_HUD_DESIGN.md        # Plot HUD design (implemented)
+│   └── REFACTORING_PLAN_PLOT_SYSTEM.md  # Plot refactoring details
 └── CLAUDE.md               # This file - development guide
 ```
 
