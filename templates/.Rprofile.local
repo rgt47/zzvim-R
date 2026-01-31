@@ -74,24 +74,34 @@ if (.terminal != "none" && Sys.info()["sysname"] %in% c("Darwin", "Linux")) {
   # Core Plot Functions (PDF master + PNG preview)
   # ==========================================================================
 
-  # Base R plots
-  zzplot <- function(..., .name = NULL, .save = TRUE) {
+  # Universal plot function - works with any plotting function or ggplot
+  # Usage: zzplot(plot(x, y)), zzplot(boxplot(x)), zzplot(hist(y))
+  #        zzplot(ggplot(df, aes(x, y)) + geom_point())
+  zzplot <- function(expr, .name = NULL, .save = TRUE) {
     .ensure_dirs()
 
-    # Capture code for history
-    code_str <- deparse(substitute(list(...)), width.cutoff = 500)
+    # Capture the plot call for re-evaluation and history
+    plot_call <- substitute(expr)
+    code_str <- deparse(plot_call, width.cutoff = 500)
     code_str <- paste(code_str, collapse = " ")
+
+    # Helper to evaluate and handle ggplot objects
+    .eval_plot <- function() {
+      result <- eval(plot_call, envir = parent.frame(2))
+      if (inherits(result, "ggplot")) print(result)
+      invisible(result)
+    }
 
     # PDF master (vector - infinite zoom)
     pdf(.current_pdf(), width = .plot_width, height = .plot_height)
-    plot(...)
+    .eval_plot()
     dev.off()
 
     # PNG preview (for kitty display)
     png(.current_png(),
         width = .plot_width * .png_scale,
         height = .plot_height * .png_scale)
-    plot(...)
+    .eval_plot()
     dev.off()
 
     # Signal Vim to display
@@ -103,37 +113,7 @@ if (.terminal != "none" && Sys.info()["sysname"] %in% c("Darwin", "Linux")) {
     invisible(NULL)
   }
 
-  # ggplot2 plots
-  zzggplot <- function(p, .name = NULL, .save = TRUE) {
-    .ensure_dirs()
-
-    # Capture code for history
-    code_str <- deparse(substitute(p), width.cutoff = 500)
-    code_str <- paste(code_str, collapse = " ")
-
-    # PDF master
-    pdf(.current_pdf(), width = .plot_width, height = .plot_height)
-    print(p)
-    dev.off()
-
-    # PNG preview
-    png(.current_png(),
-        width = .plot_width * .png_scale,
-        height = .plot_height * .png_scale)
-    print(p)
-    dev.off()
-
-    # Signal Vim
-    .signal_vim()
-
-    # Save to history
-    if (.save) .add_to_history(.name, code_str)
-
-    invisible(NULL)
-  }
-
   assign("zzplot", zzplot, envir = .GlobalEnv)
-  assign("zzggplot", zzggplot, envir = .GlobalEnv)
 
   # ==========================================================================
   # Configuration
@@ -157,7 +137,7 @@ if (.terminal != "none" && Sys.info()["sysname"] %in% c("Darwin", "Linux")) {
   plot_zoom <- function() {
     pdf_file <- .current_pdf()
     if (!file.exists(pdf_file)) {
-      cat("No plot available. Use zzplot() or zzggplot() first.\n")
+      cat("No plot available. Use zzplot() first.\n")
       return(invisible(NULL))
     }
     if (.is_docker()) {
@@ -432,8 +412,7 @@ if (.terminal != "none" && Sys.info()["sysname"] %in% c("Darwin", "Linux")) {
   # ==========================================================================
   if (interactive()) {
     cat(sprintf("Terminal graphics: %s (PDF + PNG)\n", toupper(.terminal)))
-    cat("  zzplot(...)     Base R plots\n")
-    cat("  zzggplot(p)     ggplot2 plots\n")
+    cat("  zzplot(expr)    Any plot (base R or ggplot)\n")
     cat("  plot_zoom()     Open PDF (vector)\n")
     cat("  plot_history()  View history\n")
     cat("  plot_prev/next  Navigate\n")
