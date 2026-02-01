@@ -229,6 +229,78 @@ let g:zzvim_r_debug = get(g:, 'zzvim_r_debug', 0)
 "           png1 R --no-save --quiet
 
 "------------------------------------------------------------------------------
+" Template Version Checking
+"------------------------------------------------------------------------------
+
+" Current template version (must match templates/.Rprofile.local header)
+let s:template_version = 7
+
+" Get plugin directory (where templates/ lives)
+let s:plugin_dir = fnamemodify(resolve(expand('<sfile>:p')), ':h:h')
+
+" Extract version number from .Rprofile.local file
+" Returns: version number or 0 if not found
+function! s:GetRprofileVersion(filepath) abort
+    if !filereadable(a:filepath)
+        return 0
+    endif
+    " Look for: # zzvim-R template version: N
+    for line in readfile(a:filepath, '', 20)
+        let match = matchlist(line, 'zzvim-R template version:\s*\(\d\+\)')
+        if !empty(match)
+            return str2nr(match[1])
+        endif
+    endfor
+    return 0
+endfunction
+
+" Check if local .Rprofile.local needs updating and prompt user
+" Called when R terminal starts
+function! s:CheckTemplateVersion() abort
+    let local_file = getcwd() . '/.Rprofile.local'
+    let template_file = s:plugin_dir . '/templates/.Rprofile.local'
+
+    " No local file - nothing to check (user may not use plot features)
+    if !filereadable(local_file)
+        return
+    endif
+
+    " No template file - plugin misconfigured
+    if !filereadable(template_file)
+        return
+    endif
+
+    let local_version = s:GetRprofileVersion(local_file)
+    let template_version = s:GetRprofileVersion(template_file)
+
+    " Local file has no version or is current
+    if local_version == 0 || local_version >= template_version
+        return
+    endif
+
+    " Prompt user to update
+    let msg = printf('.Rprofile.local is version %d, plugin has version %d. Update? (y/n): ',
+                   \ local_version, template_version)
+    let choice = input(msg)
+
+    if choice ==# 'y' || choice ==# 'Y'
+        " Backup old file
+        let backup = local_file . '.bak'
+        call writefile(readfile(local_file), backup)
+
+        " Copy template
+        call writefile(readfile(template_file), local_file)
+        echom "\n.Rprofile.local updated to version " . template_version . " (backup: .Rprofile.local.bak)"
+        echom "Restart R to use the new version."
+    else
+        echom "\nKeeping current .Rprofile.local (version " . local_version . ")"
+    endif
+endfunction
+
+" Command to manually update template
+command! -bar RUpdateTemplate call s:CheckTemplateVersion()
+
+"------------------------------------------------------------------------------
 " Utility Functions
 "------------------------------------------------------------------------------
 
@@ -582,6 +654,9 @@ endfunction
 
 " Configure terminal after creation (shared between local and Docker)
 function! s:ConfigureTerminal(terminal_name, is_docker) abort
+    " Check if .Rprofile.local needs updating
+    call s:CheckTemplateVersion()
+
     " Resize terminal window
     if exists('g:zzvim_r_terminal_width') && g:zzvim_r_terminal_width > 0
         let terminal_width = g:zzvim_r_terminal_width
