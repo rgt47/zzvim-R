@@ -3190,12 +3190,14 @@ function! s:CreateHUDTab(tab_name, file_suffix, data_generator, source_file, r_t
     nnoremap <buffer> <silent> <LocalLeader>0 :call <SID>RHUDDashboard()<CR>
     nnoremap <buffer> <silent> q :bwipeout<CR>
 
-    " Interactive HUD mappings for drill-down
-    nnoremap <buffer> <silent> <CR> :call <SID>HUDInspectLine()<CR>
-    nnoremap <buffer> <silent> o :call <SID>HUDOpenViewer()<CR>
-    nnoremap <buffer> <silent> h :call <SID>HUDHead()<CR>
-    nnoremap <buffer> <silent> s :call <SID>HUDStr()<CR>
-    nnoremap <buffer> <silent> r :call <SID>RHUDDashboard()<CR>
+    " Interactive HUD mappings for drill-down (skip for Plots tab which has its own)
+    if a:tab_name !=# 'Plots'
+        nnoremap <buffer> <silent> <CR> :call <SID>HUDInspectLine()<CR>
+        nnoremap <buffer> <silent> o :call <SID>HUDOpenViewer()<CR>
+        nnoremap <buffer> <silent> h :call <SID>HUDHead()<CR>
+        nnoremap <buffer> <silent> s :call <SID>HUDStr()<CR>
+        nnoremap <buffer> <silent> r :call <SID>RHUDDashboard()<CR>
+    endif
 
     normal! gg
     if exists('+showtabline')
