@@ -2077,9 +2077,18 @@ endfunction
 "------------------------------------------------------------------------------
 " Zoom - Open PDF (vector, infinite zoom)
 "------------------------------------------------------------------------------
+" Close previous plot PDF in Preview (macOS)
+function! s:ClosePreviousPlotPDF() abort
+    if has('mac') || has('macunix')
+        " Close any PDF in Preview that's in .plots directory
+        call system('osascript -e ''tell application "Preview" to close (every window whose name contains ".plots")'' 2>/dev/null')
+    endif
+endfunction
+
 function! s:ZoomPlot() abort
     let l:pdf = s:GetPlotPdf()
     if filereadable(l:pdf)
+        call s:ClosePreviousPlotPDF()
         call system('open ' . shellescape(l:pdf))
         echom "Opened PDF (vector)"
     else
@@ -2336,6 +2345,7 @@ function! s:PlotHUDZoom() abort
     let l:pdf_file = l:hist_dir . '/' . get(l:entry, 'pdf', '')
 
     if filereadable(l:pdf_file)
+        call s:ClosePreviousPlotPDF()
         call system('open ' . shellescape(l:pdf_file))
         echom "Opened PDF: " . get(l:entry, 'name', '')
     else
