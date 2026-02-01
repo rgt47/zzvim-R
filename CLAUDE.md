@@ -323,3 +323,86 @@ The object browser provides an intuitive, vim-peekaboo inspired interface for R 
 - **Integration Hooks**: API for other plugins to extend object browser functionality
 
 The object browser represents a significant evolution in zzvim-R's capabilities, bringing modern IDE functionality to Vim while maintaining the plugin's core philosophy of lightweight, terminal-based R development. The implementation demonstrates advanced VimScript techniques and provides a foundation for future enhancements.
+
+## January 2026 - Plot System & HUD Improvements
+
+### Plot System Refactoring (Template v8)
+
+Major simplification of the plot system:
+
+- **Architecture**: PDF master + PNG preview (replaces dual-resolution PNG)
+  - PDF: Vector format, infinite zoom, publication-ready
+  - PNG: 900x675 raster for kitty pane display (150 dpi)
+- **Code Reduction**: Plot section reduced from 1629 to 312 lines (81%)
+- **Function Renaming**: `zzplot()` → `show()`, all related functions to `show_*` pattern
+
+### Plot HUD Implementation
+
+New Plot HUD integrated with the HUD system:
+
+- **Command**: `:RPlotHUD` or `<LocalLeader>P`
+- **Features**: Plot history navigation, zoom to PDF, save, delete
+- **Dashboard Integration**: 6th tab in `:RHUDDashboard`
+- **Auto-refresh**: Updates when new plots are created
+
+### Preview.app Integration (macOS)
+
+- Auto-close previous plot PDFs before opening new ones
+- Force Preview.app (not default PDF viewer)
+- 200% zoom via AppleScript automation
+
+### Plot Display Improvements
+
+- Centered plots in kitty pane (horizontal + vertical padding)
+- Increased PNG size from 100 to 150 dpi
+- Plot pane closes on Vim exit (`VimLeavePre` autocmd)
+- Suppressed "Press ENTER" prompts (changed `echom` to `redraw | echo`)
+
+### Critical Bug Fix: Plot HUD Path Resolution
+
+**Problem**: Plots selected from HUD were not displaying (PNG or PDF).
+
+**Root Cause**: All Plot HUD functions used `s:GetHistoryDir()` which relies on
+`getcwd()`. When the HUD was opened from Dashboard or after changing directories,
+`getcwd()` might not point to the R project directory where `.plots` exists.
+
+**Solution**: Store paths as buffer-local variables when HUD is created:
+
+```vim
+" In s:RPlotHUD() - store paths before creating new buffer
+let l:plots_dir = s:GetPlotsDir()
+let l:history_dir = s:GetHistoryDir()
+" ... create buffer ...
+let b:plots_dir = l:plots_dir
+let b:history_dir = l:history_dir
+
+" In PlotHUDSelectNum() - use buffer-local paths
+let l:hist_dir = get(b:, 'history_dir', s:GetHistoryDir())
+let l:plots_dir = get(b:, 'plots_dir', s:GetPlotsDir())
+```
+
+**Functions Updated**:
+- `s:RPlotHUD()` - stores paths before buffer creation
+- `s:RHUDDashboard()` - captures paths before creating tabs
+- `s:CreateHUDTab()` - accepts optional path args for Plots tab
+- `s:PlotHUDSelectNum()` - uses buffer-local paths
+- `s:PlotHUDZoom()` - uses buffer-local paths
+- `s:PlotHUDSave()` - uses buffer-local paths
+- `s:PlotHUDDelete()` - uses buffer-local paths
+- `s:PlotHUDRefresh()` - uses buffer-local paths
+- `s:GeneratePlotHUD()` - stores paths if not already set
+
+### Template Version Checking
+
+Added version checking for `.Rprofile.local`:
+
+- Plugin stores `s:template_version = 8`
+- On R file open, compares local vs template version
+- Prompts user when local copy is outdated
+
+### Other Fixes
+
+- **E117 OnRActivity**: Removed orphaned function call
+- **file.copy() error**: Fixed `parent.frame()` scoping in `show()` function
+- **Plot HUD Enter key in Dashboard**: Excluded Plots tab from generic HUD mappings
+- **Cursor jumping**: Save/restore cursor position in `GeneratePlotHUDContent()`

@@ -2360,7 +2360,8 @@ function! s:PlotHUDZoom() abort
         return
     endif
 
-    let l:hist_dir = s:GetHistoryDir()
+    " Use buffer-local path (stored when HUD was created)
+    let l:hist_dir = get(b:, 'history_dir', s:GetHistoryDir())
     let l:pdf_file = l:hist_dir . '/' . get(l:entry, 'pdf', '')
 
     if filereadable(l:pdf_file)
@@ -2386,7 +2387,9 @@ function! s:PlotHUDSave() abort
         return
     endif
 
-    let l:hist_dir = s:GetHistoryDir()
+    " Use buffer-local paths (stored when HUD was created)
+    let l:hist_dir = get(b:, 'history_dir', s:GetHistoryDir())
+    let l:plots_dir = get(b:, 'plots_dir', s:GetPlotsDir())
     if l:num > 0 && !empty(l:entry)
         " Save specific plot from history
         if l:filename =~# '\.pdf$'
@@ -2397,9 +2400,9 @@ function! s:PlotHUDSave() abort
     else
         " Save current plot
         if l:filename =~# '\.pdf$'
-            let l:src = s:GetPlotPdf()
+            let l:src = l:plots_dir . '/current.pdf'
         else
-            let l:src = s:GetPlotFile()
+            let l:src = l:plots_dir . '/current.png'
         endif
     endif
 
@@ -2430,8 +2433,8 @@ function! s:PlotHUDDelete() abort
         return
     endif
 
-    " Remove files
-    let l:hist_dir = s:GetHistoryDir()
+    " Use buffer-local path (stored when HUD was created)
+    let l:hist_dir = get(b:, 'history_dir', s:GetHistoryDir())
     let l:png_file = l:hist_dir . '/' . get(l:entry, 'png', '')
     let l:pdf_file = l:hist_dir . '/' . get(l:entry, 'pdf', '')
 
@@ -2445,8 +2448,8 @@ function! s:PlotHUDDelete() abort
     " Update index
     call remove(b:plot_index.plots, l:num - 1)
 
-    " Write updated index
-    let l:index_file = s:GetHistoryIndex()
+    " Write updated index to buffer-local path
+    let l:index_file = l:hist_dir . '/index.json'
     try
         call writefile([json_encode(b:plot_index)], l:index_file)
     catch
@@ -2460,7 +2463,9 @@ endfunction
 
 " Refresh: reload plot history from disk
 function! s:PlotHUDRefresh() abort
-    let l:index_file = s:GetHistoryIndex()
+    " Use buffer-local path if available (stored when HUD was created)
+    let l:hist_dir = get(b:, 'history_dir', s:GetHistoryDir())
+    let l:index_file = l:hist_dir . '/index.json'
     if !filereadable(l:index_file)
         call s:Error("No plot history")
         return
@@ -2475,13 +2480,22 @@ function! s:PlotHUDRefresh() abort
     endtry
 
     call s:GeneratePlotHUDContent()
-    echom "Plot HUD refreshed"
+    redraw | echo "Plot HUD refreshed"
 endfunction
 
 " Generate Plot HUD for dashboard tab (wrapper for CreateHUDTab)
 function! s:GeneratePlotHUD() abort
-    " Read plot history
-    let l:index_file = s:GetHistoryIndex()
+    " Store paths for buffer-local use (must be done first, before buffer switch)
+    " Check if already set (dashboard may have stored them)
+    if !exists('b:plots_dir')
+        let b:plots_dir = s:GetPlotsDir()
+    endif
+    if !exists('b:history_dir')
+        let b:history_dir = s:GetHistoryDir()
+    endif
+
+    " Read plot history using buffer-local path
+    let l:index_file = b:history_dir . '/index.json'
     if filereadable(l:index_file)
         let l:json_content = join(readfile(l:index_file), '')
         try
@@ -3163,10 +3177,14 @@ function! s:RHUDDashboard() abort
         let l:source_file = 'unnamed'
     endif
     let l:r_terminal_id = b:r_terminal_id  " Capture the R terminal ID
-    
+
+    " Capture plots directory path from current context (before creating new buffers)
+    let l:plots_dir = s:GetPlotsDir()
+    let l:history_dir = s:GetHistoryDir()
+
     " Store current tab for restoration if needed
     let l:original_tab = tabpagenr()
-    
+
     " Close any existing HUD tabs first (cleanup)
     call s:CloseHUDTabs()
     
@@ -3186,8 +3204,8 @@ function! s:RHUDDashboard() abort
     " Tab 5: R Options
     call s:CreateHUDTab('Options', 'options', function('s:GenerateOptionsHUD'), l:source_file, l:r_terminal_id)
 
-    " Tab 6: Plot History
-    call s:CreateHUDTab('Plots', 'plots', function('s:GeneratePlotHUD'), l:source_file, l:r_terminal_id)
+    " Tab 6: Plot History (pass extra context for path resolution)
+    call s:CreateHUDTab('Plots', 'plots', function('s:GeneratePlotHUD'), l:source_file, l:r_terminal_id, l:plots_dir, l:history_dir)
 
     " Go to first HUD tab
     1tabnext
@@ -3210,11 +3228,19 @@ function! s:CloseHUDTabs() abort
 endfunction
 
 " Helper: Create individual HUD tab with data
-function! s:CreateHUDTab(tab_name, file_suffix, data_generator, source_file, r_terminal_id) abort
+" Optional a:1 = plots_dir, a:2 = history_dir (for Plot HUD)
+function! s:CreateHUDTab(tab_name, file_suffix, data_generator, source_file, r_terminal_id, ...) abort
     tabnew
     let l:buffer_name = 'HUD_' . a:source_file . '_' . a:tab_name
     execute 'file ' . l:buffer_name
     let b:r_terminal_id = a:r_terminal_id
+
+    " Store plots paths for Plot HUD (passed as optional args)
+    if a:0 >= 2 && a:tab_name ==# 'Plots'
+        let b:plots_dir = a:1
+        let b:history_dir = a:2
+    endif
+
     call s:SetupViewerBuffer()
     call a:data_generator()
     setlocal readonly
