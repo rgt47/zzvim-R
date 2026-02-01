@@ -2080,8 +2080,8 @@ endfunction
 " Close previous plot PDF in Preview (macOS)
 function! s:ClosePreviousPlotPDF() abort
     if has('mac') || has('macunix')
-        " Close any PDF in Preview that's in .plots directory
-        call system('osascript -e ''tell application "Preview" to close (every window whose name contains ".plots")'' 2>/dev/null')
+        " Close all Preview windows (plot PDFs have names like 001_scatter.pdf, current.pdf)
+        call system('osascript -e ''tell application "Preview" to close every window'' 2>/dev/null')
     endif
 endfunction
 
