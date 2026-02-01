@@ -2089,8 +2089,10 @@ function! s:ZoomPlot() abort
     let l:pdf = s:GetPlotPdf()
     if filereadable(l:pdf)
         call s:ClosePreviousPlotPDF()
+        " Open PDF and set Preview to 200% zoom
         call system('open ' . shellescape(l:pdf))
-        redraw | echo "Opened PDF"
+        call system('sleep 0.3 && osascript -e ''tell application "Preview" to activate'' -e ''tell application "System Events" to keystroke "2" using command down'' &')
+        redraw | echo "Opened PDF (200%)"
     else
         call s:Error("No plot PDF available")
     endif
@@ -2346,8 +2348,10 @@ function! s:PlotHUDZoom() abort
 
     if filereadable(l:pdf_file)
         call s:ClosePreviousPlotPDF()
+        " Open PDF and set Preview to 200% zoom
         call system('open ' . shellescape(l:pdf_file))
-        redraw | echo "Opened PDF: " . get(l:entry, 'name', '')
+        call system('sleep 0.3 && osascript -e ''tell application "Preview" to activate'' -e ''tell application "System Events" to keystroke "2" using command down'' &')
+        redraw | echo "Opened PDF: " . get(l:entry, 'name', '') . " (200%)"
     else
         call s:Error("PDF not found for this plot")
     endif
