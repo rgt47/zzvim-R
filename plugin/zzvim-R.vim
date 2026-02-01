@@ -2229,11 +2229,13 @@ function! s:GeneratePlotHUDContent() abort
     call add(l:lines, '')
     call add(l:lines, printf('Total: %d plots | Current: %d', len(l:index.plots), l:current))
 
-    " Write to buffer
+    " Write to buffer (preserve cursor position)
+    let l:save_pos = getpos('.')
     setlocal modifiable noreadonly
     silent! %delete _
     call setline(1, l:lines)
     setlocal readonly nomodifiable
+    call setpos('.', l:save_pos)
 endfunction
 
 " Set up Plot HUD key mappings (consistent with other HUDs)
