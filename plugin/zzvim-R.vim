@@ -644,9 +644,6 @@ endfunction
 "                              (unused in current implementation)
 " Returns: nothing (void) - uses silent execution, no user prompts
 function! s:Send_to_r(cmd, stay_on_line) abort
-    " Track R activity for adaptive polling
-    call s:OnRActivity()
-
     " Get buffer-specific terminal (creates if needed)
     let target_terminal = s:GetBufferTerminal()
 
