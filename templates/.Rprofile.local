@@ -80,14 +80,15 @@ if (.terminal != "none" && Sys.info()["sysname"] %in% c("Darwin", "Linux")) {
   show <- function(expr, .name = NULL, .save = TRUE) {
     .ensure_dirs()
 
-    # Capture the plot call for re-evaluation and history
+    # Capture the plot call and the calling environment
     plot_call <- substitute(expr)
+    plot_env <- parent.frame()
     code_str <- deparse(plot_call, width.cutoff = 500)
     code_str <- paste(code_str, collapse = " ")
 
     # Helper to evaluate and handle ggplot objects
     .eval_plot <- function() {
-      result <- eval(plot_call, envir = parent.frame(2))
+      result <- eval(plot_call, envir = plot_env)
       if (inherits(result, "ggplot")) print(result)
       invisible(result)
     }

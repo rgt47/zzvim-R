@@ -67,7 +67,6 @@ config <- list(
   data = head(mtcars)
 )
 ```
-
 ## Create Data Frames
 
 These demonstrate the Data Frames HUD:
@@ -190,7 +189,7 @@ The Plot HUD manages plot history with thumbnail display.
 
 ```{r base-plots}
 # Scatter plot
-zzplot(
+show(
   plot(mpg ~ wt, data = mtcars,
        main = "Weight vs MPG",
        xlab = "Weight (1000 lbs)",
@@ -200,7 +199,7 @@ zzplot(
 )
 
 # Histogram
-zzplot(
+show(
   hist(patients$age, breaks = 15,
        main = "Patient Age Distribution",
        xlab = "Age", col = "coral"),
@@ -208,7 +207,7 @@ zzplot(
 )
 
 # Box plot
-zzplot(
+show(
   boxplot(outcome ~ treatment, data = patients,
           main = "Outcome by Treatment",
           col = c("lightblue", "lightgreen", "lightyellow")),
@@ -220,37 +219,43 @@ zzplot(
 
 ```{r ggplots}
 # Scatter with regression lines
-p1 <- ggplot(mtcars, aes(x = hp, y = mpg, color = factor(cyl))) +
-  geom_point(size = 3) +
-  geom_smooth(method = "lm", se = FALSE) +
-  labs(
-    title = "Horsepower vs MPG by Cylinder",
-    x = "Horsepower",
-    y = "MPG",
-    color = "Cylinders"
-  ) +
-  theme_minimal()
-zzggplot(p1, .name = "ggplot_hp_mpg")
+show(
+  ggplot(mtcars, aes(x = hp, y = mpg, color = factor(cyl))) +
+    geom_point(size = 3) +
+    geom_smooth(method = "lm", se = FALSE) +
+    labs(
+      title = "Horsepower vs MPG by Cylinder",
+      x = "Horsepower",
+      y = "MPG",
+      color = "Cylinders"
+    ) +
+    theme_minimal(),
+  .name = "ggplot_hp_mpg"
+)
 
 # Time series
-p2 <- ggplot(daily_sales, aes(x = date, y = revenue)) +
-  geom_line(color = "darkgreen") +
-  geom_smooth(method = "loess", color = "red", se = TRUE) +
-  labs(
-    title = "Daily Revenue Trend",
-    x = "Date",
-    y = "Cumulative Revenue ($)"
-  ) +
-  theme_minimal()
-zzggplot(p2, .name = "timeseries_revenue")
+show(
+  ggplot(daily_sales, aes(x = date, y = revenue)) +
+    geom_line(color = "darkgreen") +
+    geom_smooth(method = "loess", color = "red", se = TRUE) +
+    labs(
+      title = "Daily Revenue Trend",
+      x = "Date",
+      y = "Cumulative Revenue ($)"
+    ) +
+    theme_minimal(),
+  .name = "timeseries_revenue"
+)
 
 # Faceted plot
-p3 <- ggplot(iris, aes(x = Sepal.Length, y = Sepal.Width)) +
-  geom_point(aes(color = Species)) +
-  facet_wrap(~Species) +
-  labs(title = "Iris Sepal Dimensions") +
-  theme_bw()
-zzggplot(p3, .name = "faceted_iris")
+show(
+  ggplot(iris, aes(x = Sepal.Length, y = Sepal.Width)) +
+    geom_point(aes(color = Species)) +
+    facet_wrap(~Species) +
+    labs(title = "Iris Sepal Dimensions") +
+    theme_bw(),
+  .name = "faceted_iris"
+)
 ```
 
 ## Using the Plot HUD (`<LocalLeader>P`)
