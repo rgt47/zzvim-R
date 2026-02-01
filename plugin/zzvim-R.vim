@@ -1836,6 +1836,12 @@ if !g:zzvim_r_disable_mappings
         autocmd!
         autocmd VimResized * wincmd =
     augroup END
+
+    " Close plot pane when Vim exits (:qa, :qa!, etc.)
+    augroup zzvim_VimLeave
+        autocmd!
+        autocmd VimLeavePre * call s:OnRTerminalClose()
+    augroup END
 endif
 
 " ===========================================================================
