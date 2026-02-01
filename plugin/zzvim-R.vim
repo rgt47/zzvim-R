@@ -233,7 +233,7 @@ let g:zzvim_r_debug = get(g:, 'zzvim_r_debug', 0)
 "------------------------------------------------------------------------------
 
 " Current template version (must match templates/.Rprofile.local header)
-let s:template_version = 7
+let s:template_version = 8
 
 " Get plugin directory (where templates/ lives)
 let s:plugin_dir = fnamemodify(resolve(expand('<sfile>:p')), ':h:h')

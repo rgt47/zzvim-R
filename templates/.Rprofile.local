@@ -1,6 +1,6 @@
 # ============================================================================
 # Terminal Graphics Support - Kitty, Ghostty, WezTerm, iTerm2
-# zzvim-R template version: 7
+# zzvim-R template version: 8
 # ============================================================================
 # Automatic plot display in modern terminal emulators.
 # Architecture: PDF master (vector) + PNG preview (for kitty display)
@@ -50,7 +50,7 @@ if (.terminal != "none" && Sys.info()["sysname"] %in% c("Darwin", "Linux")) {
 
   .plot_width <- 6        # inches (for PDF)
   .plot_height <- 4.5     # inches (for PDF)
-  .png_scale <- 100       # pixels per inch for PNG preview
+  .png_scale <- 150       # pixels per inch for PNG preview
   .plots_dir <- ".plots"
   .history_limit <- 50
 
@@ -120,7 +120,7 @@ if (.terminal != "none" && Sys.info()["sysname"] %in% c("Darwin", "Linux")) {
   # Configuration
   # ==========================================================================
 
-  set_plot_size <- function(width = 6, height = 4.5, png_scale = 100) {
+  set_plot_size <- function(width = 6, height = 4.5, png_scale = 150) {
     assign(".plot_width", width, envir = .GlobalEnv)
     assign(".plot_height", height, envir = .GlobalEnv)
     assign(".png_scale", png_scale, envir = .GlobalEnv)
