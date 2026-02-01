@@ -56,3 +56,4 @@ doc/tags
 
 # GitHub Actions (keep workflows)
 # .github/ - intentionally not ignored
+CLAUDE.md
