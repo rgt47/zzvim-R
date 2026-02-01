@@ -2194,13 +2194,19 @@ function! s:RPlotHUD() abort
         return
     endif
 
+    " Store paths before creating new buffer (getcwd() context)
+    let l:plots_dir = s:GetPlotsDir()
+    let l:history_dir = s:GetHistoryDir()
+
     " Create HUD buffer (consistent with other HUDs)
     vnew
     call s:SetupViewerBuffer()
     file [Plot\ HUD]
 
-    " Store plot data for buffer-local functions
+    " Store plot data and paths for buffer-local functions
     let b:plot_index = l:index
+    let b:plots_dir = l:plots_dir
+    let b:history_dir = l:history_dir
 
     " Generate and display content
     call s:GeneratePlotHUDContent()
@@ -2316,16 +2322,19 @@ function! s:PlotHUDSelectNum(num) abort
     " Update current in index
     let b:plot_index.current = l:entry.id
 
-    " Copy plot files to current for display
-    let l:hist_dir = s:GetHistoryDir()
+    " Use buffer-local paths (stored when HUD was created)
+    let l:hist_dir = get(b:, 'history_dir', s:GetHistoryDir())
+    let l:plots_dir = get(b:, 'plots_dir', s:GetPlotsDir())
     let l:png_src = l:hist_dir . '/' . get(l:entry, 'png', '')
     let l:pdf_src = l:hist_dir . '/' . get(l:entry, 'pdf', '')
+    let l:png_dst = l:plots_dir . '/current.png'
+    let l:pdf_dst = l:plots_dir . '/current.pdf'
 
     if filereadable(l:png_src)
-        call system('cp ' . shellescape(l:png_src) . ' ' . shellescape(s:GetPlotFile()))
+        call system('cp ' . shellescape(l:png_src) . ' ' . shellescape(l:png_dst))
     endif
     if filereadable(l:pdf_src)
-        call system('cp ' . shellescape(l:pdf_src) . ' ' . shellescape(s:GetPlotPdf()))
+        call system('cp ' . shellescape(l:pdf_src) . ' ' . shellescape(l:pdf_dst))
     endif
 
     " Trigger display
