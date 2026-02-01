@@ -2090,7 +2090,7 @@ function! s:ZoomPlot() abort
     if filereadable(l:pdf)
         call s:ClosePreviousPlotPDF()
         call system('open ' . shellescape(l:pdf))
-        echom "Opened PDF (vector)"
+        redraw | echo "Opened PDF"
     else
         call s:Error("No plot PDF available")
     endif
@@ -2325,7 +2325,7 @@ function! s:PlotHUDSelectNum(num) abort
     " Refresh HUD to show new current marker
     call s:GeneratePlotHUDContent()
 
-    echom "Displaying: " . get(l:entry, 'name', 'plot ' . a:num)
+    redraw | echo "Displaying: " . get(l:entry, 'name', 'plot ' . a:num)
 endfunction
 
 " Zoom: open PDF of plot under cursor
@@ -2347,7 +2347,7 @@ function! s:PlotHUDZoom() abort
     if filereadable(l:pdf_file)
         call s:ClosePreviousPlotPDF()
         call system('open ' . shellescape(l:pdf_file))
-        echom "Opened PDF: " . get(l:entry, 'name', '')
+        redraw | echo "Opened PDF: " . get(l:entry, 'name', '')
     else
         call s:Error("PDF not found for this plot")
     endif
