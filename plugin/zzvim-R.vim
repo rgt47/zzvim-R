@@ -2009,7 +2009,7 @@ endfunction
 function! s:DisplayPlotInline(plot_file) abort
     " Display in terminal using kitty +kitten icat
     " This works because Ghostty/WezTerm support the kitty graphics protocol
-    let l:cmd = 'kitty +kitten icat --clear --align=left ' . shellescape(a:plot_file)
+    let l:cmd = 'kitty +kitten icat --clear --align=center --place-method=apc ' . shellescape(a:plot_file)
     call system(l:cmd)
     echom "Plot displayed inline"
 endfunction
@@ -2056,7 +2056,9 @@ function! s:CreatePlotPane(plot_file) abort
         \ 'PLOT_FILE="' . a:plot_file . '"',
         \ 'show_plot() {',
         \ '    clear',
-        \ '    kitty +kitten icat --clear --align=left "$PLOT_FILE"',
+        \ '    # Add vertical padding (roughly center in typical pane)',
+        \ '    printf "\n\n\n"',
+        \ '    kitty +kitten icat --clear --align=center "$PLOT_FILE"',
         \ '    echo ""',
         \ '    echo "r=refresh | q=close"',
         \ '}',
