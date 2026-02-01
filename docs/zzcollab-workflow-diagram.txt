@@ -1,0 +1,167 @@
+ZZCOLLAB + PNG1 WORKFLOW DIAGRAM
+================================
+
+Scenario: Using make r to launch png1 container, then associating Vim with it
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         TERMINAL 1 (Left Pane)                          │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  $ cd ~/prj/d07/zzcollab                                               │
+│  $ make r                                                              │
+│                                                                         │
+│  ┌───────────────────────────────────────────────────────┐            │
+│  │  Docker Container (png1)                              │            │
+│  │  ┌─────────────────────────────────────────────────┐  │            │
+│  │  │ R version 4.x.x                                 │  │            │
+│  │  │                                                  │  │            │
+│  │  │ > library(tidyverse)                           │  │            │
+│  │  │ > data <- read_csv("data.csv")                 │  │            │
+│  │  │ > head(data)                                   │  │            │
+│  │  │   # Output from executed code                  │  │            │
+│  │  │                                                  │  │            │
+│  │  │ >                                               │  │            │
+│  │  └─────────────────────────────────────────────────┘  │            │
+│  │                                                         │            │
+│  │  Working Dir: /workspace                               │            │
+│  │  Mount: ~/prj/d07/zzcollab → /workspace              │            │
+│  └───────────────────────────────────────────────────────┘            │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         TERMINAL 2 (Right Pane)                         │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  $ cd ~/prj/d07/zzcollab                                               │
+│  $ vim analysis.R                                                      │
+│                                                                         │
+│  ┌───────────────────────────────────────────────────────┐            │
+│  │ analysis.R                                             │            │
+│  │ ─────────────────────────────────────────────────────  │            │
+│  │  1  # Load libraries                                   │            │
+│  │  2  library(tidyverse)         <-- cursor here        │            │
+│  │  3                                                      │            │
+│  │  4  # Load data                                        │            │
+│  │  5  data <- read_csv("data.csv")                      │            │
+│  │  6                                                      │            │
+│  │  7  # Analyze                                          │            │
+│  │  8  summary_stats <- data %>%                         │            │
+│  │  9    group_by(category) %>%                          │            │
+│  │ 10    summarize(mean = mean(value))                   │            │
+│  └───────────────────────────────────────────────────────┘            │
+│                                                                         │
+│  WORKFLOW:                                                              │
+│  ┌────────────────────────────────────────────────────────────┐       │
+│  │ Step 1: Switch to Terminal 1 buffer                        │       │
+│  │         :b [buffer-number-of-docker-terminal]              │       │
+│  │         :file R-analysis     (rename terminal)             │       │
+│  │         Ctrl-W p             (back to analysis.R)          │       │
+│  │                                                              │       │
+│  │ Step 2: Force-associate                                     │       │
+│  │         \dr  (LocalLeader + dr)                            │       │
+│  │         OR :RDockerTerminalForce                           │       │
+│  │                                                              │       │
+│  │ Step 3: Execute code                                        │       │
+│  │         <CR>  (on line 2) → sends to Terminal 1           │       │
+│  └────────────────────────────────────────────────────────────┘       │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+
+
+EXECUTION FLOW
+==============
+
+   VIM (Terminal 2)                      PNG1 CONTAINER (Terminal 1)
+   ───────────────                       ──────────────────────────
+
+  1. User presses <CR>
+     on line 2
+     │
+     ├──────────────────────────────────────────┐
+     │  zzvim-R detects:                        │
+     │  - Buffer associated with R-analysis     │
+     │  - Line contains: library(tidyverse)     │
+     └──────────────────────────────────────────┘
+     │
+     ▼
+  2. Send to terminal
+     via term_sendkeys()
+                         ────────────────────────▶ library(tidyverse)\n
+                                                   │
+                                                   ▼
+                                              3. R executes command
+                                                 in png1 container
+                                                   │
+                                                   ▼
+                                              4. Output displayed
+                                                 in Terminal 1
+
+
+KEY MAPPINGS CHEATSHEET
+========================
+
+\R   → Launch NEW Docker terminal (if you skip make r)
+\dr  → Force-associate with EXISTING terminal (for make r workflow)
+\r   → Launch regular non-Docker R terminal
+
+After association:
+<CR>    → Execute line/function/block
+\h      → head(object)
+\s      → str(object)
+\d      → dim(object)
+\l      → Execute chunk (in .Rmd files)
+\m      → Memory HUD
+\0      → Full HUD dashboard
+
+
+ALTERNATIVE: Direct Docker Launch
+==================================
+
+If you prefer skipping the Makefile:
+
+┌─────────────────────────────────────────────┐
+│ Terminal 1: Vim Editor                      │
+├─────────────────────────────────────────────┤
+│                                             │
+│ $ cd ~/prj/d07/zzcollab                    │
+│ $ vim analysis.R                           │
+│                                             │
+│ In Vim:                                     │
+│   :let g:zzvim_r_docker_image = 'png1'    │
+│   \R    (launches png1 automatically)      │
+│                                             │
+│   ┌────────────────┐  ┌──────────────┐    │
+│   │  analysis.R    │  │ R Terminal   │    │
+│   │  (editing)     │  │ (png1)       │    │
+│   └────────────────┘  └──────────────┘    │
+│                                             │
+│   Press <CR> to execute →  [code runs]     │
+│                                             │
+└─────────────────────────────────────────────┘
+
+
+TROUBLESHOOTING
+===============
+
+Issue: "No terminals found" after \dr
+Solution:
+  :RListTerminals     (check terminal list)
+  :ls!                (list ALL buffers including terminals)
+  :b [term-buffer]    (switch to docker terminal)
+  :file R-analysis    (rename it)
+  Ctrl-W p            (back to R file)
+  \dr                 (force-associate again)
+
+Issue: Code executes but in wrong terminal
+Solution:
+  :RShowTerminal      (verify association)
+  Should show: "Current buffer associated with terminal: R-analysis"
+
+Issue: Files not found in container
+Solution:
+  In R terminal: list.files()
+  Should see project files
+  If not, check Makefile volume mount:
+    -v $(PWD):/workspace -w /workspace

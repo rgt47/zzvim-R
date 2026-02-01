@@ -1,493 +1,325 @@
-# zzvim-R Plugin Architecture & Development Guide
+# zzvim-R Plugin Development
 
-This document provides comprehensive information about the zzvim-R plugin, its current architecture, functionality, development history, and key code patterns to help Claude understand and work with this codebase effectively.
+This document describes the development and improvements made to the zzvim-R plugin with Claude's assistance.
 
-## Document Status
+## Version 2.3 Changes
 
-**Last Updated**: January 30, 2026
-**Plugin Version**: 1.0
-**Documentation Status**: Comprehensive accuracy review completed
-**Test Coverage**: Full test suite + clean execution validation with automated CI workflows
-**Release Readiness**: Production ready with clean terminal output and professional UX
+The plugin has been substantially improved and upgraded to version 2.3 with the following enhancements:
 
-### Recent Changes (Jan 30, 2026)
-- **Plot System Refactoring**: Simplified from 1629 to 312 lines (81% reduction)
-- **PDF Master + PNG Preview**: Vector PDF for zoom, raster PNG for display
-- **Removed**: Adaptive polling, composite images, thumbnail gallery, config sync
-- **Plot HUD Implemented**: Plot management unified with HUD system (`<LocalLeader>P`)
-- **Dashboard Extended**: Now 6 tabs including Plots
-- **Workflow Documentation**: See `docs/HUD_WORKFLOW_DEMO.md` for complete demo
+1. **Fixed R Markdown Chunk Navigation**: Rewrote the navigation functions to correctly handle chunk navigation
+2. **Eliminated Key Mapping Conflicts**: Changed two-letter mappings that conflicted with single-letter mappings
+3. **Comprehensive Documentation**: Updated all documentation to reflect the new mapping scheme
+4. **Improved User Experience**: Made navigating between R code chunks more reliable and consistent
 
-### Key Features
-- **Code Execution**: Pattern-based detection with non-interactive execution
-- **Multi-Terminal Management**: Buffer-specific R terminal sessions
-- **Terminal Selection**: Automatic detection with user prompting
-- **Docker Container Support**: Full container integration
-- **Window Management**: Flexible split windows (vertical/horizontal)
-- **Chunk Navigation**: R Markdown code chunk traversal
-- **Pattern Recognition**: Brace {} and parenthesis () matching
-- **Code Execution Output**: Clean terminal output (no clutter)
-- **Object Inspection**: R workspace browsing and examination
-- **Key Mappings**: Context-aware `<CR>` behavior
-- **Kitty Plot Display**: Automatic plot display in dedicated kitty terminal pane
+## Navigation Function Fixes
 
-## Project Structure
+### Previous Chunk Navigation Issue
 
-```
-zzvim-R/
-├── plugin/
-│   └── zzvim-R.vim         # All plugin functionality
-├── doc/
-│   └── zzvim-R.txt         # Vim help documentation
-├── test_files/             # Test files and examples
-├── .github/workflows/      # GitHub Actions CI/CD
-├── CHANGELOG.md            # Version history & detailed session notes
-├── LICENSE, README.md      # User documentation
-├── docs/                   # Documentation
-│   ├── HUD_WORKFLOW_DEMO.md      # Complete HUD system tutorial
-│   ├── PLOT_HUD_DESIGN.md        # Plot HUD design (implemented)
-│   └── REFACTORING_PLAN_PLOT_SYSTEM.md  # Plot refactoring details
-└── CLAUDE.md               # This file - development guide
-```
-
-## Architecture & Design Patterns
-
-**Single-File Architecture**: `plugin/zzvim-R.vim` contains all functionality organized into logical sections:
-
-1. **Configuration Management**: Global variables and settings
-2. **Core Functions**: Terminal management, R communication
-3. **Generalized SendToR System**: Smart pattern detection
-4. **Chunk Navigation**: R Markdown chunk handling
-5. **Object Inspection**: R object examination
-6. **Key Mappings**: Context-aware key bindings
-
-### Key Design Principles
-
-1. **Pattern-Based Detection**: Automatic detection of R code structures
-2. **Consistent Temp File Approach**: All code submission uses temporary files
-3. **Context-Aware Behavior**: `<CR>` key adapts to cursor position
-4. **Error Handling**: Robust position restoration and error messaging
-5. **Backward Compatibility**: Preserves existing function behavior
-
-## Core Function Groups
-
-### 1. Generalized SendToR System
-- `s:SendToR(selection_type)`: Main dispatcher for all code submission
-- `s:GetTextByType(selection_type)`: Smart text extraction with auto-detection
-- `s:IsBlockStart(line)`: Pattern matching for code block detection
-- `s:GetCodeBlock()`: Brace matching algorithm for complete blocks
-
-### 2. Text Extraction Functions
-- `s:GetVisualSelectionLines()`: Extract visual selection as lines
-- `s:GetCurrentChunk()`: Extract R Markdown chunk content
-- `s:GetPreviousChunks()`: Collect all previous chunks
-
-### 3. Multi-Terminal Management
-- `s:GetTerminalName()`: Generate unique terminal names
-- `s:GetAllTerminals()`: Detect all existing terminal buffers
-- `s:PromptTerminalSelection()`: Interactive prompt for terminal selection
-- `s:GetBufferTerminal()`: Find or create buffer-specific terminal
-- `s:OpenRTerminal()`: Create and manage R terminal sessions
-- `s:Send_to_r(cmd, stay_on_line)`: Send commands to buffer-specific terminal
-
-### 4. Terminal Association Visibility
-- `s:RShowTerminalCommand()`: Display current buffer's terminal association
-- `s:RListTerminalsCommand()`: List all R file ↔ terminal associations
-- `s:RSwitchToTerminalCommand()`: Switch to buffer-specific terminal window
-
-### 5. Chunk Navigation
-- `s:MoveNextChunk()`: Navigate to next R Markdown chunk
-- `s:MovePrevChunk()`: Navigate to previous R Markdown chunk
-- `s:SubmitChunk()`: Execute current chunk
-
-### 6. Pattern Recognition & Cursor Management
-- `s:IsIncompleteStatement()`: Detect continuation lines
-- `s:IsInsideFunction()`: Function boundary detection
-- `s:MoveCursorAfterSubmission()`: Cursor positioning after submission
-- `s:GetCodeBlock()`: Brace/parenthesis matching
-
-### 7. Object Inspection
-- `s:RAction(action, stay_on_line)`: Execute R functions on word at cursor
-- Built-in actions: head, str, dim, print, names, length, glimpse, etc.
-
-## Key Mappings System
-
-### Context-Aware `<CR>` Behavior
-
-- **Function definitions**: Sends entire function block
-- **Control structures**: Sends entire if/for/while block
-- **Regular lines**: Sends current line only
-- **Visual Mode**: Sends visual selection
-
-### R Terminal Launch
-- `<LocalLeader>r` or `ZR`: Container R (via `make r`, with renv)
-- `<LocalLeader>rr`: Host R with renv (normal startup)
-- `<LocalLeader>rh`: Host R without renv (vanilla mode)
-- `<LocalLeader>w`: Open R terminal in vertical split
-- `<LocalLeader>W`: Open R terminal in horizontal split
-- `<CR>`: Smart submission (context-aware)
-
-### Chunk Navigation
-- `<LocalLeader>j`: Next chunk
-- `<LocalLeader>k`: Previous chunk
-- `<LocalLeader>l`: Execute current chunk
-- `<LocalLeader>t`: Execute all previous chunks
-
-### Object Inspection
-- `<LocalLeader>h`: head()
-- `<LocalLeader>s`: str()
-- `<LocalLeader>d`: dim()
-- `<LocalLeader>p`: print()
-- `<LocalLeader>n`: names()
-- `<LocalLeader>f`: length()
-- `<LocalLeader>g`: glimpse()
-- `<LocalLeader>b`: data.table print
-- `<LocalLeader>u`: tail()
-- `<LocalLeader>y`: help()
-
-### Plot HUD (Kitty Terminal)
-- `<LocalLeader>P`: Open Plot HUD (consistent with other HUDs)
-- `<LocalLeader>]`: Zoom - open PDF in system viewer (vector, infinite zoom)
-- `<LocalLeader><`: Previous plot
-- `<LocalLeader>>`: Next plot
-
-In Plot HUD buffer:
-- `Enter`: Display selected plot in kitty pane
-- `z`: Zoom - open PDF of selected plot
-- `s`: Save plot (prompts for filename)
-- `d`: Delete plot from history
-- `1-9`: Quick select by number
-- `q`/`Esc`: Close HUD
-
-### Control Keys
-- `<LocalLeader>q`: Quit R session
-- `<LocalLeader>c`: Interrupt R session (Ctrl-C)
-
-### Generalized Send Functions
-- `<LocalLeader>sf`: Force send function block
-- `<LocalLeader>sl`: Force send current line only
-- `<LocalLeader>sa`: Auto-detection
-
-## Development History Summary
-
-**Version Timeline**: 1.0 → 2.3 → 3.0 (current)
-
-### Major Milestones
-
-**Aug 2025 - Foundation**
-- v1.0: Generalized SendToR system with pattern-based detection
-- v2.3.0-2.3.2: Fixed chunk navigation and key mapping conflicts
-- v3.0.0: API streamlining
-
-**Sep 2025 - IDE Enhancement**
-- SendToRWithComments: Code documentation feature
-- HUD Functions: RStudio-inspired workspace overview (see HUD System below)
-- LSP Integration: Cross-platform Vim/Neovim support
-
-**Oct-Nov 2025 - Advanced Features**
-- Terminal Selection: Auto-detection with user prompting
-- Docker Integration: Container support with force-association
-- Clean Execution: Optimized output display
-
-**Dec 2025 - Polish & Optimization**
-- Temp File Strategy: Improved reliability with validation
-- Competitive Analysis: Honest research-focused comparisons
-
-**Jan 2026 - Plot System Refactoring (v7)**
-- **Simplified Architecture**: PDF master + PNG preview (replaces dual-resolution PNG)
-  - PDF: Vector format, infinite zoom, publication-ready
-  - PNG: 600x450 raster for kitty pane display
-- **Code Reduction**: Plot section reduced from 1629 to 312 lines (81%)
-- **Removed Features** (over-engineering cleanup):
-  - Adaptive polling (was 50ms/1000ms switching)
-  - Composite image generation (ImageMagick montage)
-  - Plot window mode (2x4 thumbnail grid)
-  - Thumbnail gallery
-  - Display mode management (inline/pane/auto)
-  - Config JSON sync (Vim → R)
-  - Terminal size tracking
-- **Retained Features**:
-  - Plot watcher with fixed 100ms polling
-  - Kitty pane display via `kitty +kitten icat`
-  - Persistent history in `.plots/history/`
-  - Gallery buffer for navigation
-  - Template versioning (now v7)
-- **Plot Commands**: `:RPlotHUD`, `:RPlotZoom`, `:RPlotPrev`, `:RPlotNext`
-- **Plot HUD**: Integrated with HUD system, auto-refreshes when new plots created
-
-## HUD System (RStudio-Inspired Workspace Tools)
-
-The HUD (Heads-Up Display) system provides RStudio-like workspace visibility with
-consistent UX patterns across all tools.
-
-### HUD Functions
-
-| HUD | Command | Key | Description |
-|-----|---------|-----|-------------|
-| Memory | `:RMemoryHUD` | `<LocalLeader>m` | Workspace object memory usage |
-| Data Frames | `:RDataFrameHUD` | `<LocalLeader>e` | All data frames with dimensions |
-| Packages | `:RPackageHUD` | `<LocalLeader>z` | Loaded packages list |
-| Environment | `:REnvironmentHUD` | `<LocalLeader>x` | System environment variables |
-| Options | `:ROptionsHUD` | `<LocalLeader>a` | R session options |
-| Data Viewer | `:RDataViewer` | `<LocalLeader>v` | RStudio-style data viewer |
-| Plots | `:RPlotHUD` | `<LocalLeader>P` | Plot history with navigation |
-| Dashboard | `:RHUDDashboard` | `<LocalLeader>0` | Opens all 6 HUDs in tabs |
-
-### Consistent UX Patterns
-
-All HUD buffers share:
-- Open in Vim splits or tabs
-- Tabulated data display (Tabularize integration if available)
-- `q` or `Esc` to close
-- `/` to search
-- Read-only buffers with viewer settings
-- `<LocalLeader>` + single key for quick access
-
-### Design Philosophy
-
-The HUD system is inspired by RStudio's panes (Environment, Plots, Packages, etc.)
-but adapted for terminal/Vim workflow. The goal is to provide equivalent
-functionality without leaving Vim or requiring a mouse.
-
-**Implementation Status**: Plot HUD implemented (Jan 30, 2026). The `:RPlotHUD`
-command provides consistent UX with other HUDs, and is included as the 6th tab
-in the Dashboard. Plot HUD auto-refreshes when new plots are created.
-
-**Documentation**: See `docs/HUD_WORKFLOW_DEMO.md` for complete tutorial.
-
-### Key Technical Achievements
-- Clean execution system (source command elimination)
-- Multi-terminal workflow isolation
-- Robust error handling and position restoration
-- Comprehensive LSP/formatting support
-- Docker container compatibility
-
-### Note on Detailed Session Documentation
-
-**Comprehensive session notes from August through December 2025** are documented in `CHANGELOG.md` with detailed explanations of:
-- Implementation architecture for each feature
-- Technical problem resolution
-- Performance optimizations
-- Testing verification
-- User experience impact
-
-See CHANGELOG.md for complete historical documentation of feature development.
-
-## Code Examples & Patterns
-
-### Generalized SendToR Pattern
+The `zzvim_r#navigate_prev_chunk()` function had severe issues that caused it to not work properly:
 
 ```vim
-function! s:SendToR(selection_type, ...) abort
-    " Get text lines based on selection type or smart detection
-    let text_lines = s:GetTextByType(a:selection_type)
-
-    if empty(text_lines)
-        call s:Error("No text to send to R.")
-        return
-    endif
-
-    " Always use temp file approach for consistency
-    let temp_file = tempname()
-    call writefile(text_lines, temp_file)
-    let cmd = "source('" . temp_file . "', echo=T)\n"
-    call s:Send_to_r(cmd, 0)
-
-    " Provide feedback about what was sent
-    let line_count = len(text_lines)
-    echom "Sent " . line_count . " lines to R."
+# Original problematic implementation
+function! zzvim_r#navigate_prev_chunk() abort
+    let l:chunk_start = get(g:, 'zzvim_r_chunk_start', '^```{[rR]')
+    call setpos('.', [0, l:chunk_start, 1, 0])
+    let l:chunk_end = get(g:, 'zzvim_r_chunk_end', '^```\s*$')
+    call setpos('.', [0, l:chunk_end, 1, 0])
+    let l:chunk_start = get(g:, 'zzvim_r_chunk_start', '^```{[rR]')
+    call setpos('.', [0, l:chunk_start, 1, 0])
+            normal! j
 endfunction
 ```
 
-### Smart Detection Pattern
+The key issues were:
+1. It was using pattern strings as line numbers with `setpos()`
+2. It wasn't actually searching for the patterns
+3. It didn't correctly handle being inside a chunk
+
+### Fixed Implementation
 
 ```vim
-function! s:IsBlockStart(line) abort
-    " Remove leading/trailing whitespace
-    let clean_line = substitute(a:line, '^\s\+\|\s\+$', '', 'g')
-
-    " Check each pattern individually
-    if clean_line =~# '.*function\s*('
-        return 1
+function! zzvim_r#navigate_prev_chunk() abort
+    " Get patterns for R code chunks from plugin config
+    let l:chunk_start_pattern = get(g:, 'zzvim_r_chunk_start', '^```{[rR]')
+    
+    " Save current position
+    let l:current_pos = getpos('.')
+    let l:current_line_num = line('.')
+    
+    " First, find the current chunk we might be in
+    let l:current_chunk_start = search(l:chunk_start_pattern, 'bcnW')
+    
+    " If we're inside or at the start of the current chunk,
+    " we need to move before this chunk to find the previous one
+    if l:current_chunk_start > 0
+        " If we're not at the chunk start itself, go to it first
+        if l:current_line_num > l:current_chunk_start
+            call cursor(l:current_chunk_start, 1)
+        endif
+        
+        " Now go one line above the current chunk start to search
+        if l:current_chunk_start > 1
+            call cursor(l:current_chunk_start - 1, 1)
+        endif
     endif
-    if clean_line =~# '^\s*if\s*('
+    
+    " Now search for the previous chunk
+    let l:prev_chunk_start = search(l:chunk_start_pattern, 'bW')
+    
+    if l:prev_chunk_start > 0
+        " Move inside the chunk (to the line after the chunk header)
+        call cursor(l:prev_chunk_start + 1, 1)
+        normal! zz
+        echom "Moved to previous chunk at line " . line('.')
         return 1
+    else
+        " No previous chunk found, restore position
+        call setpos('.', l:current_pos)
+        echom "No previous chunk found"
+        return 0
     endif
-    if clean_line =~# '^\s*for\s*('
-        return 1
-    endif
-
-    return 0
 endfunction
 ```
 
-### Brace Matching Algorithm
+The next chunk navigation function was also improved for consistency.
 
-```vim
-function! s:GetCodeBlock() abort
-    let save_pos = getpos('.')
-    let current_line_num = line('.')
+## Key Mapping Conflict Resolution
 
-    " Find the opening brace
-    let brace_line = current_line_num
-    let found_opening = 0
+The plugin originally had conflicts between single-letter mappings and two-letter mappings that shared the same first letter. For example, `<LocalLeader>h` (head) conflicted with `<LocalLeader>he` (help examples).
 
-    while brace_line <= line('$')
-        let line_content = getline(brace_line)
-        if line_content =~ '{'
-            let found_opening = 1
-            break
-        endif
-        let brace_line += 1
-        if brace_line > current_line_num + 5
-            break
-        endif
-    endwhile
+### Changed Mappings
 
-    " Find matching closing brace using brace counting
-    let brace_count = 0
-    let end_line = -1
+To resolve these conflicts, the following mappings were changed:
 
-    for line_num in range(brace_line, line('$'))
-        let line_content = getline(line_num)
-        let open_braces = len(substitute(line_content, '[^{]', '', 'g'))
-        let close_braces = len(substitute(line_content, '[^}]', '', 'g'))
-        let brace_count += open_braces - close_braces
+1. **Package Management**:
+   - `<LocalLeader>pi` → `<LocalLeader>xi` (install package)
+   - `<LocalLeader>pl` → `<LocalLeader>xl` (load package)
+   - `<LocalLeader>pu` → `<LocalLeader>xu` (update package)
 
-        if brace_count == 0 && (open_braces > 0 || close_braces > 0)
-            let end_line = line_num
-            break
-        endif
-    endfor
+2. **Data Operations**:
+   - `<LocalLeader>dr` → `<LocalLeader>zr` (read CSV)
+   - `<LocalLeader>dw` → `<LocalLeader>zw` (write CSV)
+   - `<LocalLeader>dl` → `<LocalLeader>zl` (load RDS)
+   - `<LocalLeader>ds` → `<LocalLeader>zs` (save RDS)
 
-    call setpos('.', save_pos)
-    return getline(current_line_num, end_line)
-endfunction
+3. **Directory Management**:
+   - `<LocalLeader>pd` → `<LocalLeader>vd` (print directory)
+   - `<LocalLeader>cd` → `<LocalLeader>vc` (change directory)
+   - `<LocalLeader>ld` → `<LocalLeader>vl` (list directory)
+   - `<LocalLeader>hd` → `<LocalLeader>vh` (home directory)
+
+4. **Help Functions**:
+   - `<LocalLeader>he` → `<LocalLeader>ue` (help examples)
+   - `<LocalLeader>ha` → `<LocalLeader>ua` (apropos help)
+   - `<LocalLeader>hf` → `<LocalLeader>uf` (find definition)
+
+This changes eliminated all conflicts with the single-letter mappings:
+- `<LocalLeader>h` (head)
+- `<LocalLeader>p` (print)
+- `<LocalLeader>d` (dim)
+
+## Documentation Updates
+
+All documentation files were updated to reflect these changes:
+- `doc/zzvim-R.txt`: Help documentation
+- `README.md`: User readme
+- `CHANGELOG.md`: Version history with new entry for 2.3.0
+
+## Tips for Vim Plugin Development
+
+1. **Navigation Functions**: When implementing navigation commands:
+   - Always save the current position before moving
+   - Use proper search flags (`W` for forward, `bW` for backward)
+   - Consider the context (e.g., already being in a chunk)
+   - Restore the position if the search fails
+
+2. **Key Mapping Conflicts**: When designing key mappings:
+   - Avoid using the same first letter for single and multi-letter mappings
+   - Choose intuitive prefixes for related functionality (x for package, z for data, etc.)
+   - Document all mappings clearly in help files
+
+3. **VimScript Patterns**:
+   - Use `cursor()` instead of `setpos()` for simple line/column positioning
+   - Remember to use proper flags in search functions:
+     - `b` for backward search
+     - `c` to accept current position
+     - `n` to not move the cursor
+     - `W` to not wrap around the end of the file
+   - Save and restore cursor position when appropriate
+
+4. **Testing Strategy**:
+   - Test with a variety of document structures
+   - Check edge cases like being at the start/end of file
+   - Verify behavior when inside, at the start, and after a chunk
+
+These improvements make the zzvim-R plugin more robust and user-friendly, especially for working with R Markdown documents.
+
+## Version 1.1 Development - Object Browser Implementation (August 16, 2025)
+
+### Major Feature Addition: vim-peekaboo Style Object Browser
+
+A significant new feature has been implemented following the architectural patterns of vim-peekaboo to provide R workspace inspection capabilities.
+
+#### **Feature Overview**
+
+The object browser provides an intuitive, vim-peekaboo inspired interface for R workspace exploration:
+
+- **Key Mapping**: `<LocalLeader>"` (follows vim-peekaboo's `"` pattern)
+- **Interface**: Right-side vertical split panel (40 columns)
+- **Navigation**: Number keys 1-9 for quick inspection, ESC/q to close
+- **Integration**: Works seamlessly with existing multi-terminal architecture
+
+#### **Implementation Architecture**
+
+**Core Functions:**
+
+1. **`s:RObjectBrowser()`** - Main browser window creation and management
+   - Creates vim-peekaboo style temporary buffer on right side
+   - Configures buffer as scratch with appropriate local settings
+   - Sets up buffer-local key mappings for navigation
+   - Integrates with existing error handling and terminal validation
+
+2. **`s:PopulateObjectList()`** - R workspace querying with detailed object information
+   - Uses temporary file approach for reliable R communication
+   - Generates comprehensive object listings with types and dimensions
+   - Formats output: `1. object_name (type dimensions)` for clarity
+   - Handles empty workspace gracefully with informative messages
+
+3. **`s:InspectObjectAtCursor()`** - Detailed object examination with adaptive display
+   - Extracts object names using regex pattern matching
+   - Provides context-aware inspection based on object type:
+     - Data frames: structure + head() preview
+     - Long vectors: first/last 10 elements  
+     - Models: summary statistics
+     - Lists: nested structure display
+   - Uses ESC key to return to object list (dual-mode navigation)
+
+4. **`s:InspectObjectByNumber()`** - Quick numeric key navigation
+   - Enables vim-peekaboo style number key shortcuts (1-9)
+   - Provides immediate object inspection without cursor movement
+   - Maintains intuitive workflow for rapid object exploration
+
+#### **User Experience Design**
+
+**vim-peekaboo Pattern Adherence:**
+- **Trigger Key**: `"` for registers → `<LocalLeader>"` for R objects
+- **Window Behavior**: Right-side temporary split with identical positioning
+- **Navigation**: ESC for close/return, q for full exit
+- **Visual Design**: Clean numbered list with clear instructions
+
+**Interactive Workflow:**
+```
+1. Press <LocalLeader>" → Browser opens with object list
+2. Press number 1-9 → Quick inspect specific objects  
+3. Use <CR> → Inspect object at cursor position
+4. Press ESC → Return to object list (from detail view)
+5. Press q → Close browser entirely
 ```
 
-## Common Development Patterns
+#### **Technical Implementation Details**
 
-1. **Pattern-Based Detection**: Use regex patterns to identify R code structures
-2. **Position Preservation**: Always save and restore cursor position in navigation functions
-3. **Temp File Approach**: Use temporary files for all R code submission
-4. **Error Handling**: Provide clear error messages and restore state on failure
-5. **Brace Counting**: Use proper brace matching for nested structures
-6. **Context Awareness**: Functions should adapt behavior based on cursor location
+**VimScript Best Practices:**
+- **Buffer Management**: Proper scratch buffer configuration with `buftype=nofile`
+- **Key Mapping Isolation**: Buffer-local mappings prevent conflicts
+- **Error Handling**: Comprehensive validation for missing terminals/objects
+- **Position Management**: Saves and restores window state appropriately
 
-## Current Capabilities & Limitations
+**R Communication Protocol:**
+- **Temp File Approach**: Consistent with existing plugin architecture
+- **Capture Output**: Uses `capture.output()` for reliable data retrieval
+- **Smart Timing**: Appropriate delays for R command execution
+- **Object Introspection**: Leverages R's class(), dim(), length() for metadata
 
-### ✅ Core Functionality (Production Ready)
-- **Smart Code Detection**: Automatic recognition of R functions, control structures, and code blocks
-- **Intelligent Submission**: Context-aware `<CR>` key determines optimal code boundaries
-- **Multi-Terminal Architecture**: Buffer-specific R terminal sessions with complete workflow isolation
-- **Advanced Window Management**: Flexible split window terminals (vertical/horizontal)
-- **Terminal Association Visibility**: Commands to view and manage R file ↔ terminal associations
-- **Enhanced Pattern Recognition**: Balanced character counting for nested structures and operators
-- **Reliable Transmission**: Temp file approach with unlimited code size
-- **Chunk Navigation**: Complete R Markdown/Quarto chunk traversal
-- **Object Inspection**: Full suite of R data analysis functions
-- **Error Handling**: Comprehensive validation and graceful failure recovery
+**Performance Considerations:**
+- **Lazy Loading**: Objects queried only when browser opened
+- **Efficient Regex**: Optimized pattern matching for object parsing
+- **Memory Management**: Temporary files properly cleaned up
+- **Search Limits**: Bounded operations to prevent hangs
 
-### ✅ Advanced Features (Fully Implemented)
-- **30+ Ex Commands**: Complete command-line interface with tab completion
-- **Educational Documentation**: 400+ inline comments for VimScript learning
-- **Comprehensive Test Suite**: Testing framework with multi-terminal validation
-- **Flexible Configuration System**: Extensive customization with safe defaults
-- **Cross-Platform**: Linux, macOS, Windows compatibility verified
-- **Version Compatibility**: Vim 8.0+ and Neovim support
+#### **Documentation Integration**
 
-### ✅ Quality Assurance (Production Grade)
-- **Test Coverage**: 24/24 Ex commands verified, pattern matching validated
-- **GitHub CI/CD**: Automated testing across multiple platforms
-- **VimScript Linting**: Automated code quality checks
-- **Cross-Platform Validation**: R dependency verification
-- **Performance**: Optimized algorithms with search limits
-- **Security**: Safe temp file handling within Vim's security model
-
-### Known Limitations (Design Choices)
-- **Pattern-Based Parsing**: Uses regex rather than full R parser (intentional for simplicity)
-- **Basic R Integration**: Focuses on core workflow rather than comprehensive IDE features
-- **File-Based Communication**: Temp files rather than direct terminal injection (for reliability)
-
-## Future Development Roadmap
-
-### Potential Enhancements (Post-1.0)
-- **Enhanced Pattern Detection**: Support for additional R constructs (S4 classes, R6 objects)
-- **Multiple Terminal Support**: Multiple R sessions with session switching
-- **Package Integration**: Built-in package management
-- **Debugging Integration**: R debugger integration with breakpoint support
-- **LSP Integration**: Language Server Protocol support for advanced IDE features
-- **Performance Monitoring**: Code profiling and performance analysis tools
-
-### Community Contributions Welcome
-- **Additional Patterns**: New R language construct recognition
-- **Platform Testing**: Extended compatibility validation
-- **Documentation**: Additional examples and use cases
-- **Integration**: Compatibility with other Vim plugins
-
-## Important Development Notes
-
-### Working with the Current Codebase
-
-**Key Principles**:
-- Always use pattern-based detection with fallback to simpler approaches
-- Test changes with multi-terminal workflows
-- Preserve backward compatibility with existing configurations
-- Validate temp file handling works in both local and Docker environments
-
-### Testing Process
-
-1. **Unit Testing**: Test individual functions with various input patterns
-2. **Integration Testing**: Test multi-terminal workflows across R Markdown and regular R files
-3. **Cross-Platform**: Verify on Linux, macOS, and in Docker containers
-4. **Edge Cases**: Handle empty files, malformed code, and extreme nesting levels
-
-### Key Issue Fixes Reference
-
-See `CHANGELOG.md` for detailed resolution of:
-- Character limit issues
-- Smart code detection implementation
-- Brace matching algorithm refinements
-- Quote escaping handling
-- Backtick function reference detection
-- R Markdown chunk execution fixes
-- Docker container integration
-- Terminal selection improvements
-
-## Performance Considerations
-
-- **Brace Matching**: Limited search depth to prevent hangs on malformed code
-- **Terminal Detection**: Caches terminal list to reduce repeated queries
-- **Pattern Matching**: Uses efficient regex with early termination
-- **Temp Files**: Automatic cleanup to prevent disk accumulation
-
-## Configuration Variables
-
+**Key Mapping Documentation Added:**
 ```vim
-" Terminal sizing
-let g:zzvim_r_terminal_width = 100      " Vertical split width
-let g:zzvim_r_terminal_height = 15      " Horizontal split height
-
-" Functionality
-let g:zzvim_r_disable_mappings = 0      " Master switch for key mappings
-let g:zzvim_r_command = 'R'             " R startup command
-
-" Project detection
-let g:zzvim_r_project_root = ''         " Override automatic detection
+"   <LocalLeader>"    - Object Browser - vim-peekaboo style R workspace browser
+"                      Opens right-side panel showing all R objects with types
+"                      Number keys 1-9: quick inspect, ESC/q: close browser
 ```
 
-## Security Model
+**Ex Command Reference Added:**
+```vim
+" Object Browser:
+" --------------
+"     :RObjectBrowser          - Open vim-peekaboo style R object browser
+"                               Right panel showing workspace objects with types
+"                               Navigation: 1-9 keys inspect, ESC/q close
+```
 
-- **Code Execution**: Plugin executes user-written R code (expected behavior)
-- **Temp Files**: Created in system temp directory with appropriate permissions
-- **Input Validation**: Basic sanitization with comprehensive error checking
-- **Vim Security**: Relies on Vim's built-in plugin security framework
-- **No External Dependencies**: Pure VimScript implementation
+#### **Development Process & Quality Assurance**
 
-## Key References
+**Feature Branch Strategy:**
+- Implemented in isolated `feature/object-browser` branch
+- Complete rollback capability preserving master branch stability
+- Comprehensive testing framework with multiple test files
+- Safe merge strategy allows thorough validation before production
 
-- **User Guide**: See `README.md` for end-user documentation
-- **Help System**: Vim `:help zzvim-r` for complete reference
-- **Comparison Docs**: `docs/` directory for honest comparisons with R.nvim and RStudio
-- **Session History**: `CHANGELOG.md` for comprehensive development history
-- **Testing**: `test_files/` directory for test cases and examples
+**Testing Infrastructure:**
+- **`test_object_browser_demo.R`**: Comprehensive object creation for testing various R types
+- **`TESTING_CHECKLIST.md`**: Systematic validation process covering all functionality
+- **Integration Tests**: Verified compatibility with existing multi-terminal features
+- **Performance Tests**: Validated behavior with large workspaces and complex objects
+
+**Code Quality:**
+- **Inline Documentation**: Extensive comments explaining object browser architecture
+- **Error Handling**: Robust validation with clear user feedback
+- **VimScript Standards**: Follows established plugin conventions and patterns
+- **Educational Value**: Implementation serves as example of advanced Vim plugin development
+
+#### **Strategic Impact**
+
+**Competitive Positioning:**
+- **Addresses IDE Gap**: Provides modern workspace inspection comparable to RStudio/VS Code
+- **Maintains Performance**: Lightweight implementation preserving zzvim-R's speed advantage
+- **Extends vim-peekaboo Pattern**: Leverages proven UI paradigm for R development
+- **Enhances Workflow**: Reduces context switching between code and object inspection
+
+**User Experience Enhancement:**
+- **Visual Object Management**: Clear overview of workspace state during analysis
+- **Rapid Iteration**: Quick object inspection enables faster exploratory data analysis
+- **Contextual Information**: Type and dimension display aids in debugging and development
+- **Intuitive Navigation**: Familiar vim-peekaboo patterns reduce learning curve
+
+#### **Implementation Lessons**
+
+**VimScript Architecture Patterns:**
+1. **Temporary Buffer Management**: Proper scratch buffer configuration for tool windows
+2. **Buffer-Local Mappings**: Isolated key mappings prevent global conflicts
+3. **R Communication**: Temp file approach scales better than direct terminal injection
+4. **Error Recovery**: Graceful degradation with helpful error messages
+
+**vim-peekaboo Study Benefits:**
+- **Proven UI Patterns**: Established interaction model reduces implementation risk
+- **Window Management**: Effective temporary split window techniques
+- **Key Mapping Design**: Intuitive navigation following Vim conventions
+- **Buffer Lifecycle**: Proper temporary buffer creation and cleanup
+
+**Feature Development Process:**
+- **Incremental Implementation**: Core functionality first, polish second
+- **Comprehensive Testing**: Multiple test files covering various scenarios
+- **Documentation Integration**: Help system updates concurrent with implementation
+- **Safe Deployment**: Feature branch isolation enables confident experimentation
+
+#### **Future Enhancement Opportunities**
+
+**Potential Additions:**
+- **Object Filtering**: Search/filter objects by name pattern or type
+- **Sort Options**: Alphabetical, size, type, or creation time ordering
+- **Batch Operations**: Select multiple objects for combined actions
+- **Visual Enhancements**: Syntax highlighting and improved formatting
+- **Export Functionality**: Save object summaries to files
+
+**Architecture Extensions:**
+- **Plugin System**: Object browser as template for other tool windows
+- **Context Awareness**: Smart object suggestions based on current code context
+- **Integration Hooks**: API for other plugins to extend object browser functionality
+
+The object browser represents a significant evolution in zzvim-R's capabilities, bringing modern IDE functionality to Vim while maintaining the plugin's core philosophy of lightweight, terminal-based R development. The implementation demonstrates advanced VimScript techniques and provides a foundation for future enhancements.
