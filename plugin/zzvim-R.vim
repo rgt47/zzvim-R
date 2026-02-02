@@ -2565,6 +2565,71 @@ command! -bar RPlotDebug echo "Signal: " . s:GetSignalFile() . " mtime=" . getft
 "   <LocalLeader>pG   Plot gallery
 "   <LocalLeader>ps   Save as PDF
 "   <LocalLeader>pS   Save as PNG
+
+" Core Operations
+command! -bar ROpenTerminal call s:OpenRTerminal()
+command! -bar RDockerTerminal call s:OpenDockerRTerminal()
+command! -bar RDockerTerminalForce call s:OpenDockerRTerminal(s:GetTerminalName(), 1)
+command! -bar RTerminalLocal call s:OpenLocalRTerminal()
+command! -bar RTerminalVanilla call s:OpenLocalRTerminalVanilla()
+command! -bar RSendLine call s:SendToR('line')
+command! -bar RSendSelection call s:SendToR('selection')
+command! -bar RSendFunction call s:SendToR('function')
+command! -bar RSendSmart call s:SendToR('')
+command! -bar RSendWithComments call s:SendToRWithComments('')
+command! -bar RAddPipe call s:AddPipeAndNewLine()
+
+" Chunk Navigation and Execution
+command! -bar RNextChunk call s:MoveNextChunk()
+command! -bar RPrevChunk call s:MovePrevChunk()
+command! -bar RSendChunk call s:SubmitChunk()
+command! -bar RSendPreviousChunks call s:SendToR('previous_chunks')
+
+" R Markdown Rendering Commands
+command! -bar -nargs=? RMarkdownRender call s:RMarkdownRender(<q-args>)
+command! -bar RMarkdownPreview call s:RMarkdownPreview()
+command! -bar RChunkInsert call s:InsertRChunk(0)
+command! -bar RChunkInsertAbove call s:InsertRChunk(1)
+
+" Help in Buffer Command (displays help in Vim buffer, not terminal)
+command! -bar -nargs=? RHelpBuffer call s:RHelpBuffer(<q-args>)
+
+" Object Inspection Commands (with optional arguments)
+command! -bar -nargs=? RHead call s:RCommandWithArg('head', <q-args>)
+command! -bar -nargs=? RStr call s:RCommandWithArg('str', <q-args>)
+command! -bar -nargs=? RDim call s:RCommandWithArg('dim', <q-args>)
+command! -bar -nargs=? RPrint call s:RCommandWithArg('print', <q-args>)
+command! -bar -nargs=? RNames call s:RCommandWithArg('names', <q-args>)
+command! -bar -nargs=? RLength call s:RCommandWithArg('length', <q-args>)
+command! -bar -nargs=? RGlimpse call s:RCommandWithArg('glimpse', <q-args>)
+command! -bar -nargs=? RTail call s:RCommandWithArg('tail', <q-args>)
+command! -bar -nargs=? RHelp call s:RCommandWithArg('help', <q-args>)
+command! -bar -nargs=? RSummary call s:RCommandWithArg('summary', <q-args>)
+
+" Control Commands
+command! -bar RQuit call s:SendControlKeys("Q")
+command! -bar RInterrupt call s:SendControlKeys("\<C-c>")
+
+" Advanced Commands with Argument Handling
+command! -bar -nargs=1 RSend call s:RSendCommand(<q-args>)
+command! -bar -nargs=1 RSource call s:RSourceCommand(<q-args>)
+command! -bar -nargs=1 RLibrary call s:RLibraryCommand(<q-args>)
+command! -bar -nargs=1 RInstall call s:RInstallCommand(<q-args>)
+command! -bar -nargs=1 RLoad call s:RLoadCommand(<q-args>)
+command! -bar -nargs=1 RSave call s:RSaveCommand(<q-args>)
+
+" Utility Commands
+command! -bar -nargs=? RSetwd call s:RSetwdCommand(<q-args>)
+command! -bar RGetwd call s:Send_to_r('getwd()', 1)
+command! -bar RLs call s:Send_to_r('ls()', 1)
+command! -bar RRm call s:Send_to_r('rm(list=ls())', 1)
+
+" Terminal Association Commands
+command! -bar RShowTerminal call s:RShowTerminalCommand()
+command! -bar RListTerminals call s:RListTerminalsCommand()
+command! -bar RSwitchToTerminal call s:RSwitchToTerminalCommand()
+command! -bar -nargs=? ROpenSplit call s:ROpenSplitCommand(<q-args>)
+
 " Simple Object Inspection Commands
 command! -bar RWorkspace call s:RWorkspaceOverview()  
 command! -bar -nargs=? RInspect call s:RInspectObject(<q-args>)
