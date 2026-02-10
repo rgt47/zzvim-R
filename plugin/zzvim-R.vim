@@ -1747,80 +1747,80 @@ if !g:zzvim_r_disable_mappings
     augroup zzvim_RMarkdown
         autocmd!
         " Initialize terminal graphics setup only when opening R code files
-        autocmd FileType r,rmd,qmd call zzvimr#terminal_graphics#init()
+        autocmd FileType r,rmd,quarto call zzvimr#terminal_graphics#init()
         " R Terminal Launch Mappings:
         "   <localleader>r  - Container R (via make r, with renv)
         "   <localleader>rr - Host R with renv (normal startup, sources .Rprofile)
         "   <localleader>rh - Host R without renv (vanilla, skips .Rprofile)
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>r   :call <SID>OpenDockerRTerminal()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> ZR              :call <SID>OpenDockerRTerminal()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>rr  :call <SID>OpenLocalRTerminal()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>rh  :call <SID>OpenLocalRTerminalVanilla()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>R   :call <SID>OpenLocalRTerminal()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>D   :call <SID>OpenDockerRTerminal(s:GetTerminalName(), 1)<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>w :call <SID>ROpenSplitCommand('vertical')<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>W :call <SID>ROpenSplitCommand('horizontal')<CR>
-        autocmd FileType r,rmd,qmd xnoremap <buffer> <silent> <CR>    :<C-u>call <SID>SendToR('selection')<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <CR>  :call <SID>SendToR('')<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader><CR>  :call <SID>SendToRWithComments('')<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>o   :call <SID>AddPipeAndNewLine()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>j   :call <SID>MoveNextChunk()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>k :call <SID>MovePrevChunk()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>l :call <SID>SubmitChunk()<CR>zz
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>t :call <SID>SendToR('previous_chunks')<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>q :call <SID>SendControlKeys("Q")<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>c :call <SID>SendControlKeys("\<C-c>")<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>d :call <SID>RAction("dim", 1)<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>h :call <SID>RAction("head",1)<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>u :call <SID>RAction("tail",1)<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>s :call <SID>RAction("str",1)<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>p :call <SID>RAction("print",1)<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>n :call <SID>RAction("names",1)<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>f :call <SID>RAction("length",1)<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>g :call <SID>RAction("glimpse",1)<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>b :call <SID>RAction("dt",1)<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>y :call <SID>RAction("help", 1)<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>r   :call <SID>OpenDockerRTerminal()<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> ZR              :call <SID>OpenDockerRTerminal()<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>rr  :call <SID>OpenLocalRTerminal()<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>rh  :call <SID>OpenLocalRTerminalVanilla()<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>R   :call <SID>OpenLocalRTerminal()<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>D   :call <SID>OpenDockerRTerminal(s:GetTerminalName(), 1)<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>w :call <SID>ROpenSplitCommand('vertical')<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>W :call <SID>ROpenSplitCommand('horizontal')<CR>
+        autocmd FileType r,rmd,quarto xnoremap <buffer> <silent> <CR>    :<C-u>call <SID>SendToR('selection')<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <CR>  :call <SID>SendToR('')<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader><CR>  :call <SID>SendToRWithComments('')<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>o   :call <SID>AddPipeAndNewLine()<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>j   :call <SID>MoveNextChunk()<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>k :call <SID>MovePrevChunk()<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>l :call <SID>SubmitChunk()<CR>zz
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>t :call <SID>SendToR('previous_chunks')<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>q :call <SID>SendControlKeys("Q")<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>c :call <SID>SendControlKeys("\<C-c>")<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>d :call <SID>RAction("dim", 1)<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>h :call <SID>RAction("head",1)<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>u :call <SID>RAction("tail",1)<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>s :call <SID>RAction("str",1)<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>p :call <SID>RAction("print",1)<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>n :call <SID>RAction("names",1)<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>f :call <SID>RAction("length",1)<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>g :call <SID>RAction("glimpse",1)<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>b :call <SID>RAction("dt",1)<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>y :call <SID>RAction("help", 1)<CR>
         " Additional generalized send mappings
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>sf :call <SID>SendToR('function')<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>sl :call <SID>SendToR('line')<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>sa :call <SID>SendToR('')<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>sp :call <SID>SendToR('previous_chunks')<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>sf :call <SID>SendToR('function')<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>sl :call <SID>SendToR('line')<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>sa :call <SID>SendToR('')<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>sp :call <SID>SendToR('previous_chunks')<CR>
         " Simple Object Inspection  
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>' :call <SID>RWorkspaceOverview()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>i :call <SID>RInspectObject()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>m :call <SID>RMemoryHUD()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>e :call <SID>RDataFrameHUD()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>z :call <SID>RPackageHUD()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>v :call <SID>RDataViewer()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>x :call <SID>REnvironmentHUD()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>a :call <SID>ROptionsHUD()<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>' :call <SID>RWorkspaceOverview()<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>i :call <SID>RInspectObject()<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>m :call <SID>RMemoryHUD()<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>e :call <SID>RDataFrameHUD()<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>z :call <SID>RPackageHUD()<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>v :call <SID>RDataViewer()<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>x :call <SID>REnvironmentHUD()<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>a :call <SID>ROptionsHUD()<CR>
         " Unified HUD Dashboard - Open all HUD displays in tabs
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>0 :call <SID>RHUDDashboard()<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>0 :call <SID>RHUDDashboard()<CR>
 
         " ---------------------------------------------------------------------
         " Plot HUD: <LocalLeader>P opens Plot HUD (consistent with other HUDs)
         " ---------------------------------------------------------------------
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>P :RPlotHUD<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>P :RPlotHUD<CR>
         " Zoom - open PDF (vector)
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>] :call <SID>ZoomPlot()<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>] :call <SID>ZoomPlot()<CR>
         " Quick navigation (without opening HUD)
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>< :call <SID>PlotPrev()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>> :call <SID>PlotNext()<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>< :call <SID>PlotPrev()<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>> :call <SID>PlotNext()<CR>
         " Plot history and save
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>[ :call <SID>PlotHistory()<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>\ :call <SID>PlotSave()<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>[ :call <SID>PlotHistory()<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>\ :call <SID>PlotSave()<CR>
 
         " R Markdown rendering (rk = render knit)
-        autocmd FileType rmd,qmd nnoremap <buffer> <silent> <localleader>rp :RMarkdownPreview<CR>
-        autocmd FileType rmd,qmd nnoremap <buffer> <silent> <localleader>rk :RMarkdownRender<CR>
+        autocmd FileType rmd,quarto nnoremap <buffer> <silent> <localleader>rp :RMarkdownPreview<CR>
+        autocmd FileType rmd,quarto nnoremap <buffer> <silent> <localleader>rk :RMarkdownRender<CR>
 
         " Chunk insertion (rmd/qmd only)
-        autocmd FileType rmd,qmd nnoremap <buffer> <silent> <localleader>ci :call <SID>InsertRChunk(0)<CR>
-        autocmd FileType rmd,qmd nnoremap <buffer> <silent> <localleader>cI :call <SID>InsertRChunk(1)<CR>
+        autocmd FileType rmd,quarto nnoremap <buffer> <silent> <localleader>ci :call <SID>InsertRChunk(0)<CR>
+        autocmd FileType rmd,quarto nnoremap <buffer> <silent> <localleader>cI :call <SID>InsertRChunk(1)<CR>
 
         " Help in buffer (K override and <localleader>?)
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> K :call <SID>RHelpBuffer('')<CR>
-        autocmd FileType r,rmd,qmd nnoremap <buffer> <silent> <localleader>? :call <SID>RHelpBuffer('')<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> K :call <SID>RHelpBuffer('')<CR>
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>? :call <SID>RHelpBuffer('')<CR>
     augroup END
 
     " Clean up plot pane when R terminal closes or buffer is deleted
