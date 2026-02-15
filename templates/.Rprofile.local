@@ -455,6 +455,23 @@ if (.terminal != "none" && Sys.info()["sysname"] %in% c("Darwin", "Linux")) {
   assign("show_save", show_save, envir = .GlobalEnv)
 
   # ==========================================================================
+  # Rmd/Quarto Integration
+  # ==========================================================================
+  # For embedding graphics in Rmd/qmd documents (batch mode).
+  # Usage: t2f(model) |> graph_include()
+  graph_include <- function(path, out.width = "100%", ...) {
+    if (!requireNamespace("knitr", quietly = TRUE)) {
+      stop("knitr package required for graph_include()")
+    }
+    if (!file.exists(path)) {
+      stop("File not found: ", path)
+    }
+    knitr::include_graphics(path, ...)
+  }
+
+  assign("graph_include", graph_include, envir = .GlobalEnv)
+
+  # ==========================================================================
   # Configuration
   # ==========================================================================
   set_plot_size <- function(width = 6, height = 4.5, png_scale = 150) {
@@ -480,6 +497,7 @@ if (.terminal != "none" && Sys.info()["sysname"] %in% c("Darwin", "Linux")) {
     cat("  show_history()    List all graphics           SPC [\n")
     cat("  show_zoom()       Open PDF in viewer          SPC ]\n")
     cat("  show_save(file)   Export to file\n")
+    cat("  graph_include(p)  Embed in Rmd/qmd (batch mode)\n")
     cat("\n")
   }
 }
