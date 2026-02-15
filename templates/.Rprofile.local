@@ -1,32 +1,24 @@
 # ============================================================================
-# Terminal Graphics Support - Kitty, Ghostty, WezTerm, iTerm2
-# zzvim-R template version: 8
+# Unified Graphics System - Plots and Tables
+# zzvim-R template version: 9
 # ============================================================================
-# Automatic plot display in modern terminal emulators.
-# Architecture: PDF master (vector) + PNG preview (for kitty display)
+# Display plots and tables in kitty terminal with unified history.
+# Architecture: PDF master + PNG preview for both plots and tables.
 #
 # Version history:
+#   v9 (2026-02): Unified graphics system - plots + tables
+#   v8 (2026-01): Plot HUD path resolution fix
 #   v7 (2026-01): Simplified architecture - PDF master + PNG preview
-#   v6 (2026-01): plot_prev/plot_next now use persistent history (Docker fix)
-#   v5 (2026-01): Added jsonlite check, fixed plot_redisplay_if_resized()
-#   v4 (2026-01): Code cleanup, fixed set_plot_size_relative()
-#   v3 (2026-01): Persistent history with thumbnails, plot_goto(), plot_search()
-#   v2 (2026-01): Dual-resolution plots (600x450 pane + 1800x1350 zoom)
-#   v1 (2025-08): Initial release with single-resolution plots
 
 # ============================================================================
 # Terminal Detection
 # ============================================================================
 .terminal_type <- function() {
-  # Kitty
   if (Sys.getenv("KITTY_WINDOW_ID") != "") return("kitty")
-  # Ghostty (supports Kitty graphics protocol)
   if (Sys.getenv("GHOSTTY_RESOURCES_DIR") != "" ||
       Sys.getenv("TERM") == "xterm-ghostty") return("kitty")
-  # WezTerm (supports Kitty graphics protocol)
   if (Sys.getenv("WEZTERM_EXECUTABLE") != "" ||
       grepl("WezTerm", Sys.getenv("TERM_PROGRAM"), ignore.case = TRUE)) return("kitty")
-  # iTerm2
   if (Sys.getenv("ITERM_SESSION_ID") != "" ||
       grepl("iTerm", Sys.getenv("TERM_PROGRAM"), ignore.case = TRUE)) return("iterm2")
   "none"
@@ -38,164 +30,51 @@
 
 .terminal <- .terminal_type()
 
-# Only activate on supported terminals
 if (.terminal != "none" && Sys.info()["sysname"] %in% c("Darwin", "Linux")) {
 
   # ==========================================================================
   # Configuration
   # ==========================================================================
-  # PDF master + PNG preview system:
-  # - PDF: vector format, infinite zoom, publication-ready
-  # - PNG: raster preview for kitty terminal display
-
-  .plot_width <- 6        # inches (for PDF)
-  .plot_height <- 4.5     # inches (for PDF)
-  .png_scale <- 150       # pixels per inch for PNG preview
-  .plots_dir <- ".plots"
+  .plot_width <- 6
+  .plot_height <- 4.5
+  .png_scale <- 150
+  .table_png_density <- 150
+  .graphics_dir <- ".graphics"
   .history_limit <- 50
 
   # ==========================================================================
   # Helper Functions
   # ==========================================================================
   .ensure_dirs <- function() {
-    if (!dir.exists(.plots_dir)) dir.create(.plots_dir, showWarnings = FALSE)
-    history_dir <- file.path(.plots_dir, "history")
-    if (!dir.exists(history_dir)) dir.create(history_dir, showWarnings = FALSE)
+    if (!dir.exists(.graphics_dir)) dir.create(.graphics_dir, showWarnings = FALSE)
+    hist_dir <- file.path(.graphics_dir, "history")
+    if (!dir.exists(hist_dir)) dir.create(hist_dir, showWarnings = FALSE)
   }
 
   .signal_vim <- function() {
-    writeLines(as.character(Sys.time()), file.path(.plots_dir, ".signal"))
+    writeLines(as.character(Sys.time()), file.path(.graphics_dir, ".signal"))
   }
 
-  .current_pdf <- function() file.path(.plots_dir, "current.pdf")
-  .current_png <- function() file.path(.plots_dir, "current.png")
-
-  # ==========================================================================
-  # Core Plot Functions (PDF master + PNG preview)
-  # ==========================================================================
-
-  # Universal plot function - works with any plotting function or ggplot
-  # Usage: show(plot(x, y)), show(boxplot(x)), show(hist(y))
-  #        show(ggplot(df, aes(x, y)) + geom_point())
-  show <- function(expr, .name = NULL, .save = TRUE) {
-    .ensure_dirs()
-
-    # Capture the plot call and the calling environment
-    plot_call <- substitute(expr)
-    plot_env <- parent.frame()
-    code_str <- deparse(plot_call, width.cutoff = 500)
-    code_str <- paste(code_str, collapse = " ")
-
-    # Helper to evaluate and handle ggplot objects
-    .eval_plot <- function() {
-      result <- eval(plot_call, envir = plot_env)
-      if (inherits(result, "ggplot")) print(result)
-      invisible(result)
-    }
-
-    # PDF master (vector - infinite zoom)
-    pdf(.current_pdf(), width = .plot_width, height = .plot_height)
-    .eval_plot()
-    dev.off()
-
-    # PNG preview (for kitty display)
-    png(.current_png(),
-        width = .plot_width * .png_scale,
-        height = .plot_height * .png_scale)
-    .eval_plot()
-    dev.off()
-
-    # Signal Vim to display
-    .signal_vim()
-
-    # Save to history
-    if (.save) .add_to_history(.name, code_str)
-
-    invisible(NULL)
-  }
-
-  assign("show", show, envir = .GlobalEnv)
-
-  # ==========================================================================
-  # Configuration
-  # ==========================================================================
-
-  set_plot_size <- function(width = 6, height = 4.5, png_scale = 150) {
-    assign(".plot_width", width, envir = .GlobalEnv)
-    assign(".plot_height", height, envir = .GlobalEnv)
-    assign(".png_scale", png_scale, envir = .GlobalEnv)
-    cat(sprintf("Plot size: %.1f x %.1f in (preview: %dx%d px)\n",
-        width, height, as.integer(width * png_scale),
-        as.integer(height * png_scale)))
-  }
-
-  assign("set_plot_size", set_plot_size, envir = .GlobalEnv)
-
-  # ==========================================================================
-  # Zoom - Open the PDF (vector, infinite zoom)
-  # ==========================================================================
-
-  show_zoom <- function() {
-    pdf_file <- .current_pdf()
-    if (!file.exists(pdf_file)) {
-      cat("No plot available. Use show() first.\n")
-      return(invisible(NULL))
-    }
-    if (.is_docker()) {
-      cat("In Docker: use <LocalLeader>] in Vim to open PDF\n")
-      return(invisible(NULL))
-    }
-    system2("open", pdf_file, wait = FALSE)
-    cat("Opened PDF (vector, zoomable)\n")
-  }
-
-  assign("show_zoom", show_zoom, envir = .GlobalEnv)
-
-  # ==========================================================================
-  # Export
-  # ==========================================================================
-
-  show_save <- function(filename) {
-    if (grepl("\\.pdf$", filename, ignore.case = TRUE)) {
-      if (file.exists(.current_pdf())) {
-        file.copy(.current_pdf(), filename, overwrite = TRUE)
-        cat("Saved:", filename, "(PDF vector)\n")
-      } else {
-        cat("No PDF available\n")
-      }
-    } else if (grepl("\\.png$", filename, ignore.case = TRUE)) {
-      if (file.exists(.current_png())) {
-        file.copy(.current_png(), filename, overwrite = TRUE)
-        cat("Saved:", filename, "(PNG preview)\n")
-      } else {
-        cat("No PNG available\n")
-      }
-    } else {
-      cat("Supported formats: .pdf, .png\n")
-    }
-  }
-
-  assign("show_save", show_save, envir = .GlobalEnv)
-
-  # ==========================================================================
-  # Persistent History
-  # ==========================================================================
-
-  .history_dir <- function() file.path(.plots_dir, "history")
+  .current_pdf <- function() file.path(.graphics_dir, "current.pdf")
+  .current_png <- function() file.path(.graphics_dir, "current.png")
+  .history_dir <- function() file.path(.graphics_dir, "history")
   .history_index <- function() file.path(.history_dir(), "index.json")
 
+  # ==========================================================================
+  # JSON Helpers (using jsonlite)
+  # ==========================================================================
   .jsonlite_ok <- requireNamespace("jsonlite", quietly = TRUE)
   if (!.jsonlite_ok && interactive()) {
-    message("Install 'jsonlite' for plot history: install.packages('jsonlite')")
+    message("Install 'jsonlite' for graphics history: install.packages('jsonlite')")
   }
 
   .read_index <- function() {
-    if (!.jsonlite_ok) return(list(plots = list(), current = 0, counter = 0))
+    if (!.jsonlite_ok) return(list(graphics = list(), current = 0, counter = 0))
     idx_file <- .history_index()
-    if (!file.exists(idx_file)) return(list(plots = list(), current = 0, counter = 0))
+    if (!file.exists(idx_file)) return(list(graphics = list(), current = 0, counter = 0))
     tryCatch(
       jsonlite::fromJSON(idx_file, simplifyVector = FALSE),
-      error = function(e) list(plots = list(), current = 0, counter = 0)
+      error = function(e) list(graphics = list(), current = 0, counter = 0)
     )
   }
 
@@ -208,18 +87,130 @@ if (.terminal != "none" && Sys.info()["sysname"] %in% c("Darwin", "Linux")) {
     )
   }
 
-  .add_to_history <- function(name = NULL, code = "") {
+  # ==========================================================================
+  # Core: show_plot() - Display ggplot or base R plot
+  # ==========================================================================
+  show_plot <- function(expr, .name = NULL, .save = TRUE) {
+    .ensure_dirs()
+
+    plot_call <- substitute(expr)
+    plot_env <- parent.frame()
+    code_str <- paste(deparse(plot_call, width.cutoff = 500), collapse = " ")
+
+    .eval_plot <- function() {
+      result <- eval(plot_call, envir = plot_env)
+      if (inherits(result, "ggplot")) print(result)
+      invisible(result)
+    }
+
+    pdf(.current_pdf(), width = .plot_width, height = .plot_height)
+    .eval_plot()
+    dev.off()
+
+    png(.current_png(),
+        width = .plot_width * .png_scale,
+        height = .plot_height * .png_scale)
+    .eval_plot()
+    dev.off()
+
+    .signal_vim()
+
+    if (.save) .add_to_history(.name, type = "plot", code = code_str)
+
+    invisible(NULL)
+  }
+
+  assign("show_plot", show_plot, envir = .GlobalEnv)
+
+  # ==========================================================================
+  # Core: show_table() - Display t2f table
+  # ==========================================================================
+  show_table <- function(x, .name = NULL, .save = TRUE, ...) {
+    if (!requireNamespace("zztab2fig", quietly = TRUE)) {
+      stop("zztab2fig package required for show_table()")
+    }
+
+    .ensure_dirs()
+
+    code_str <- paste(deparse(substitute(x), width.cutoff = 500), collapse = " ")
+
+    index <- .read_index()
+    if (is.null(.name)) {
+      .name <- sprintf("table_%03d", index$counter + 1)
+    }
+    safe_name <- gsub("[^a-zA-Z0-9_-]", "_", .name)
+
+    tmp_dir <- file.path(.graphics_dir, "tmp")
+    if (!dir.exists(tmp_dir)) dir.create(tmp_dir, showWarnings = FALSE)
+
+    pdf_path <- zztab2fig::t2f(x, filename = safe_name, sub_dir = tmp_dir, ...)
+
+    file.copy(pdf_path, .current_pdf(), overwrite = TRUE)
+
+    tex_path <- file.path(tmp_dir, paste0(safe_name, ".tex"))
+
+    convert_cmd <- sprintf("convert -density %d %s %s 2>/dev/null",
+                           .table_png_density,
+                           shQuote(.current_pdf()),
+                           shQuote(.current_png()))
+    system(convert_cmd)
+
+    .signal_vim()
+
+    if (.save) {
+      .add_to_history(.name, type = "table", code = code_str, tex_src = tex_path)
+    }
+
+    unlink(file.path(tmp_dir, paste0(safe_name, "_full.pdf")))
+
+    invisible(NULL)
+  }
+
+  assign("show_table", show_table, envir = .GlobalEnv)
+
+  # ==========================================================================
+  # Core: show() - Display last graphic or explicit object
+  # ==========================================================================
+  show <- function(expr = NULL) {
+    if (missing(expr) || is.null(expr)) {
+      index <- .read_index()
+      if (index$current > 0 && length(index$graphics) > 0) {
+        entry <- Filter(function(g) g$id == index$current, index$graphics)
+        if (length(entry) > 0) {
+          .display_from_history(entry[[1]])
+        }
+      } else {
+        cat("No graphics in history. Use show_plot() or show_table().\n")
+      }
+    } else {
+      plot_call <- substitute(expr)
+      result <- eval(plot_call, envir = parent.frame())
+      if (inherits(result, "ggplot")) {
+        show_plot(result)
+      } else if (is.data.frame(result) || is.matrix(result)) {
+        show_table(result)
+      } else {
+        show_plot(result)
+      }
+    }
+    invisible(NULL)
+  }
+
+  assign("show", show, envir = .GlobalEnv)
+
+  # ==========================================================================
+  # History Management
+  # ==========================================================================
+  .add_to_history <- function(name = NULL, type = "plot", code = "", tex_src = NULL) {
     index <- .read_index()
     index$counter <- index$counter + 1
     id <- index$counter
 
-    # Generate name if not provided
     if (is.null(name) || name == "") {
-      name <- sprintf("plot_%03d", id)
+      name <- sprintf("%s_%03d", type, id)
     }
     safe_name <- gsub("[^a-zA-Z0-9_-]", "_", name)
 
-    # Copy files to history
     hist_dir <- .history_dir()
     pdf_dst <- file.path(hist_dir, sprintf("%03d_%s.pdf", id, safe_name))
     png_dst <- file.path(hist_dir, sprintf("%03d_%s.png", id, safe_name))
@@ -227,16 +218,23 @@ if (.terminal != "none" && Sys.info()["sysname"] %in% c("Darwin", "Linux")) {
     if (file.exists(.current_pdf())) file.copy(.current_pdf(), pdf_dst, overwrite = TRUE)
     if (file.exists(.current_png())) file.copy(.current_png(), png_dst, overwrite = TRUE)
 
-    # Add entry
     entry <- list(
       id = id,
+      type = type,
       name = name,
       pdf = basename(pdf_dst),
       png = basename(png_dst),
       created = format(Sys.time(), "%Y-%m-%dT%H:%M:%S"),
       code = substr(code, 1, 200)
     )
-    index$plots <- c(index$plots, list(entry))
+
+    if (!is.null(tex_src) && file.exists(tex_src)) {
+      tex_dst <- file.path(hist_dir, sprintf("%03d_%s.tex", id, safe_name))
+      file.copy(tex_src, tex_dst, overwrite = TRUE)
+      entry$tex <- basename(tex_dst)
+    }
+
+    index$graphics <- c(index$graphics, list(entry))
     index$current <- id
 
     .write_index(index)
@@ -247,39 +245,37 @@ if (.terminal != "none" && Sys.info()["sysname"] %in% c("Darwin", "Linux")) {
 
   .trim_history <- function() {
     index <- .read_index()
-    if (length(index$plots) <= .history_limit) return()
+    if (length(index$graphics) <= .history_limit) return()
 
-    # Remove oldest
-    n_remove <- length(index$plots) - .history_limit
-    to_remove <- index$plots[1:n_remove]
-    index$plots <- index$plots[(n_remove + 1):length(index$plots)]
+    n_remove <- length(index$graphics) - .history_limit
+    to_remove <- index$graphics[1:n_remove]
+    index$graphics <- index$graphics[(n_remove + 1):length(index$graphics)]
 
-    # Delete files
     hist_dir <- .history_dir()
     for (entry in to_remove) {
-      pdf_path <- file.path(hist_dir, entry$pdf)
-      png_path <- file.path(hist_dir, entry$png)
-      if (file.exists(pdf_path)) unlink(pdf_path)
-      if (file.exists(png_path)) unlink(png_path)
+      for (f in c(entry$pdf, entry$png, entry$tex)) {
+        if (!is.null(f)) {
+          fpath <- file.path(hist_dir, f)
+          if (file.exists(fpath)) unlink(fpath)
+        }
+      }
     }
 
     .write_index(index)
   }
 
   # ==========================================================================
-  # History Navigation
+  # Navigation
   # ==========================================================================
-
   .display_from_history <- function(entry) {
     hist_dir <- .history_dir()
     png_file <- file.path(hist_dir, entry$png)
 
     if (!file.exists(png_file)) {
-      cat("Plot file not found\n")
+      cat("Graphics file not found\n")
       return(invisible(NULL))
     }
 
-    # Copy to current for display
     file.copy(png_file, .current_png(), overwrite = TRUE)
     pdf_file <- file.path(hist_dir, entry$pdf)
     if (file.exists(pdf_file)) {
@@ -287,68 +283,67 @@ if (.terminal != "none" && Sys.info()["sysname"] %in% c("Darwin", "Linux")) {
     }
 
     .signal_vim()
-    cat(sprintf("%s (%s)\n", entry$name, entry$created))
+    type_tag <- if (entry$type == "plot") "[P]" else "[T]"
+    cat(sprintf("%s %s (%s)\n", type_tag, entry$name, entry$created))
   }
 
   show_prev <- function() {
     index <- .read_index()
-    if (length(index$plots) == 0) {
-      cat("No plot history\n")
+    if (length(index$graphics) == 0) {
+      cat("No graphics history\n")
       return(invisible(NULL))
     }
 
-    # Find current position
-    pos <- which(sapply(index$plots, function(x) x$id) == index$current)
-    if (length(pos) == 0) pos <- length(index$plots)
+    pos <- which(sapply(index$graphics, function(x) x$id) == index$current)
+    if (length(pos) == 0) pos <- length(index$graphics)
 
-    # Move back
     new_pos <- max(1, pos - 1)
-    entry <- index$plots[[new_pos]]
+    entry <- index$graphics[[new_pos]]
     index$current <- entry$id
     .write_index(index)
 
-    cat(sprintf("[%d/%d] ", new_pos, length(index$plots)))
+    cat(sprintf("[%d/%d] ", new_pos, length(index$graphics)))
     .display_from_history(entry)
   }
 
   show_next <- function() {
     index <- .read_index()
-    if (length(index$plots) == 0) {
-      cat("No plot history\n")
+    if (length(index$graphics) == 0) {
+      cat("No graphics history\n")
       return(invisible(NULL))
     }
 
-    pos <- which(sapply(index$plots, function(x) x$id) == index$current)
+    pos <- which(sapply(index$graphics, function(x) x$id) == index$current)
     if (length(pos) == 0) pos <- 0
 
-    new_pos <- min(length(index$plots), pos + 1)
-    entry <- index$plots[[new_pos]]
+    new_pos <- min(length(index$graphics), pos + 1)
+    entry <- index$graphics[[new_pos]]
     index$current <- entry$id
     .write_index(index)
 
-    cat(sprintf("[%d/%d] ", new_pos, length(index$plots)))
+    cat(sprintf("[%d/%d] ", new_pos, length(index$graphics)))
     .display_from_history(entry)
   }
 
   show_goto <- function(name_or_id) {
     index <- .read_index()
-    if (length(index$plots) == 0) {
-      cat("No plot history\n")
+    if (length(index$graphics) == 0) {
+      cat("No graphics history\n")
       return(invisible(NULL))
     }
 
     entry <- NULL
     if (is.numeric(name_or_id)) {
-      matches <- Filter(function(x) x$id == name_or_id, index$plots)
+      matches <- Filter(function(x) x$id == name_or_id, index$graphics)
       if (length(matches) > 0) entry <- matches[[1]]
     } else {
       matches <- Filter(function(x) grepl(name_or_id, x$name, ignore.case = TRUE),
-                        index$plots)
+                        index$graphics)
       if (length(matches) > 0) entry <- matches[[1]]
     }
 
     if (is.null(entry)) {
-      cat("Plot not found\n")
+      cat("Graphics not found\n")
       return(invisible(NULL))
     }
 
@@ -357,32 +352,43 @@ if (.terminal != "none" && Sys.info()["sysname"] %in% c("Darwin", "Linux")) {
     .display_from_history(entry)
   }
 
-  show_history <- function() {
+  show_history <- function(type = NULL) {
     index <- .read_index()
-    if (length(index$plots) == 0) {
-      cat("No plot history\n")
+    if (length(index$graphics) == 0) {
+      cat("No graphics history\n")
       return(invisible(NULL))
     }
 
-    cat(sprintf("Plot history: %d plots\n\n", length(index$plots)))
-    for (i in seq_along(index$plots)) {
-      p <- index$plots[[i]]
-      marker <- if (p$id == index$current) "▶ " else "  "
-      cat(sprintf("%s[%d] %-20s %s\n", marker, i, p$name, p$created))
+    items <- index$graphics
+    if (!is.null(type)) {
+      items <- Filter(function(x) x$type == type, items)
+    }
+
+    if (length(items) == 0) {
+      cat(sprintf("No %s in history\n", type))
+      return(invisible(NULL))
+    }
+
+    cat(sprintf("Graphics history: %d items\n\n", length(items)))
+    for (i in seq_along(items)) {
+      g <- items[[i]]
+      marker <- if (g$id == index$current) ">" else " "
+      type_tag <- if (g$type == "plot") "[P]" else "[T]"
+      cat(sprintf("%s %s %3d. %-20s %s\n", marker, type_tag, g$id, g$name, g$created))
     }
   }
 
   show_search <- function(pattern) {
     index <- .read_index()
-    if (length(index$plots) == 0) {
-      cat("No plot history\n")
+    if (length(index$graphics) == 0) {
+      cat("No graphics history\n")
       return(invisible(NULL))
     }
 
     matches <- Filter(function(x) {
       grepl(pattern, x$name, ignore.case = TRUE) ||
       grepl(pattern, x$code, ignore.case = TRUE)
-    }, index$plots)
+    }, index$graphics)
 
     if (length(matches) == 0) {
       cat("No matches\n")
@@ -391,10 +397,10 @@ if (.terminal != "none" && Sys.info()["sysname"] %in% c("Darwin", "Linux")) {
 
     cat(sprintf("Found %d:\n", length(matches)))
     for (m in matches) {
-      cat(sprintf("  [%d] %s\n", m$id, m$name))
+      type_tag <- if (m$type == "plot") "[P]" else "[T]"
+      cat(sprintf("  %s [%d] %s\n", type_tag, m$id, m$name))
     }
 
-    # Display first match
     entry <- matches[[1]]
     index$current <- entry$id
     .write_index(index)
@@ -409,23 +415,71 @@ if (.terminal != "none" && Sys.info()["sysname"] %in% c("Darwin", "Linux")) {
   assign("show_search", show_search, envir = .GlobalEnv)
 
   # ==========================================================================
+  # Export Functions
+  # ==========================================================================
+  show_zoom <- function() {
+    pdf_file <- .current_pdf()
+    if (!file.exists(pdf_file)) {
+      cat("No graphics available. Use show_plot() or show_table() first.\n")
+      return(invisible(NULL))
+    }
+    if (.is_docker()) {
+      cat("In Docker: use <LocalLeader>] in Vim to open PDF\n")
+      return(invisible(NULL))
+    }
+    system2("open", pdf_file, wait = FALSE)
+    cat("Opened PDF (vector, zoomable)\n")
+  }
+
+  show_save <- function(filename) {
+    if (grepl("\\.pdf$", filename, ignore.case = TRUE)) {
+      if (file.exists(.current_pdf())) {
+        file.copy(.current_pdf(), filename, overwrite = TRUE)
+        cat("Saved:", filename, "(PDF)\n")
+      } else {
+        cat("No PDF available\n")
+      }
+    } else if (grepl("\\.png$", filename, ignore.case = TRUE)) {
+      if (file.exists(.current_png())) {
+        file.copy(.current_png(), filename, overwrite = TRUE)
+        cat("Saved:", filename, "(PNG)\n")
+      } else {
+        cat("No PNG available\n")
+      }
+    } else {
+      cat("Supported formats: .pdf, .png\n")
+    }
+  }
+
+  assign("show_zoom", show_zoom, envir = .GlobalEnv)
+  assign("show_save", show_save, envir = .GlobalEnv)
+
+  # ==========================================================================
+  # Configuration
+  # ==========================================================================
+  set_plot_size <- function(width = 6, height = 4.5, png_scale = 150) {
+    assign(".plot_width", width, envir = .GlobalEnv)
+    assign(".plot_height", height, envir = .GlobalEnv)
+    assign(".png_scale", png_scale, envir = .GlobalEnv)
+    cat(sprintf("Plot size: %.1f x %.1f in (preview: %dx%d px)\n",
+        width, height, as.integer(width * png_scale),
+        as.integer(height * png_scale)))
+  }
+
+  assign("set_plot_size", set_plot_size, envir = .GlobalEnv)
+
+  # ==========================================================================
   # Startup Message
   # ==========================================================================
   if (interactive()) {
-    cat(sprintf("Terminal graphics: %s (PDF + PNG)\n", toupper(.terminal)))
-    cat("  show(expr)        Any plot (base R or ggplot)\n")
+    cat(sprintf("Unified graphics: %s (PDF + PNG)\n", toupper(.terminal)))
+    cat("  show_plot(expr)   Display plot (ggplot or base R)\n")
+    cat("  show_table(x,...) Display table (via t2f)\n")
+    cat("  show()            Redisplay last graphic\n")
+    cat("  show_prev/next    Navigate history            SPC , / SPC .\n")
+    cat("  show_history()    List all graphics           SPC [\n")
     cat("  show_zoom()       Open PDF in viewer          SPC ]\n")
-    cat("  show_prev/next    Navigate history            SPC < / SPC >\n")
-    cat("  show_history()    List all plots              SPC [\n")
-    cat("  show_save(file)   Export to file              SPC \\\n")
-    cat("\n")
-    cat("Vim HUDs:\n")
-    cat("  :RPlotHUD         Plot gallery                SPC P\n")
-    cat("  :RDataFrameHUD    Data frames                 SPC e\n")
-    cat("  :RMemoryHUD       Memory usage                SPC m\n")
-    cat("  :RPackageHUD      Loaded packages             SPC z\n")
-    cat("  :RDataViewer      RStudio-style viewer        SPC v\n")
-    cat("  :RHUDDashboard    All 6 HUDs in tabs          SPC 0\n")
+    cat("  show_save(file)   Export to file\n")
     cat("\n")
   }
 }

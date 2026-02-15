@@ -1847,7 +1847,7 @@ endif
 " ===========================================================================
 " SIMPLIFIED PLOT MANAGEMENT
 " ===========================================================================
-" Architecture: Vim watches .plots/.signal, displays PNG, opens PDF for zoom
+" Architecture: Vim watches .graphics/.signal, displays PNG, opens PDF for zoom
 " R renders: PDF (vector master) + PNG (preview)
 " Removed: adaptive polling, composite images, thumbnail gallery, config sync
 "
@@ -1916,7 +1916,7 @@ endfunction
 " Path Helpers
 "------------------------------------------------------------------------------
 function! s:GetPlotsDir() abort
-    return getcwd() . '/.plots'
+    return getcwd() . '/.graphics'
 endfunction
 
 function! s:GetPlotFile() abort
@@ -2239,20 +2239,22 @@ function! s:GeneratePlotHUDContent() abort
     call add(l:lines, printf('  %-3s %-20s %-20s %s', '#', 'Name', 'Created', 'Code'))
     call add(l:lines, repeat('-', 70))
 
-    " Plot entries
+    " Graphics entries
     let l:current = get(l:index, 'current', 0)
-    for i in range(len(l:index.plots))
-        let l:p = l:index.plots[i]
-        let l:marker = (l:p.id == l:current) ? '> ' : '  '
-        let l:name = strpart(get(l:p, 'name', 'unnamed'), 0, 18)
-        let l:created = strpart(get(l:p, 'created', ''), 0, 18)
-        let l:code = strpart(get(l:p, 'code', ''), 0, 25)
-        call add(l:lines, printf('%s[%d] %-18s %-18s %s', l:marker, i+1, l:name, l:created, l:code))
+    let l:graphics = get(l:index, 'graphics', [])
+    for i in range(len(l:graphics))
+        let l:g = l:graphics[i]
+        let l:marker = (l:g.id == l:current) ? '> ' : '  '
+        let l:type_tag = (get(l:g, 'type', 'plot') ==# 'table') ? '[T]' : '[P]'
+        let l:name = strpart(get(l:g, 'name', 'unnamed'), 0, 16)
+        let l:created = strpart(get(l:g, 'created', ''), 0, 16)
+        let l:code = strpart(get(l:g, 'code', ''), 0, 20)
+        call add(l:lines, printf('%s%s [%d] %-16s %-16s %s', l:marker, l:type_tag, i+1, l:name, l:created, l:code))
     endfor
 
     " Footer
     call add(l:lines, '')
-    call add(l:lines, printf('Total: %d plots | Current: %d', len(l:index.plots), l:current))
+    call add(l:lines, printf('Total: %d items | Current: %d', len(l:graphics), l:current))
 
     " Write to buffer (preserve cursor position)
     let l:save_pos = getpos('.')
@@ -2292,15 +2294,16 @@ function! s:PlotHUDGetNum() abort
     return 0
 endfunction
 
-" Get plot entry from number
+" Get graphics entry from number
 function! s:PlotHUDGetEntry(num) abort
     if !exists('b:plot_index') || a:num < 1
         return {}
     endif
-    if a:num > len(b:plot_index.plots)
+    let l:graphics = get(b:plot_index, 'graphics', [])
+    if a:num > len(l:graphics)
         return {}
     endif
-    return b:plot_index.plots[a:num - 1]
+    return l:graphics[a:num - 1]
 endfunction
 
 " Select and display plot under cursor
@@ -2437,6 +2440,7 @@ function! s:PlotHUDDelete() abort
     let l:hist_dir = get(b:, 'history_dir', s:GetHistoryDir())
     let l:png_file = l:hist_dir . '/' . get(l:entry, 'png', '')
     let l:pdf_file = l:hist_dir . '/' . get(l:entry, 'pdf', '')
+    let l:tex_file = l:hist_dir . '/' . get(l:entry, 'tex', '')
 
     if filereadable(l:png_file)
         call delete(l:png_file)
@@ -2444,9 +2448,14 @@ function! s:PlotHUDDelete() abort
     if filereadable(l:pdf_file)
         call delete(l:pdf_file)
     endif
+    if filereadable(l:tex_file)
+        call delete(l:tex_file)
+    endif
 
     " Update index
-    call remove(b:plot_index.plots, l:num - 1)
+    let l:graphics = get(b:plot_index, 'graphics', [])
+    call remove(l:graphics, l:num - 1)
+    let b:plot_index.graphics = l:graphics
 
     " Write updated index to buffer-local path
     let l:index_file = l:hist_dir . '/index.json'
@@ -2458,7 +2467,7 @@ function! s:PlotHUDDelete() abort
 
     " Refresh display
     call s:GeneratePlotHUDContent()
-    echom "Deleted plot " . l:num
+    echom "Deleted item " . l:num
 endfunction
 
 " Refresh: reload plot history from disk
