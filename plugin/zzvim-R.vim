@@ -558,6 +558,15 @@ function! s:GetProjectRoot() abort
     return ''
 endfunction
 
+" Auto-lcd to zzcollab project root when opening R files from subdirectories
+" Aligns Vim's getcwd() with the Docker container's mount/working directory
+function! s:AutoLcdProjectRoot() abort
+    let l:root = s:GetProjectRoot()
+    if !empty(l:root) && getcwd() !=# l:root
+        execute 'lcd ' . fnameescape(l:root)
+    endif
+endfunction
+
 " Force open local/host R terminal (bypass zzcollab workspace detection)
 function! s:OpenLocalRTerminal(...) abort
     let terminal_name = a:0 > 0 ? a:1 : s:GetTerminalName()
@@ -1748,6 +1757,9 @@ if !g:zzvim_r_disable_mappings
         autocmd!
         " Initialize terminal graphics setup only when opening R code files
         autocmd FileType r,rmd,quarto call zzvimr#terminal_graphics#init()
+        " Auto-lcd to project root in zzcollab projects so getcwd() aligns
+        " with the Docker container's mount point
+        autocmd FileType r,rmd,quarto call s:AutoLcdProjectRoot()
         " R Terminal Launch Mappings:
         "   <localleader>r  - Container R (via make r, with renv)
         "   <localleader>rr - Host R with renv (normal startup, sources .Rprofile)
