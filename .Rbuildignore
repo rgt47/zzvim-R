@@ -1,0 +1,10 @@
+^.*\.Rproj$
+^\.Rproj\.user$
+^\.github$
+^renv$
+^renv\.lock$
+^Dockerfile$
+^Makefile$
+^\.DS_Store$
+^CLAUDE\.md$
+^\.claude$
