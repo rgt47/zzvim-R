@@ -233,23 +233,41 @@ let g:zzvim_r_debug = get(g:, 'zzvim_r_debug', 0)
 "------------------------------------------------------------------------------
 
 " Current template version (must match templates/.Rprofile.local header)
-let s:template_version = 8
+let s:template_version = '1.9.0'
 
 " Get plugin directory (where templates/ lives)
 let s:plugin_dir = fnamemodify(resolve(expand('<sfile>:p')), ':h:h')
 
-" Extract version number from .Rprofile.local file
-" Returns: version number or 0 if not found
+" Extract semver string from .Rprofile.local file
+" Matches: # zzvim-R .Rprofile.local vX.Y.Z
+" Also matches legacy: # zzvim-R template version: N (returns '0.0.N')
+" Returns: version string or '' if not found
 function! s:GetRprofileVersion(filepath) abort
     if !filereadable(a:filepath)
-        return 0
+        return ''
     endif
-    " Look for: # zzvim-R template version: N
     for line in readfile(a:filepath, '', 20)
+        let match = matchlist(line, 'zzvim-R \.Rprofile\.local v\(\d\+\.\d\+\.\d\+\)')
+        if !empty(match)
+            return match[1]
+        endif
         let match = matchlist(line, 'zzvim-R template version:\s*\(\d\+\)')
         if !empty(match)
-            return str2nr(match[1])
+            return '0.0.' . match[1]
         endif
+    endfor
+    return ''
+endfunction
+
+" Compare two semver strings: returns -1, 0, or 1
+function! s:CompareSemver(a, b) abort
+    let pa = split(a:a, '\.')
+    let pb = split(a:b, '\.')
+    for i in range(3)
+        let na = str2nr(get(pa, i, '0'))
+        let nb = str2nr(get(pb, i, '0'))
+        if na < nb | return -1 | endif
+        if na > nb | return 1 | endif
     endfor
     return 0
 endfunction
@@ -274,12 +292,12 @@ function! s:CheckTemplateVersion() abort
     let template_version = s:GetRprofileVersion(template_file)
 
     " Local file has no version or is current
-    if local_version == 0 || local_version >= template_version
+    if local_version ==# '' || s:CompareSemver(local_version, template_version) >= 0
         return
     endif
 
     " Prompt user to update
-    let msg = printf('.Rprofile.local is version %d, plugin has version %d. Update? (y/n): ',
+    let msg = printf('.Rprofile.local is v%s, plugin has v%s. Update? (y/n): ',
                    \ local_version, template_version)
     let choice = input(msg)
 
@@ -290,10 +308,10 @@ function! s:CheckTemplateVersion() abort
 
         " Copy template
         call writefile(readfile(template_file), local_file)
-        echom "\n.Rprofile.local updated to version " . template_version . " (backup: .Rprofile.local.bak)"
+        echom "\n.Rprofile.local updated to v" . template_version . " (backup: .Rprofile.local.bak)"
         echom "Restart R to use the new version."
     else
-        echom "\nKeeping current .Rprofile.local (version " . local_version . ")"
+        echom "\nKeeping current .Rprofile.local (v" . local_version . ")"
     endif
 endfunction
 

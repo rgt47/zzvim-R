@@ -1,14 +1,14 @@
 # ============================================================================
-# Unified Graphics System - Plots and Tables
-# zzvim-R template version: 9
+# zzvim-R .Rprofile.local v1.9.0
 # ============================================================================
+# Unified Graphics System - Plots and Tables
 # Display plots and tables in kitty terminal with unified history.
 # Architecture: PDF master + PNG preview for both plots and tables.
 #
 # Version history:
-#   v9 (2026-02): Unified graphics system - plots + tables
-#   v8 (2026-01): Plot HUD path resolution fix
-#   v7 (2026-01): Simplified architecture - PDF master + PNG preview
+#   v1.9.0 (2026-02): Unified graphics system - plots + tables
+#   v1.8.0 (2026-01): Plot HUD path resolution fix
+#   v1.7.0 (2026-01): Simplified architecture - PDF master + PNG preview
 
 # ============================================================================
 # Terminal Detection
