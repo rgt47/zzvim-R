@@ -1,0 +1,187 @@
+---
+title: "Interactive Graphics Workflow"
+output: html_document
+---
+
+# Overview
+
+The zzvim-R graphics system provides three core functions for interactive
+display in kitty terminal:
+
+- `show_plot()` - Display ggplot or base R plots
+- `show_table()` - Display formatted tables (via zztab2fig)
+- `show()` - Auto-detect type or re-display last graphic
+
+All graphics are saved to `.graphics/history/` with PDF masters for
+publication and PNG previews for terminal display.
+
+# Setup
+
+```{r setup, message=FALSE}
+library(tidyverse)
+data(mtcars)
+```
+
+# Interactive Workflow
+
+## Exploratory Plots
+
+```{r eval=FALSE}
+# Quick scatter plot - displays immediately in kitty pane
+show_plot(
+  ggplot(mtcars, aes(mpg, hp, color = factor(cyl))) +
+    geom_point(size = 3) +
+    labs(title = "MPG vs Horsepower")
+)
+
+# Base R plot works too
+show_plot(plot(mtcars$mpg, mtcars$hp, main = "Base R Version"))
+
+# Name important plots for easy retrieval
+show_plot(
+  ggplot(mtcars, aes(wt, mpg)) +
+    geom_point() +
+    geom_smooth(method = "lm"),
+  .name = "fig_weight_mpg"
+)
+```
+
+## Model Tables
+
+```{r eval=FALSE}
+# Fit models
+m1 <- lm(mpg ~ wt, data = mtcars)
+m2 <- lm(mpg ~ wt + hp, data = mtcars)
+m3 <- lm(mpg ~ wt + hp + cyl, data = mtcars)
+
+# Display single model
+show_table(m1)
+
+# Display with theme
+show_table(m2, theme = "nejm", .name = "table_model2")
+
+# Summary statistics
+show_table(
+  mtcars |>
+    group_by(cyl) |>
+    summarise(
+      n = n(),
+      mpg_mean = mean(mpg),
+      mpg_sd = sd(mpg)
+    ),
+  .name = "table_summary"
+)
+```
+
+## Auto-Detection with show()
+
+```{r eval=FALSE}
+# Data frames -> show_table()
+show(mtcars[1:5, 1:4])
+
+# ggplot objects -> show_plot()
+p <- ggplot(mtcars, aes(mpg)) + geom_histogram()
+show(p)
+
+# No argument -> re-display last graphic
+show()
+```
+
+## History Navigation
+
+```{r eval=FALSE}
+# Navigate through history
+show_prev()
+show_next()
+
+# Re-display by calling show() with no arguments
+show()
+```
+
+# Embedding in Manuscripts
+
+Graphics displayed with `show_*()` are saved to `.graphics/history/` with
+PDF masters. To embed in your manuscript:
+## Option 1: Copy from History
+
+After interactive exploration, copy the PDF you want to keep:
+
+```{r eval=FALSE}
+# Find the file in history
+list.files(".graphics/history/", pattern = "fig_weight_mpg")
+# [1] "003_fig_weight_mpg.pdf" "003_fig_weight_mpg.png"
+
+# Copy to analysis/figures for manuscript
+file.copy(
+
+  ".graphics/history/003_fig_weight_mpg.pdf",
+  "analysis/figures/fig1_weight_mpg.pdf"
+)
+```
+
+## Option 2: Generate Directly for Publication
+
+For final figures, generate directly to `analysis/figures/`:
+
+```{r eval=FALSE}
+# Plot - save with ggsave
+p <- ggplot(mtcars, aes(wt, mpg)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  theme_minimal()
+
+ggsave("analysis/figures/fig1.pdf", p, width = 6, height = 4)
+
+# Table - use t2f directly (auto-detects zzcollab workspace)
+library(zztab2fig)
+t2f(m2, filename = "table1", theme = "nejm")
+# Output: analysis/figures/table1.pdf
+```
+
+## Including in R Markdown
+
+```{r eval=FALSE}
+# In your report.Rmd:
+
+# For figures:
+knitr::include_graphics("analysis/figures/fig1.pdf")
+
+# For tables (as figure):
+knitr::include_graphics("analysis/figures/table1.pdf")
+
+# Or use t2f_inline() for inline tables:
+t2f_inline(m2, theme = "nejm", caption = "Model Results")
+```
+
+## LaTeX Integration
+
+For LaTeX documents, use the generated PDF directly:
+
+```latex
+\begin{figure}[htbp]
+  \centering
+  \includegraphics{analysis/figures/fig1.pdf}
+  \caption{Weight vs MPG with linear fit}
+  \label{fig:weight-mpg}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics{analysis/figures/table1.pdf}
+  \caption{Regression results}
+  \label{tab:regression}
+\end{figure}
+```
+
+# Summary
+
+| Task | Interactive | Publication |
+|------|-------------|-------------|
+| Plot preview | `show_plot(p)` | `ggsave("analysis/figures/fig.pdf")` |
+| Table preview | `show_table(model)` | `t2f(model, filename = "table")` |
+| Re-display | `show()` | - |
+| Navigate | `show_prev()`, `show_next()` | - |
+
+The workflow separates exploration (`.graphics/`) from publication
+(`analysis/figures/`), keeping your manuscript directory clean while
+enabling rapid iteration in the terminal.
