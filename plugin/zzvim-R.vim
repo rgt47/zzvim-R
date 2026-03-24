@@ -1670,7 +1670,7 @@ function! s:GetCodeBlock() abort
     
     " Restore Original Cursor Position
     call setpos('.', save_pos)
-    
+
     " Validate Algorithm Success
     if end_line == -1
         " No matching character found - malformed code or infinite loop
@@ -1678,7 +1678,34 @@ function! s:GetCodeBlock() abort
         call s:Error(error_msg)
         return []  " Return empty list to indicate failure
     endif
-    
+
+    " Phase 3: Continue past balanced delimiters if line ends with infix operator
+    " Handles cases like: read_csv(...) %>% \n  sel(...)
+    if s:EndsWithInfixOperator(getline(end_line))
+        let paren_balance = 0
+        while end_line < line('$')
+            let end_line += 1
+            let next_line = getline(end_line)
+
+            if next_line =~# '^\s*$' || next_line =~# '^\s*#'
+                continue
+            endif
+
+            let paren_balance += len(substitute(next_line, '[^(]', '', 'g'))
+            let paren_balance -= len(substitute(next_line, '[^)]', '', 'g'))
+
+            if s:EndsWithInfixOperator(next_line)
+                continue
+            endif
+
+            if paren_balance > 0
+                continue
+            endif
+
+            break
+        endwhile
+    endif
+
     " Extract Complete Code Block
     " getline(start, end) returns list of lines from start to end (inclusive)
     " This is the complete, balanced code block ready for R execution
