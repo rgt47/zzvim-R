@@ -109,4 +109,4 @@ With `test_neovim_setup.R` open:
 - `gd` - Go to definition
 - `]d` / `[d` - Next/previous diagnostic
 
-This setup provides a complete R development environment comparable to RStudio or VS Code, but with Vim's efficiency and your preferred workflow.
+This setup provides a complete R development environment comparable to RStudio or VS Code, within a Vim-based workflow.

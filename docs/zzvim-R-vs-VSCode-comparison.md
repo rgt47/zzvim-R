@@ -367,7 +367,7 @@ pkgdown::build_site()
 
 **VS Code Collaborative Experience**:
 - **Individual Development**: Visual interface accessible to team members with varying skill levels
-- **Code Sharing**: Visual git interface with intuitive diff tools and merge conflict resolution
+- **Code Sharing**: Visual git interface with diff tools and merge conflict resolution
 - **Version Control**: Integrated Git GUI with branch management and pull request integration
 - **Documentation**: Visual roxygen2 support with preview capabilities
 - **Testing**: Visual test runner with pass/fail indicators and coverage reporting
@@ -593,7 +593,7 @@ Research Teams      VS Code       VS Code         Any
 
 **zzvim-R Philosophy**:
 - **Terminal-Native Efficiency**: Maximum performance through minimal overhead and command-line optimization
-- **Specialized Excellence**: Deep R integration within powerful text editing environment
+- **Specialized Excellence**: Deep R integration within the Vim text editing environment
 - **Expert User Focus**: Designed for users prioritizing efficiency over accessibility
 - **Minimalist Architecture**: Simple, reliable, and dependency-free operation
 

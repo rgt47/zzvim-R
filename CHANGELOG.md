@@ -92,7 +92,7 @@ Initial stable release (1.0.0) of zzvim-R.
 ### Added
 - Generalized SendToR system with intelligent code detection
 - Smart pattern recognition for R language constructs
-- Sophisticated brace matching algorithm for nested structures
+- Brace matching algorithm for nested structures
 - Context-aware `<CR>` key behavior
 - Unified temporary file approach for reliable code transmission
 - Complete R Markdown/Quarto chunk navigation system
@@ -104,11 +104,11 @@ Initial stable release (1.0.0) of zzvim-R.
 - Cross-platform compatibility (Linux, macOS, Windows)
 
 ### Features
-- **Smart Code Execution**: Automatic detection of functions, control structures, and code blocks
+- **Context-Aware Code Execution**: Automatic detection of functions, control structures, and code blocks
 - **Terminal Integration**: Persistent R session management with auto-recovery
-- **Pattern-Based Detection**: Advanced regex engine for R construct recognition
-- **Educational Documentation**: Extensive inline comments for VimScript learning
-- **Flexible Configuration**: Comprehensive customization options with safe defaults
+- **Pattern-Based Detection**: Regex-based engine for R construct recognition
+- **Educational Documentation**: Inline comments throughout for VimScript learning
+- **Configurable**: Customization options with safe defaults
 
 ### Technical Implementation
 - Single-file architecture for simple deployment

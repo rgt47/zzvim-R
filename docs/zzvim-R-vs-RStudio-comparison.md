@@ -16,7 +16,7 @@ trade-offs and what zzvim-R would need to become competitive.
 
 ### RStudio
 
-RStudio is the industry-standard R IDE with comprehensive graphical features:
+RStudio is the industry-standard R IDE with graphical features:
 
 - **Architecture**: Electron-based desktop application with embedded R
 - **Market Position**: Used by ~70-80% of R users

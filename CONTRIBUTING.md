@@ -1,6 +1,6 @@
 # Contributing to zzvim-R
 
-Thank you for your interest in contributing to the zzvim-R plugin! This document provides guidelines for contributing to the project.
+This document provides guidelines for contributing to the zzvim-R plugin.
 
 ## Code of Conduct
 
@@ -211,4 +211,4 @@ Contributors are recognized in:
 - Release notes
 - README acknowledgments (for significant contributions)
 
-Thank you for helping improve zzvim-R!
+Contributions to zzvim-R are appreciated.

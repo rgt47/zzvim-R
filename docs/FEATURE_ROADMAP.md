@@ -4,7 +4,7 @@
 
 This document outlines potential enhancements to zzvim-R. These are
 incremental improvements to an already competitive plugin, not gap-closing
-measures. zzvim-R's integrated terminal graphics, comprehensive HUD system,
+measures. zzvim-R's integrated terminal graphics, HUD system,
 and Vim compatibility already position it strongly against R.nvim.
 
 ## Current Competitive Position
@@ -313,7 +313,7 @@ integration. `browser()` insertion is already trivial.
 zzvim-R is already a strong R development environment. The integrated
 terminal graphics system provides a workflow advantage that R.nvim cannot
 match. The HUD system, while different from R.nvim's tree browser, is
-comprehensive and functional.
+functional and complete.
 
 The improvements outlined here are incremental polish:
 - R Markdown rendering fills a genuine (small) gap

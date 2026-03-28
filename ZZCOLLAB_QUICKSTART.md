@@ -23,7 +23,7 @@ ZR            " Launch Docker R via 'make r' (Shift+Z then Shift+R)
 <CR>          " Execute code
 ```
 
-## That's It!
+## Basic Usage
 
 After `ZR` launches Docker R, all normal zzvim-R features work:
 - `<CR>` - Execute code

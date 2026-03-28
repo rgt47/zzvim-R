@@ -1,4 +1,4 @@
-# zzvim-R Plot Display System: A Comprehensive Vignette
+# zzvim-R Plot Display System Vignette
 
 ## Introduction
 
@@ -642,7 +642,7 @@ existing files, so stale plots don't display on startup. If this still occurs:
    windows.
 
 4. **Docker integration**: The `.plots/` directory is volume-mounted, enabling
-   seamless plot display from containerized R sessions.
+   plot display from containerized R sessions.
 
 5. **Configurable layout**: Pane location (vsplit, hsplit, tab) adapts to
    different screen sizes and workflows.

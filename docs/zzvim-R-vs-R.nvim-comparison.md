@@ -155,7 +155,7 @@ A typical research data analysis session involves:
 - No integrated plot viewing within the editor
 - **Limitation**: Context switching between editor and plot windows
 
-**Assessment**: zzvim-R now provides superior plot viewing for Kitty terminal users. The integrated terminal graphics system offers an RStudio-like experience with automatic plot updates, history navigation, and zoom capabilities—all without leaving the terminal. R.nvim relies on external graphics devices, requiring users to manage separate windows. This is a significant workflow improvement for iterative data visualization.
+**Assessment**: zzvim-R now provides superior plot viewing for Kitty terminal users. The integrated terminal graphics system offers an RStudio-like experience with automatic plot updates, history navigation, and zoom capabilities, all without leaving the terminal. R.nvim relies on external graphics devices, requiring users to manage separate windows. This is a significant workflow improvement for iterative data visualization.
 
 #### Debugging
 
@@ -178,7 +178,7 @@ A typical research data analysis session involves:
 
 These features are **blocking issues** for serious research adoption:
 
-**Note on Plot Viewing**: zzvim-R now provides integrated terminal graphics via the Kitty Graphics Protocol, displaying plots inline in a dedicated pane with automatic updates, history navigation, and zoom. This is a significant differentiator—R.nvim still relies on external graphics devices (Quartz, X11). For Kitty terminal users, zzvim-R offers an RStudio-like plotting experience that R.nvim cannot match.
+**Note on Plot Viewing**: zzvim-R now provides integrated terminal graphics via the Kitty Graphics Protocol, displaying plots inline in a dedicated pane with automatic updates, history navigation, and zoom. This is a significant differentiator; R.nvim still relies on external graphics devices (Quartz, X11). For Kitty terminal users, zzvim-R offers an RStudio-like plotting experience that R.nvim cannot match.
 
 #### 1. Integrated Code Completion
 
@@ -393,7 +393,7 @@ These features differentiate capable tools from basic ones:
 
 1. **Integrated Plot Viewing**: Terminal graphics via Kitty protocol with
    automatic updates, history navigation, gallery view, and zoom. R.nvim
-   has no equivalent—this is a significant workflow advantage.
+   has no equivalent; this is a significant workflow advantage.
 
 2. **Vim Compatibility**: R.nvim abandoned Vim users. zzvim-R is the only
    maintained option for Vim 8+ users who want smart R integration.
@@ -468,8 +468,8 @@ the `ZR` mapping and force-association features.
 ## Conclusion
 
 zzvim-R has evolved from a lightweight alternative to a competitive option for
-research data analysis. The integrated terminal graphics system—with automatic
-plot updates, history navigation, gallery view, and zoom—provides a workflow
+research data analysis. The integrated terminal graphics system, with automatic
+plot updates, history navigation, gallery view, and zoom, provides a workflow
 advantage that R.nvim cannot match. For Kitty terminal users, zzvim-R now
 offers an RStudio-like plotting experience.
 
