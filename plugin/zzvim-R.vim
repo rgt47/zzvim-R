@@ -3,9 +3,9 @@ scriptencoding utf-8
 " zzvim-R - Advanced R Development Plugin for Vim
 " ==========================================================================="
 " Maintainer:  RG Thomas rgthomas@ucsd.edu
-" Version:     1.0
+" Version:     1.0.0
 " License:     GPL3 License
-" Last Change: 2025
+" Last Change: 2026-04-13
 "
 " PLUGIN OVERVIEW:
 " ================
@@ -192,7 +192,7 @@ endif
 " Convention: g:loaded_{plugin_name} = 1 indicates successful loading
 let g:loaded_zzvim_r = 1
 " Plugin version for compatibility checking and debugging
-let g:zzvim_r_version = '1.0'
+let g:zzvim_r_version = '1.0.0'
 
 " =============================================================================
 " CONFIGURATION INITIALIZATION WITH SAFE DEFAULTS

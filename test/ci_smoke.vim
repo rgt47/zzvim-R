@@ -32,12 +32,30 @@ else
     let failed_tests += 1
 endif
 
-" Test 2: Version variable exists
-if exists('g:zzvim_r_version')
-    echo "✓ PASS | Version variable exists: " . g:zzvim_r_version
-else
+" Test 2: Version variable exists and matches plugin header
+if !exists('g:zzvim_r_version')
     echo "✗ FAIL | Version variable missing"
     let failed_tests += 1
+else
+    " Parse 'Version: X.Y.Z' out of the plugin file header and
+    " compare to g:zzvim_r_version. Catches drift between the
+    " comment block and the runtime constant.
+    let plugin_path = filereadable('plugin/zzvim-R.vim') ? 'plugin/zzvim-R.vim' : '../plugin/zzvim-R.vim'
+    let header = readfile(plugin_path, '', 20)
+    let header_version = ''
+    for line in header
+        let m = matchlist(line, '^"\s*Version:\s*\(\S\+\)')
+        if !empty(m) | let header_version = m[1] | break | endif
+    endfor
+    if header_version ==# ''
+        echo "✗ FAIL | Could not parse Version: from plugin header"
+        let failed_tests += 1
+    elseif header_version !=# g:zzvim_r_version
+        echo "✗ FAIL | Version mismatch: header=" . header_version . " g:zzvim_r_version=" . g:zzvim_r_version
+        let failed_tests += 1
+    else
+        echo "✓ PASS | Version consistent: " . g:zzvim_r_version
+    endif
 endif
 
 " Test 3: Vim version compatibility

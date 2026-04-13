@@ -30,12 +30,12 @@ jobs:
           
           ### Via vim-plug
           ```vim
-          Plug 'yourusername/zzvim-R'
+          Plug 'rgt47/zzvim-R'
           ```
-          
+
           ### Via Vundle
           ```vim
-          Plugin 'yourusername/zzvim-R'
+          Plugin 'rgt47/zzvim-R'
           ```
           
           ### Manual Installation

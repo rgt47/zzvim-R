@@ -1,8 +1,8 @@
 *zzvim-r.txt*  R Integration Plugin for Vim
 
-Author:  zzvim-R Development Team <email>
+Author:  RG Thomas <rgthomas@ucsd.edu>
 License: GPL-3.0
-Version: 1.0.2
+Version: 1.0.0
 
 CONTENTS                                                        *zzvim-r-contents*
 
