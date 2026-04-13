@@ -1,2 +1,0 @@
-ACEARB_vars <- c("DERS.NONACCEPTANCE", "ASI_total", "SEQII_19_last5years", "screen_pain_location___10", "ecrr28", "acs16", "cdrisc16", "eds2_14", "acs12", "acs19", "DERS.AWARENESS", "DERS.GOALS",
-                 "aapq_aif2b", "ctq12")
