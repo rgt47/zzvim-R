@@ -1,2 +1,0 @@
-options(width = 
-        100)
