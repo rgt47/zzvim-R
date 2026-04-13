@@ -56,13 +56,13 @@ jobs:
           cd "$GITHUB_WORKSPACE" && nvim --headless -c "source plugin/zzvim-R.vim" -c "qa!"
         fi
     
-    - name: Run CI tests
+    - name: Run smoke tests
       timeout-minutes: 5
       run: |
         if [ "${{ matrix.vim }}" = "vim" ]; then
-          cd "$GITHUB_WORKSPACE" && vim -es -c "source test_files/ci_test.vim"
+          cd "$GITHUB_WORKSPACE" && vim -es -c "source test/ci_smoke.vim"
         else
-          cd "$GITHUB_WORKSPACE" && nvim --headless -c "source test_files/ci_test.vim"
+          cd "$GITHUB_WORKSPACE" && nvim --headless -c "source test/ci_smoke.vim"
         fi
     
     - name: Validate help documentation
