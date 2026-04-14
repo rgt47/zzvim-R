@@ -1867,6 +1867,9 @@ if !g:zzvim_r_disable_mappings
         autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>[ :call <SID>PlotHistory()<CR>
         autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>\ :call <SID>PlotSave()<CR>
 
+        " Render zztable1 blueprint under cursor via Typst (zztab2fig)
+        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>T :call <SID>RTable1View('')<CR>
+
         " R Markdown rendering (rk = render knit)
         autocmd FileType rmd,quarto nnoremap <buffer> <silent> <localleader>rp :RMarkdownPreview<CR>
         autocmd FileType rmd,quarto nnoremap <buffer> <silent> <localleader>rk :RMarkdownRender<CR>
@@ -2707,6 +2710,7 @@ command! -bar REnvironmentHUD call s:REnvironmentHUD()
 command! -bar ROptionsHUD call s:ROptionsHUD()
 command! -bar RHUDDashboard call s:RHUDDashboard()
 command! -bar RInstallDplyr call s:Send_to_r('install.packages("dplyr")', 1)
+command! -bar -nargs=? RTable1View call s:RTable1View(<q-args>)
 
 "------------------------------------------------------------------------------
 " Helper Functions for Commands
@@ -2728,10 +2732,33 @@ endfunction
 
 " Object inspection wrapper function - maintains backward compatibility
 " Parameters:
-"   a:action (string) - R function name (dim, head, str, etc.)  
+"   a:action (string) - R function name (dim, head, str, etc.)
 "   a:stay_on_line (boolean) - whether to keep cursor on current line
 function! s:RAction(action, stay_on_line) abort
     call s:RCommandWithArg(a:action, '', a:stay_on_line)
+endfunction
+
+" Render a zztable1 blueprint under the cursor to PNG and display via
+" the existing plot pipeline. Requires the zztable1 and zztab2fig R
+" packages and the 'typst' CLI on PATH.
+function! s:RTable1View(arg) abort
+    let target = empty(a:arg) ? expand('<cword>') : a:arg
+    if empty(target)
+        call s:Error("No variable provided and no word under cursor")
+        return
+    endif
+    let plots_dir = s:GetPlotsDir()
+    if !isdirectory(plots_dir)
+        call mkdir(plots_dir, 'p')
+    endif
+    let signal = s:GetSignalFile()
+    let cmd = printf(
+        \ 'zztable1::save_as_image(%s, filename="current", '
+        \ . 'sub_dir="%s", format="png", dpi=150); '
+        \ . 'file.create("%s"); Sys.setFileTime("%s", Sys.time())',
+        \ target, plots_dir, signal, signal)
+    call s:Send_to_r(cmd, 1)
+    echom "Rendering table1: " . target
 endfunction
 
 " Helper for simple R commands with validation
@@ -3792,3 +3819,16 @@ endfunction
 " ============================================================================
 " Terminal graphics initialization is now handled by FileType autocmd above
 " Only runs when opening R, Rmd, or Qmd files, not on plugin load
+
+" ============================================================================
+" Test Harness Hook
+" ============================================================================
+" When g:zzvim_r_testing is set before this file is sourced, expose
+" script-local functions via a funcref factory so vim-themis specs in
+" test/functional/ can assert their behavior. Gated: in production
+" sessions this block is skipped and no global is created.
+if get(g:, 'zzvim_r_testing', 0)
+    function! g:ZzvimRTestFunc(name) abort
+        return function('s:' . a:name)
+    endfunction
+endif
