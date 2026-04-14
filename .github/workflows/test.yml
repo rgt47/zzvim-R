@@ -8,33 +8,23 @@ on:
 
 jobs:
   test:
+    name: ${{ matrix.editor }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        vim: [vim, neovim]
-    
+        editor: [vim, neovim]
+
     steps:
     - uses: actions/checkout@v4
-    
-    - name: Install Vim/Neovim
-      run: |
-        if [ "${{ matrix.vim }}" = "vim" ]; then
-          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
-            sudo apt-get update
-            sudo apt-get install -y vim
-          else
-            brew install vim
-          fi
-        else
-          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
-            sudo apt-get update  
-            sudo apt-get install -y neovim
-          else
-            brew install neovim
-          fi
-        fi
-    
+
+    - name: Set up ${{ matrix.editor }}
+      uses: rhysd/action-setup-vim@v1
+      with:
+        neovim: ${{ matrix.editor == 'neovim' }}
+        version: stable
+
     - name: Install R
       run: |
         if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
@@ -43,57 +33,58 @@ jobs:
         else
           brew install r
         fi
-    
+
     - name: Verify R installation
       run: R --version
-    
-    - name: Test plugin syntax
+
+    - name: Plugin syntax check
       timeout-minutes: 2
       run: |
-        if [ "${{ matrix.vim }}" = "vim" ]; then
-          cd "$GITHUB_WORKSPACE" && vim -es -c "source plugin/zzvim-R.vim" -c "qa!"
+        if [ "${{ matrix.editor }}" = "vim" ]; then
+          vim -es -c 'source plugin/zzvim-R.vim' -c 'qa!'
         else
-          cd "$GITHUB_WORKSPACE" && nvim --headless -c "source plugin/zzvim-R.vim" -c "qa!"
+          nvim --headless -c 'source plugin/zzvim-R.vim' -c 'qa!'
         fi
-    
-    - name: Run smoke tests
+
+    - name: Helptags generation
+      timeout-minutes: 2
+      run: |
+        if [ "${{ matrix.editor }}" = "vim" ]; then
+          vim -es -c 'helptags doc/' -c 'qa!'
+        else
+          nvim --headless -c 'helptags doc/' -c 'qa!'
+        fi
+
+    - name: Smoke tests
       timeout-minutes: 5
       run: |
-        if [ "${{ matrix.vim }}" = "vim" ]; then
-          cd "$GITHUB_WORKSPACE" && vim -es -c "source test/ci_smoke.vim"
+        if [ "${{ matrix.editor }}" = "vim" ]; then
+          make smoke SMOKE_CMD='vim -es'
         else
-          cd "$GITHUB_WORKSPACE" && nvim --headless -c "source test/ci_smoke.vim"
+          make smoke SMOKE_CMD='nvim --headless -es'
         fi
-    
-    - name: Validate help documentation
-      timeout-minutes: 2
+
+    - name: Install vim-themis
+      run: make themis-install
+
+    - name: Functional tests
+      timeout-minutes: 5
       run: |
-        if [ "${{ matrix.vim }}" = "vim" ]; then
-          cd "$GITHUB_WORKSPACE" && vim -es -c "helptags doc/" -c "qa!"
+        if [ "${{ matrix.editor }}" = "vim" ]; then
+          make functional THEMIS_VIM=vim
         else
-          cd "$GITHUB_WORKSPACE" && nvim --headless -c "helptags doc/" -c "qa!"
+          make functional THEMIS_VIM=nvim
         fi
 
   lint:
+    name: vint
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    
-    - name: Install vint (VimScript linter)
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.x'
+    - name: Install vint
       run: pip install vim-vint
-    
-    - name: Lint VimScript files
+    - name: Lint plugin/zzvim-R.vim
       run: vint -e plugin/zzvim-R.vim
-
-  compatibility:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Test minimum Vim version (8.0)
-      run: |
-        # Test with default Ubuntu Vim (should be 8.0+)
-        sudo apt-get update
-        sudo apt-get install -y vim
-        vim --version | head -5
-        vim -es -c "source plugin/zzvim-R.vim" -c "qa!"
