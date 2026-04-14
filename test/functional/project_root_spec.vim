@@ -112,8 +112,23 @@ function! s:suite.zzcollab_project_false_when_no_makefile() abort
 endfunction
 
 function! s:suite.zzcollab_project_finds_makefile_in_parent() abort
-    call writefile(['r:', "\tdocker run"], s:tmpdir . '/Makefile')
+    " Realistic Makefile with a leading .PHONY declaration; the
+    " plugin's r:-target regex requires a preceding newline so a
+    " lone first-line 'r:' is missed (see next spec).
+    call writefile(['.PHONY: r', 'r:', "\tdocker run"], s:tmpdir . '/Makefile')
     call mkdir(s:tmpdir . '/sub', 'p')
     execute 'lcd' fnameescape(s:tmpdir . '/sub')
     call s:assert.truthy(s:IsZzCollabProject())
+endfunction
+
+function! s:suite.zzcollab_project_first_line_r_target_not_detected() abort
+    " Documents a plugin bug: the regex used to detect a zzcollab
+    " project is '\n\s*r\s*:', which requires a newline *before*
+    " the 'r:' target. A Makefile whose very first line is 'r:'
+    " is therefore not recognized as a zzcollab project, even
+    " though Make itself would honor the target. A future fix
+    " should use '\%(^\|\n\)\s*r\s*:' or equivalent.
+    call writefile(['r:', "\tdocker run"], s:tmpdir . '/Makefile')
+    execute 'lcd' fnameescape(s:tmpdir)
+    call s:assert.falsy(s:IsZzCollabProject())
 endfunction
