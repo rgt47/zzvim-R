@@ -3,7 +3,14 @@
     "allow": [
       "Bash(vim:*)",
       "Bash(awk:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(git add:*)",
+      "Bash(echo \"---exit=$?\")",
+      "Bash(vim -es +\"source test/ci_smoke.vim\")",
+      "Read(//tmp/**)",
+      "Bash(echo \"exit=$?\")",
+      "Bash(git reset:*)",
+      "Bash(test/.deps/vim-themis/bin/themis --version)"
     ],
     "deny": [],
     "ask": [],
