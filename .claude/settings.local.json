@@ -10,7 +10,9 @@
       "Read(//tmp/**)",
       "Bash(echo \"exit=$?\")",
       "Bash(git reset:*)",
-      "Bash(test/.deps/vim-themis/bin/themis --version)"
+      "Bash(test/.deps/vim-themis/bin/themis --version)",
+      "Bash(make functional:*)",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": [],
