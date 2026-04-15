@@ -69,7 +69,10 @@ jobs:
         if [ "${{ matrix.editor }}" = "vim" ]; then
           make smoke SMOKE_CMD='vim -es'
         else
-          make smoke SMOKE_CMD='nvim --headless -es'
+          # Drop -es under Neovim: on Windows, 'nvim --headless -es'
+          # blocks waiting for stdin. --headless alone plus the
+          # script's own qall!/cquit! handles exit cleanly.
+          make smoke SMOKE_CMD='nvim --headless'
         fi
 
     - name: Install vim-themis
@@ -93,6 +96,8 @@ jobs:
       with:
         python-version: '3.x'
     - name: Install vint
-      run: pip install vim-vint
+      # setuptools provides pkg_resources, which vint imports; Python
+      # 3.12+ no longer ships it by default.
+      run: pip install setuptools vim-vint
     - name: Lint plugin/zzvim-R.vim
       run: vint -e plugin/zzvim-R.vim

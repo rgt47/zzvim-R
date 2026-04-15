@@ -55,17 +55,31 @@ function! s:suite.returns_empty_when_no_marker_present() abort
 endfunction
 
 function! s:suite.finds_zzcollab_marker_in_current_dir() abort
+    " Portability: compare by the function's contract (returned
+    " path contains the .zzcollab marker) rather than exact-string
+    " equality. Git Bash on Windows exposes tempname() via a
+    " translated prefix (/tmp/... vs /c/Users/.../Temp/...) that
+    " resolve() does not unify, so exact comparison is fragile.
     call mkdir(s:tmpdir . '/.zzcollab', 'p')
     execute 'lcd' fnameescape(s:tmpdir)
-    " resolve() normalizes symlinks on macOS where /var -> /private/var.
-    call s:assert.equals(resolve(s:GetProjectRoot()), resolve(s:tmpdir))
+    let root = s:GetProjectRoot()
+    call s:assert.not_equals(root, '')
+    call s:assert.truthy(isdirectory(root . '/.zzcollab'))
 endfunction
 
 function! s:suite.finds_zzcollab_marker_in_parent_dir() abort
     call mkdir(s:tmpdir . '/.zzcollab', 'p')
     call mkdir(s:tmpdir . '/src/analysis', 'p')
     execute 'lcd' fnameescape(s:tmpdir . '/src/analysis')
-    call s:assert.equals(resolve(s:GetProjectRoot()), resolve(s:tmpdir))
+    let root = s:GetProjectRoot()
+    call s:assert.not_equals(root, '')
+    call s:assert.truthy(isdirectory(root . '/.zzcollab'))
+    " The returned path must be an ancestor of the current cwd.
+    " getcwd() and root may use different path styles on Windows,
+    " so normalize with fnamemodify(':p') first.
+    let cwd_p = fnamemodify(getcwd(), ':p')
+    let root_p = fnamemodify(root, ':p')
+    call s:assert.truthy(stridx(cwd_p, root_p) >= 0)
 endfunction
 
 function! s:suite.explicit_override_short_circuits_search() abort
