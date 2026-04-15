@@ -259,19 +259,6 @@ function! s:GetRprofileVersion(filepath) abort
     return ''
 endfunction
 
-" Compare two semver strings: returns -1, 0, or 1
-function! s:CompareSemver(a, b) abort
-    let pa = split(a:a, '\.')
-    let pb = split(a:b, '\.')
-    for i in range(3)
-        let na = str2nr(get(pa, i, '0'))
-        let nb = str2nr(get(pb, i, '0'))
-        if na < nb | return -1 | endif
-        if na > nb | return 1 | endif
-    endfor
-    return 0
-endfunction
-
 " Check if local .Rprofile.local needs updating and prompt user
 " Called when R terminal starts
 function! s:CheckTemplateVersion() abort
@@ -292,7 +279,7 @@ function! s:CheckTemplateVersion() abort
     let template_version = s:GetRprofileVersion(template_file)
 
     " Local file has no version or is current
-    if local_version ==# '' || s:CompareSemver(local_version, template_version) >= 0
+    if local_version ==# '' || zzvim_r#compare_semver(local_version, template_version) >= 0
         return
     endif
 

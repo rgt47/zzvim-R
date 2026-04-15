@@ -8,7 +8,9 @@
 let s:suite = themis#suite('CompareSemver')
 let s:assert = themis#helper('assert')
 
-let s:CompareSemver = g:ZzvimRTestFunc('CompareSemver')
+" After Phase 4 POC: CompareSemver now lives in autoload as
+" zzvim_r#compare_semver. No test-harness indirection needed.
+let s:CompareSemver = function('zzvim_r#compare_semver')
 
 function! s:suite.equal_versions_return_zero() abort
     call s:assert.equals(s:CompareSemver('1.0.0', '1.0.0'), 0)
