@@ -242,23 +242,6 @@ let s:plugin_dir = fnamemodify(resolve(expand('<sfile>:p')), ':h:h')
 " Matches: # zzvim-R .Rprofile.local vX.Y.Z
 " Also matches legacy: # zzvim-R template version: N (returns '0.0.N')
 " Returns: version string or '' if not found
-function! s:GetRprofileVersion(filepath) abort
-    if !filereadable(a:filepath)
-        return ''
-    endif
-    for line in readfile(a:filepath, '', 20)
-        let match = matchlist(line, 'zzvim-R \.Rprofile\.local v\(\d\+\.\d\+\.\d\+\)')
-        if !empty(match)
-            return match[1]
-        endif
-        let match = matchlist(line, 'zzvim-R template version:\s*\(\d\+\)')
-        if !empty(match)
-            return '0.0.' . match[1]
-        endif
-    endfor
-    return ''
-endfunction
-
 " Check if local .Rprofile.local needs updating and prompt user
 " Called when R terminal starts
 function! s:CheckTemplateVersion() abort
@@ -275,8 +258,8 @@ function! s:CheckTemplateVersion() abort
         return
     endif
 
-    let local_version = s:GetRprofileVersion(local_file)
-    let template_version = s:GetRprofileVersion(template_file)
+    let local_version = zzvim_r#get_rprofile_version(local_file)
+    let template_version = zzvim_r#get_rprofile_version(template_file)
 
     " Local file has no version or is current
     if local_version ==# '' || zzvim_r#compare_semver(local_version, template_version) >= 0
@@ -482,15 +465,6 @@ function! s:Error(msg) abort
     call s:Log(a:msg, 1)
 endfunction
 
-" Check if line ends with an R infix operator (pipe, arithmetic, assignment, etc.)
-" Used for multi-line expression detection
-function! s:EndsWithInfixOperator(line) abort
-    return a:line =~# '[+\-*/^&|<>=!,]\s*$' ||
-                \ a:line =~# '%[^%]*%\s*$' ||
-                \ a:line =~# '<-\s*$' ||
-                \ a:line =~# '|>\s*$'
-endfunction
-
 " Set up buffer for HUD/viewer displays with standard options
 " Note: Does not set readonly - call setlocal readonly after writing content
 function! s:SetupViewerBuffer() abort
@@ -533,45 +507,6 @@ function! s:OpenRTerminal(...) abort
     return s:ConfigureTerminal(terminal_name, 0)
 endfunction
 
-" Check if current directory is inside a zzcollab workspace
-" Walks up directory tree looking for .zzcollab/ directory (unique zzcollab signature)
-function! s:IsInsideZzcollab() abort
-    return !empty(s:GetProjectRoot())
-endfunction
-
-" Get the project root directory (where .zzcollab/ marker exists)
-" Returns empty string if not inside a zzcollab workspace
-" Checks for .zzcollab/ directory (unique signature of zzcollab workspaces)
-function! s:GetProjectRoot() abort
-    " Check for user-configured project root first
-    if exists('g:zzvim_r_project_root') && !empty(g:zzvim_r_project_root)
-        return g:zzvim_r_project_root
-    endif
-
-    " Walk up directory tree looking for .zzcollab/ directory
-    " Only marks a directory as zzcollab if .zzcollab/ directory exists
-    let dir = getcwd()
-    while dir != '/'
-        " Check for .zzcollab/ directory (unique zzcollab workspace marker)
-        if isdirectory(dir . '/.zzcollab')
-            return dir
-        endif
-
-        let dir = fnamemodify(dir, ':h')
-    endwhile
-
-    return ''
-endfunction
-
-" Auto-lcd to zzcollab project root when opening R files from subdirectories
-" Aligns Vim's getcwd() with the Docker container's mount/working directory
-function! s:AutoLcdProjectRoot() abort
-    let l:root = s:GetProjectRoot()
-    if !empty(l:root) && getcwd() !=# l:root
-        execute 'lcd ' . fnameescape(l:root)
-    endif
-endfunction
-
 " Force open local/host R terminal (bypass zzcollab workspace detection)
 function! s:OpenLocalRTerminal(...) abort
     let terminal_name = a:0 > 0 ? a:1 : s:GetTerminalName()
@@ -612,18 +547,6 @@ function! s:OpenLocalRTerminalVanilla(...) abort
     return s:ConfigureTerminal(terminal_name, 0)
 endfunction
 
-" Check if current directory is a zzcollab project (has Makefile with r: target)
-function! s:IsZzCollabProject() abort
-    " Check for Makefile in current directory or parent directories
-    let l:makefile = findfile('Makefile', '.;')
-    if empty(l:makefile)
-        return 0
-    endif
-
-    " Check if Makefile has 'r:' target (zzcollab signature)
-    let l:content = join(readfile(l:makefile), "\n")
-    return l:content =~# '\n\s*r\s*:'
-endfunction
 
 " Create R Terminal - auto-detects zzcollab vs standalone
 " In zzcollab project: uses Docker via 'make r'
@@ -1433,7 +1356,7 @@ function! s:IsBlockStart(line) abort
     endif
     
     " Multi-line expressions - lines ending with infix operators or commas
-    if s:EndsWithInfixOperator(a:line)
+    if zzvim_r#ends_with_infix_operator(a:line)
         return 1
     endif
     
@@ -1459,7 +1382,7 @@ function! s:GetCodeBlock() abort
     
     " Phase 1: Check for infix expressions first (no balanced delimiters)
     " But exclude lines with unbalanced parentheses (those should use Phase 2)
-    let has_infix_ending = s:EndsWithInfixOperator(current_line)
+    let has_infix_ending = zzvim_r#ends_with_infix_operator(current_line)
     
     if has_infix_ending
         " Check if line has unbalanced parentheses - if so, use Phase 2 instead
@@ -1493,7 +1416,7 @@ function! s:GetCodeBlock() abort
                 let paren_balance -= len(substitute(next_line, '[^)]', '', 'g'))
 
                 " Check if this line ends with an operator or comma (pipe chain continues)
-                let ends_with_operator = s:EndsWithInfixOperator(next_line)
+                let ends_with_operator = zzvim_r#ends_with_infix_operator(next_line)
 
                 if ends_with_operator
                     " Line ends with operator, continue the chain
@@ -1668,7 +1591,7 @@ function! s:GetCodeBlock() abort
 
     " Phase 3: Continue past balanced delimiters if line ends with infix operator
     " Handles cases like: read_csv(...) %>% \n  sel(...)
-    if s:EndsWithInfixOperator(getline(end_line))
+    if zzvim_r#ends_with_infix_operator(getline(end_line))
         let paren_balance = 0
         while end_line < line('$')
             let end_line += 1
@@ -1681,7 +1604,7 @@ function! s:GetCodeBlock() abort
             let paren_balance += len(substitute(next_line, '[^(]', '', 'g'))
             let paren_balance -= len(substitute(next_line, '[^)]', '', 'g'))
 
-            if s:EndsWithInfixOperator(next_line)
+            if zzvim_r#ends_with_infix_operator(next_line)
                 continue
             endif
 
