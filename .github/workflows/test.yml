@@ -8,34 +8,42 @@ on:
 
 jobs:
   test:
-    name: ${{ matrix.editor }} on ${{ matrix.os }}
+    name: ${{ matrix.editor }} ${{ matrix.version }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.experimental || false }}
+    defaults:
+      run:
+        shell: bash
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
-        editor: [vim, neovim]
+        include:
+          # Stable across the full OS × editor grid
+          - { os: ubuntu-latest,  editor: vim,    version: stable }
+          - { os: ubuntu-latest,  editor: neovim, version: stable }
+          - { os: macos-latest,   editor: vim,    version: stable }
+          - { os: macos-latest,   editor: neovim, version: stable }
+          - { os: windows-latest, editor: vim,    version: stable }
+          - { os: windows-latest, editor: neovim, version: stable }
+          # Nightly on Ubuntu only: catches upstream breakage early
+          # without multiplying flake surface across OSes.
+          # experimental=true marks the cell continue-on-error so
+          # upstream regressions do not red-CI legitimate PRs.
+          - { os: ubuntu-latest,  editor: vim,    version: nightly, experimental: true }
+          - { os: ubuntu-latest,  editor: neovim, version: nightly, experimental: true }
 
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up ${{ matrix.editor }}
+    - name: Set up ${{ matrix.editor }} ${{ matrix.version }}
       uses: rhysd/action-setup-vim@v1
       with:
         neovim: ${{ matrix.editor == 'neovim' }}
-        version: stable
+        version: ${{ matrix.version }}
 
-    - name: Install R
-      run: |
-        if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
-          sudo apt-get update
-          sudo apt-get install -y r-base
-        else
-          brew install r
-        fi
-
-    - name: Verify R installation
-      run: R --version
+    # R is not a runtime dependency of the current test suite — the
+    # functional specs exercise VimScript logic, not R evaluation.
+    # No R installation step is necessary.
 
     - name: Plugin syntax check
       timeout-minutes: 2
