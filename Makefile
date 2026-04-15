@@ -15,7 +15,7 @@ THEMIS_VIM ?= vim
 test: smoke functional
 
 smoke:
-	$(SMOKE_CMD) -c 'source test/ci_smoke.vim'
+	$(SMOKE_CMD) -c 'source test/ci_smoke.vim' </dev/null
 
 functional: $(THEMIS_BIN)
 	THEMIS_HOME=$(CURDIR)/$(THEMIS_DIR) THEMIS_VIM=$(THEMIS_VIM) \

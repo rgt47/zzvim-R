@@ -94,10 +94,11 @@ jobs:
     - uses: actions/checkout@v4
     - uses: actions/setup-python@v5
       with:
-        python-version: '3.x'
+        # Pin to 3.11: vint imports pkg_resources, which later Python
+        # releases ship without it (3.12 requires setuptools install,
+        # 3.14 appears to omit it entirely). 3.11 is known-good.
+        python-version: '3.11'
     - name: Install vint
-      # setuptools provides pkg_resources, which vint imports; Python
-      # 3.12+ no longer ships it by default.
-      run: pip install setuptools vim-vint
+      run: pip install vim-vint
     - name: Lint plugin/zzvim-R.vim
       run: vint -e plugin/zzvim-R.vim
