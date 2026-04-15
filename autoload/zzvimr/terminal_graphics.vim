@@ -84,6 +84,13 @@ endfunction
 
 " Prompt user to update outdated .Rprofile.local
 function! zzvimr#terminal_graphics#prompt_update(current_version) abort
+    " Skip the prompt under headless / test runs. input() blocks
+    " indefinitely in headless Neovim on Windows; the g:zzvim_r_testing
+    " gate lets CI and themis suites exercise this code path without
+    " hanging.
+    if get(g:, 'zzvim_r_testing', 0)
+        return 0
+    endif
     let l:msg = printf(
         \ '.Rprofile.local is outdated (v%d -> v%d). Update for latest features? [y/N]: ',
         \ a:current_version, s:template_version)

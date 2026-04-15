@@ -1,5 +1,8 @@
 scriptencoding utf-8
 set nocompatible
+" Announce test-run to the plugin. Gates any input()-driven prompts
+" so headless Neovim on Windows does not block the smoke step.
+let g:zzvim_r_testing = 1
 " Smoke tests for zzvim-R plugin, intended for headless CI.
 "
 " Scope: existence and consistency checks. Verifies that the plugin

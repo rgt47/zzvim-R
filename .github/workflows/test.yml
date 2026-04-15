@@ -64,15 +64,16 @@ jobs:
         fi
 
     - name: Smoke tests
-      timeout-minutes: 5
+      timeout-minutes: 2
       run: |
         if [ "${{ matrix.editor }}" = "vim" ]; then
           make smoke SMOKE_CMD='vim -es'
         else
-          # Drop -es under Neovim: on Windows, 'nvim --headless -es'
-          # blocks waiting for stdin. --headless alone plus the
-          # script's own qall!/cquit! handles exit cleanly.
-          make smoke SMOKE_CMD='nvim --headless'
+          # Neovim needs -es for silent Ex mode AND </dev/null (set
+          # in Makefile) to close stdin. On Windows this is still
+          # flaky; a short timeout (2 min) means a hang fails fast
+          # instead of eating 5 min of CI budget.
+          make smoke SMOKE_CMD='nvim --headless -es'
         fi
 
     - name: Install vim-themis
