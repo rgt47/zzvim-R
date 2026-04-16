@@ -13,33 +13,33 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Create Release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         tag_name: ${{ github.ref_name }}
-        name: Release ${{ github.ref_name }}
+        name: zzvim-R ${{ github.ref_name }}
         body: |
-          ## Changes in this Release
-          
           See [CHANGELOG.md](CHANGELOG.md) for detailed changes.
-          
-          ## Installation
-          
-          ### Via vim-plug
+
+          ## Install
+
+          **lazy.nvim**
+          ```lua
+          { 'rgt47/zzvim-R', ft = { 'r', 'rmd', 'quarto' } }
+          ```
+
+          **vim-plug**
           ```vim
           Plug 'rgt47/zzvim-R'
           ```
 
-          ### Via Vundle
-          ```vim
-          Plugin 'rgt47/zzvim-R'
+          **Native packages**
+          ```bash
+          git clone https://github.com/rgt47/zzvim-R.git \
+            ~/.vim/pack/plugins/start/zzvim-R
           ```
-          
-          ### Manual Installation
-          Copy `plugin/zzvim-R.vim` and `doc/zzvim-R.txt` to your Vim runtime path.
-          
         draft: false
         prerelease: false
