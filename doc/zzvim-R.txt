@@ -406,6 +406,63 @@ HUD and Workspace Analysis Commands               *zzvim-r-commands-hud*
     Creates comprehensive workspace overview for situational awareness.
     Navigation: Use gt/gT to cycle tabs, :q to close, repeat command to refresh.
 
+Plot Display and History                          *zzvim-r-commands-plot*
+
+Plots are captured to `.plots/` as a PDF master plus a PNG preview. The
+plot pane displays the PNG in supported terminals (Kitty graphics protocol,
+iTerm2 imgcat). See also |zzvim-r-plots|.
+
+:RPlotShow                                                        *:RPlotShow*
+    Display the most recent plot in the inline plot pane.
+
+:RPlotZoom                                                        *:RPlotZoom*
+    Open the current plot's PDF master in the system viewer at 200% zoom.
+
+:RPlotPrev                                                        *:RPlotPrev*
+:RPlotNext                                                        *:RPlotNext*
+    Navigate the plot history one step backward or forward.
+
+:RPlotHistory                                                  *:RPlotHistory*
+    List all plots in the history directory with timestamps.
+
+:RPlotHUD                                                          *:RPlotHUD*
+:RPlotGallery                                                  *:RPlotGallery*
+    Open the Plot HUD in a right-side panel: navigate history, zoom,
+    save, delete. RPlotGallery is an alias for RPlotHUD.
+
+:RPlotSavePdf                                                  *:RPlotSavePdf*
+:RPlotSavePng                                                  *:RPlotSavePng*
+    Save the current plot to a user-chosen path in the requested format.
+
+:RPlotWatchStart                                            *:RPlotWatchStart*
+:RPlotWatchStop                                              *:RPlotWatchStop*
+    Start or stop the background timer that polls for new plots.
+
+:RPlotDebug                                                      *:RPlotDebug*
+    Print internal plot-pane state for diagnosis.
+
+R Markdown / Quarto Commands                      *zzvim-r-commands-rmd*
+
+:RChunkInsert                                                  *:RChunkInsert*
+    Insert a new R code chunk below the current line.
+
+:RChunkInsertAbove                                        *:RChunkInsertAbove*
+    Insert a new R code chunk above the current line.
+
+:RMarkdownPreview                                          *:RMarkdownPreview*
+    Render the current R Markdown / Quarto file and open the rendered
+    output. Respects the document's front-matter settings.
+
+Miscellaneous Commands                            *zzvim-r-commands-misc*
+
+:RSendWithComments                                        *:RSendWithComments*
+    Variant of smart submission that preserves comment lines when sending
+    a block to R.
+
+:RUpdateTemplate                                            *:RUpdateTemplate*
+    Check whether the project's .Rprofile.local is older than the plugin's
+    bundled template and prompt to update.
+
 ==============================================================================
 7. MAPPINGS                                                    *zzvim-r-mappings*
 
