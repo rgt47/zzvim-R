@@ -12,9 +12,10 @@
 let s:suite = themis#suite('ProjectRoot')
 let s:assert = themis#helper('assert')
 
-let s:GetProjectRoot     = g:ZzvimRTestFunc('GetProjectRoot')
-let s:IsInsideZzcollab   = g:ZzvimRTestFunc('IsInsideZzcollab')
-let s:IsZzCollabProject  = g:ZzvimRTestFunc('IsZzCollabProject')
+" Moved to autoload in Phase 4 batch 1.
+let s:GetProjectRoot     = function('zzvim_r#get_project_root')
+let s:IsInsideZzcollab   = function('zzvim_r#is_inside_zzcollab')
+let s:IsZzCollabProject  = function('zzvim_r#is_zzcollab_project')
 
 " Create an empty temp directory for a spec to populate.
 function! s:mktempdir() abort

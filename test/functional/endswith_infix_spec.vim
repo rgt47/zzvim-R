@@ -7,7 +7,8 @@
 let s:suite = themis#suite('EndsWithInfixOperator')
 let s:assert = themis#helper('assert')
 
-let s:EndsWithInfixOperator = g:ZzvimRTestFunc('EndsWithInfixOperator')
+" Moved to autoload in Phase 4 batch 1.
+let s:EndsWithInfixOperator = function('zzvim_r#ends_with_infix_operator')
 
 function! s:suite.native_pipe_is_incomplete() abort
     call s:assert.truthy(s:EndsWithInfixOperator('x |>'))

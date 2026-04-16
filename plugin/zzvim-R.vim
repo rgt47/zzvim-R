@@ -493,7 +493,7 @@ function! s:OpenRTerminal(...) abort
 
     " Check if inside a zzcollab workspace
     " If so, use Docker R terminal instead of local R
-    let l:project_root = s:GetProjectRoot()
+    let l:project_root = zzvim_r#get_project_root()
     if !empty(l:project_root)
         return s:OpenDockerRTerminal(terminal_name)
     endif
@@ -569,7 +569,7 @@ function! s:OpenDockerRTerminal(...) abort
     endif
 
     " Auto-detect: zzcollab project uses Docker, otherwise local R
-    if s:IsZzCollabProject()
+    if zzvim_r#is_zzcollab_project()
         if !executable('make')
             call s:Error('make is not installed or not in PATH')
             return -1
@@ -960,7 +960,7 @@ function! s:SendToR(selection_type, ...) abort
     endif
 
     " Check if buffer is inside a zzcollab project
-    let project_root = s:GetProjectRoot()
+    let project_root = zzvim_r#get_project_root()
     let is_zzcollab = !empty(project_root) && stridx(buffer_dir, project_root) == 0
 
     " Use project root for zzcollab, buffer directory for standalone
@@ -1069,7 +1069,7 @@ function! s:SendToRWithComments(selection_type) abort
     let timestamp = string(localtime())[-4:]
     let temp_filename = '.zzc' . timestamp . '.R'
     let temp_output_filename = '.zzo' . timestamp . '.txt'
-    let project_root = s:GetProjectRoot()
+    let project_root = zzvim_r#get_project_root()
     if empty(project_root)
         let project_root = getcwd()
     endif
@@ -1148,13 +1148,13 @@ function! s:GetTextByType(selection_type) abort
     " This enables context-aware <CR> key behavior
     if empty(a:selection_type)
         " First check if we're inside a function definition
-        if s:IsInsideFunction()
+        if zzvim_r#is_inside_function()
             " Inside function - send current line only for debugging
             return [getline('.')]
         endif
         
         " Check if we're in the middle of an incomplete statement
-        if s:IsIncompleteStatement()
+        if zzvim_r#is_incomplete_statement()
             " Don't send anything - this line is part of a multi-line statement
             " that was likely already sent when the first line was executed
             call s:Error("This appears to be a continuation line. Use the " .
@@ -1163,7 +1163,7 @@ function! s:GetTextByType(selection_type) abort
         endif
         
         " Check if current line starts a code block
-        if s:IsBlockStart(getline('.'))
+        if zzvim_r#is_block_start(getline('.'))
             " Current line starts a code block - extract complete block
             return s:GetCodeBlock()
         endif
@@ -1202,172 +1202,6 @@ endfunction
 " Check if current line is part of an incomplete multi-line statement
 " Detects continuation lines that shouldn't be executed independently
 " Returns: 1 if this is a continuation line, 0 otherwise  
-function! s:IsIncompleteStatement() abort
-    let current_line = getline('.')
-    
-    " Lines that clearly look like continuation/closing lines
-    if current_line =~# '^\s*[)}\],]' 
-        return 1
-    endif
-    
-    " Lines that are just parameter names or values (common in multi-line calls)
-    " More specific pattern to avoid false positives
-    " Exclude lines that contain assignments (<- or =) as these are statement starts
-    if current_line =~# '^\s*[a-zA-Z_][a-zA-Z0-9_.]*\s*[,)]\s*$' && current_line !~# '<-\|='
-        " Check if previous line has an incomplete statement
-        if line('.') > 1
-            let prev_line = getline(line('.') - 1)
-            if prev_line =~# '[\(,]\s*$'
-                return 1
-            endif
-        endif
-    endif
-    
-    " Check for infix operator continuation lines
-    if line('.') > 1
-        let prev_line = getline(line('.') - 1)
-        " Previous line ends with any infix operator
-        if prev_line =~# '[+\-*/^&|<>=!]\s*$' || prev_line =~# '%[^%]*%\s*$' || 
-                    \ prev_line =~# '<-\s*$' || prev_line =~# '|>\s*$'
-            return 1
-        endif
-    endif
-    
-    return 0
-endfunction
-
-" Check if cursor is inside a function definition
-" Looks backward to find function start and forward to find function end
-" Returns: 1 if inside function, 0 otherwise
-function! s:IsInsideFunction() abort
-    let save_pos = getpos('.')
-    let current_line = line('.')
-    
-    " Quick check: if we're in the first few lines, unlikely to be inside a function
-    if current_line < 3
-        return 0
-    endif
-    
-    " Search backward for function definition (limit search to avoid performance issues)
-    let search_limit = max([1, current_line - 50])
-    let function_start = search('function\s*(', 'bcnW', search_limit)
-    
-    if function_start == 0
-        " No function definition found above within reasonable range
-        return 0
-    endif
-    
-    " Quick validation: look for opening brace near function definition
-    call cursor(function_start, 1)
-    let brace_line = search('{', 'W', function_start + 5)
-    
-    if brace_line == 0
-        call setpos('.', save_pos)
-        return 0
-    endif
-    
-    " Fast brace counting with early termination
-    let brace_count = 0
-    let end_line = -1
-    let search_end = min([line('$'), brace_line + 100])  " Limit search range
-    
-    for line_num in range(brace_line, search_end)
-        let line_content = getline(line_num)
-        let open_braces = len(substitute(line_content, '[^{]', '', 'g'))
-        let close_braces = len(substitute(line_content, '[^}]', '', 'g'))
-        let brace_count += open_braces - close_braces
-        
-        if brace_count == 0 && (open_braces > 0 || close_braces > 0)
-            let end_line = line_num
-            break
-        endif
-        
-        " Early termination if we've gone too far
-        if line_num > current_line + 20
-            break
-        endif
-    endfor
-    
-    call setpos('.', save_pos)
-    
-    " Check if current line is between function start and end
-    if end_line > 0 && current_line > function_start && current_line < end_line
-        return 1
-    endif
-    
-    return 0
-endfunction
-
-" Detect R Code Block Starting Patterns
-" Pattern Recognition for R Language Constructs
-" Analyzes a line to determine if it begins a multi-line code structure
-" Supports both brace {} and parenthesis () matching with nested structures
-" Parameters:
-"   a:line (string) - Line of code to analyze
-" Returns: 1 if line starts a block, 0 otherwise
-function! s:IsBlockStart(line) abort
-    " Pattern detection using multiple checks
-    " Return 1 if line starts a block that needs special handling
-    
-    " Function definitions (most specific - contains both 'function' and parentheses)
-    if a:line =~# 'function\s*('
-        return 1
-    endif
-    
-    " Control structures at line start  
-    if a:line =~# '^\s*\(if\|for\|while\)\s*('
-        return 1
-    endif
-    
-    " Repeat and standalone blocks
-    if a:line =~# '^\s*\(repeat\s*\)\?{'
-        return 1  
-    endif
-    
-    " Function calls that start at beginning of line (not continuation lines)
-    " More specific pattern to avoid catching continuation lines
-    " Exclude lines that start with closing characters or are clearly continuation lines
-    if a:line =~# '^\s*[a-zA-Z_][a-zA-Z0-9_.]*\s*(' && a:line !~ '^\s*[)}\],]'
-        " Additional check: make sure it's not just a parameter name with parentheses
-        " like "       dplyr)" which shouldn't be treated as a function call
-        if a:line !~ '^\s*[a-zA-Z_][a-zA-Z0-9_.]*\s*)\s*$'
-            return 1
-        endif
-    endif
-    
-    " Assignment statements with function calls (like var <- c(...) or var = c(...))
-    " Pattern: variable_name <- function_name( or variable_name = function_name(
-    " But only if the line appears to be incomplete (unbalanced parens, trailing comma, etc.)
-    if a:line =~# '\(<-\|=\).*[a-zA-Z_][a-zA-Z0-9_.]*\s*('
-        " Check if line looks incomplete (needs block extraction)
-        " Skip block extraction for simple single-line assignments
-        if a:line =~# ',$' || a:line =~# '(\s*$'
-            " Line ends with comma or open paren - likely multi-line
-            return 1
-        endif
-        " Additional check: count parentheses balance
-        let open_count = len(substitute(a:line, '[^(]', '', 'g'))
-        let close_count = len(substitute(a:line, '[^)]', '', 'g'))
-        if open_count > close_count
-            " Unbalanced parentheses - likely multi-line
-            return 1
-        endif
-        " Line looks complete - don't treat as block
-    endif
-    
-    " Multi-line expressions - lines ending with infix operators or commas
-    if zzvim_r#ends_with_infix_operator(a:line)
-        return 1
-    endif
-    
-    " Multi-line indexing - lines ending with opening bracket
-    if a:line =~# '\[\s*$'
-        return 1
-    endif
-    
-    return 0
-endfunction
-
 " Extract Complete Code Block Using Brace/Parenthesis Matching
 " Implements balanced character algorithm for exact boundaries
 " Handles nested structures: functions within functions, nested if statements
@@ -1714,7 +1548,7 @@ if !g:zzvim_r_disable_mappings
         autocmd FileType r,rmd,quarto call zzvimr#terminal_graphics#init()
         " Auto-lcd to project root in zzcollab projects so getcwd() aligns
         " with the Docker container's mount point
-        autocmd FileType r,rmd,quarto call s:AutoLcdProjectRoot()
+        autocmd FileType r,rmd,quarto call zzvim_r#auto_lcd_project_root()
         " R Terminal Launch Mappings:
         "   <localleader>r  - Container R (via make r, with renv)
         "   <localleader>rr - Host R with renv (normal startup, sources .Rprofile)
@@ -2969,7 +2803,7 @@ endfunction
 
 " Test wrapper functions - expose script-local functions for testing
 function! ZzvimRTestIsBlockStart(line) abort
-    return s:IsBlockStart(a:line)
+    return zzvim_r#is_block_start(a:line)
 endfunction
 
 function! ZzvimRTestGetTextByType(selection_type) abort

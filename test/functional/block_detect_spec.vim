@@ -13,7 +13,9 @@
 let s:suite = themis#suite('BlockDetect')
 let s:assert = themis#helper('assert')
 
-let s:IsBlockStart = g:ZzvimRTestFunc('IsBlockStart')
+" IsBlockStart moved to autoload in Phase 4 batch 1; GetCodeBlock
+" remains in plugin/ pending a later batch.
+let s:IsBlockStart = function('zzvim_r#is_block_start')
 let s:GetCodeBlock = g:ZzvimRTestFunc('GetCodeBlock')
 
 function! s:fixture(lines, lnum) abort

@@ -13,7 +13,8 @@
 let s:suite = themis#suite('IsIncompleteStatement')
 let s:assert = themis#helper('assert')
 
-let s:IsIncompleteStatement = g:ZzvimRTestFunc('IsIncompleteStatement')
+" Moved to autoload in Phase 4 batch 1.
+let s:IsIncompleteStatement = function('zzvim_r#is_incomplete_statement')
 
 " Seed the current buffer with the given lines and place the cursor
 " on line `lnum`, column 1.
