@@ -1,0 +1,21 @@
+cmdargs:
+  severity: warning
+  error-limit: 10
+  verbose: false
+  style_problem: true
+
+policies:
+  ProhibitAbbreviationOption:
+    enabled: true
+  ProhibitImplicitScopeVariable:
+    enabled: true
+  ProhibitEqualTildeOperator:
+    enabled: true
+  ProhibitUnnecessaryDoubleQuote:
+    enabled: false
+  ProhibitNoAbortFunction:
+    enabled: true
+  ProhibitAutocmdWithNoGroup:
+    enabled: true
+  ProhibitMissingScriptEncoding:
+    enabled: true
