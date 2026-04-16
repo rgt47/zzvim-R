@@ -14,9 +14,9 @@ credible, publishable `v1.0.0` tag. Revised twice:
 |-------|----------------------------------------------|-----------|--------------|
 | 1     | Repo hygiene                                 | done      | Done         |
 | 1.5   | Restore CI smoke tests                       | done      | Done         |
-| 2     | Version reconciliation                       | 1 h       | Not started  |
-| 3     | Tests as a 1.0 release gate                  | 2 d       | Not started  |
-| 4     | Minimum autoload extraction                  | ½ d       | Not started  |
+| 2     | Version reconciliation                       | done      | Done         |
+| 3     | Tests as a 1.0 release gate                  | done      | Done         |
+| 4     | Autoload extraction (started, partial)       | partial   | See below    |
 | 5     | Metadata and CI polish                       | ½ d       | Not started  |
 | 6     | Documentation polish                         | 1 d       | Not started  |
 | 7     | Release mechanics                            | 1 h       | Not started  |
@@ -186,7 +186,45 @@ No `v1.0.0` tag until:
 
 ---
 
-## Phase 4 — Minimum autoload extraction (½ day)
+## Phase 4 — Autoload extraction (partial; remainder deferred to 1.1)
+
+**Status:** Started; one POC commit + one batch of pure helpers
+landed. Mechanism proven, regression risk for further migration
+not justified by measurable benefit at 1.0. Remainder bundled
+with the 1.1 structural restructure.
+
+### What landed for 1.0
+
+- `autoload/zzvim_r.vim` created.
+- 10 functions migrated:
+  - `compare_semver`, `get_rprofile_version`,
+    `ends_with_infix_operator`, `is_block_start`,
+    `is_incomplete_statement`, `is_inside_function`,
+    `get_project_root`, `is_inside_zzcollab`,
+    `auto_lcd_project_root`, `is_zzcollab_project`.
+- `plugin/zzvim-R.vim`: 3834 → 3578 lines (−256, −7%).
+- 7 of 8 spec files switched from the test-harness factory
+  (`g:ZzvimRTestFunc`) to direct `function('zzvim_r#name')`
+  references; harness retained for the rest.
+- All 78 tests (67 functional + 11 smoke) green.
+
+### Why we stopped here
+
+Measured Vim startup cost with the full monolithic plugin is
+**2.23 ms** (before any extraction). Migration to autoload is a
+perception/idiom polish item, not a performance fix. Tests and
+CI are the durable wins. Continuing through 6+ more batches
+(plot/HUD ~1000 lines, terminal management ~500 lines, send
+paths, inspection) means ~3 more hours of work and proportional
+regression risk for no measurable user benefit.
+
+The mechanism is proven and the conventions are documented in
+the batch 1 commit; finishing the migration in 1.1 is a
+mechanical follow-on that can be done holistically alongside
+the domain split, `ftplugin/` extraction, and `:checkhealth`
+support already deferred to 1.1.
+
+### Original Phase 4 scope (now deferred to 1.1)
 
 With the Phase 3 test suite in place, do the smallest refactor
 that addresses the monolithic-`plugin/` critique: move the bulk of
