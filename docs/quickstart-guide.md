@@ -1,12 +1,26 @@
 # zzvim-R: Install and Try 10 Features (Vim on macOS/Linux)
+*2026-04-16 16:37 PDT*
 
 ## Prerequisites
 
 - Vim 8.0+ with `+terminal` (`vim --version | grep +terminal`)
 - R installed and on `$PATH` (`which R`)
-- A terminal emulator (any; Kitty/iTerm2 for inline plots)
+- A terminal emulator (any; Kitty/Ghostty/WezTerm/iTerm2 for
+  inline plots)
 
 ## Step 1: Install the plugin
+
+### vim-plug (recommended)
+
+Add to your vimrc:
+
+```vim
+Plug 'rgt47/zzvim-R'
+```
+
+Then restart Vim and run `:PlugInstall`.
+
+### Alternative: native Vim packages
 
 ```bash
 mkdir -p ~/.vim/pack/plugins/start/
@@ -15,16 +29,32 @@ git clone https://github.com/rgt47/zzvim-R.git \
 vim -c 'helptags ALL' -c 'quit'
 ```
 
-## Step 2: Set your LocalLeader (if not already set)
+## Step 2: Set your LocalLeader
 
-Add to `~/.vimrc`:
+zzvim-R mappings are all prefixed with `<LocalLeader>`. Add to
+your vimrc if not already set:
 
 ```vim
 let maplocalleader = ' '
 ```
 
-This makes the spacebar the prefix for all zzvim-R mappings. If
-you skip this, the default LocalLeader is `\`.
+This makes the spacebar the prefix. If you skip this, the
+default LocalLeader is `\`.
+
+**Note on potential conflicts:** if you also map
+`<space><space>` to something (e.g., `<C-d>` for half-page
+scroll), Vim's `timeoutlen` governs how long it waits after the
+first space before deciding whether a second key is coming.
+The default 1000 ms works well; lower values (e.g., 200 ms)
+may cause LocalLeader mappings to misfire.
+
+Other recommended vimrc settings that complement zzvim-R:
+
+```vim
+set splitright        " R terminal opens on the right
+set hidden            " switch buffers without saving
+set autoread          " reload files changed outside Vim
+```
 
 ## Step 3: Create a demo R file
 
@@ -110,12 +140,20 @@ vim demo.R
 
 Press: `<LocalLeader>rh`
 
-(That is: spacebar then `r` then `h`, if your LocalLeader is
-space.)
+(That is: spacebar, then `r`, then `h` -- if your LocalLeader
+is space.)
 
-An R terminal opens in a vertical split. You should see the R
-prompt. Press `Ctrl-W h` to move your cursor back to the code
-buffer.
+Three launch variants are available:
+
+| Keys | What it starts |
+|------|----------------|
+| `<LocalLeader>rh` | Host R, vanilla (no `.Rprofile`) |
+| `<LocalLeader>rr` | Host R with renv (loads `.Rprofile`) |
+| `<LocalLeader>r`  | Container R via `make r` (Docker) |
+
+Use `rh` for this demo. An R terminal opens in a vertical
+split. You should see the R prompt. Press `Ctrl-W h` to move
+your cursor back to the code buffer.
 
 ---
 
@@ -273,3 +311,7 @@ rm -rf ~/.vim/pack/plugins/start/zzvim-R
 - Try `<LocalLeader>m` for a standalone memory usage panel
 - Explore `<LocalLeader>"` for the vim-peekaboo style object
   browser
+
+---
+*Rendered on 2026-04-16 at 16:37 PDT.*
+*Source: ~/prj/sfw/04-zzvim-r/zzvim-R/docs/quickstart-guide.md*
