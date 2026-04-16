@@ -14,7 +14,8 @@
       "Bash(make functional:*)",
       "Bash(git push:*)",
       "Bash(gh run:*)",
-      "Bash(make test:*)"
+      "Bash(make test:*)",
+      "Bash(git commit -m ':*)"
     ],
     "deny": [],
     "ask": [],
