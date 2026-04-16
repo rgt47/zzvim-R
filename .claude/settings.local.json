@@ -17,7 +17,8 @@
       "Bash(make test:*)",
       "Bash(git commit -m ':*)",
       "Bash(pandoc:*)",
-      "Bash(open:*)"
+      "Bash(open:*)",
+      "Bash(git rm:*)"
     ],
     "deny": [],
     "ask": [],

@@ -313,5 +313,5 @@ rm -rf ~/.vim/pack/plugins/start/zzvim-R
   browser
 
 ---
-*Rendered on 2026-04-16 at 16:37 PDT.*
+*Rendered on 2026-04-16 at 16:43 PDT.*<br>
 *Source: ~/prj/sfw/04-zzvim-r/zzvim-R/docs/quickstart-guide.md*

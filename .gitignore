@@ -53,6 +53,9 @@ doc/tags
 # Test dependencies cloned by `make themis-install`
 test/.deps/
 
+# Rendered PDFs (regenerated from .md sources)
+docs/*.pdf
+
 # OS files
 .DS_Store
 **/.DS_Store
