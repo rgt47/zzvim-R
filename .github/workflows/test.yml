@@ -98,7 +98,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v6
-    - uses: actions/setup-python@v5
+    - uses: actions/setup-python@v6
       with:
         # Pin to 3.11: vint imports pkg_resources, which later Python
         # releases ship without it (3.12 requires setuptools install,
