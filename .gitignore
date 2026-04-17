@@ -56,6 +56,12 @@ test/.deps/
 # Rendered PDFs (regenerated from .md sources)
 docs/*.pdf
 
+# Internal planning and announcement docs (not for distribution)
+docs/announcement-drafts.md
+docs/launch-plan.md
+docs/vim-plugin-community-whitepaper.md
+docs/quickstart-guide.md
+
 # OS files
 .DS_Store
 **/.DS_Store
