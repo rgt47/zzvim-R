@@ -33,7 +33,11 @@ temp.R
 *.tmp
 
 # zzvim-R temporary files (auto-generated, auto-deleted by R)
-# Pattern: .zz + timestamp + extension (e.g., .zz1234.R)
+# zzvim-R temp files used for code submission to R
+.zz.R
+.zzc.R
+.zzo.txt
+# Legacy timestamped variants (pre-1.0)
 .zz[0-9]*.R
 .zz[0-9]*.txt
 .zzc[0-9]*.R

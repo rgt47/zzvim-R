@@ -622,6 +622,15 @@ function! s:ConfigureTerminal(terminal_name, is_docker) abort
         let s:docker_r_terminal_bufnr = current_terminal
     endif
     let t:is_r_term = 1
+
+    " Define the .zz() helper in R so code submission shows a short
+    " prompt line (`.zz(".zz.R")`) instead of the full source+unlink
+    " machinery. Wait briefly for R to be ready before sending.
+    sleep 500m
+    call s:compat_term_sendkeys(current_terminal,
+        \ '.zz <- function(f) { source(f, echo=TRUE); unlink(f) }' . "\n")
+    sleep 50m
+
     wincmd p
 
     " Associate terminal with buffer
@@ -947,11 +956,15 @@ function! s:SendToR(selection_type, ...) abort
         return
     endif
     
-    " Phase 2: Consistent Code Transmission via Temp File
-    " For zzcollab projects: write to project root (Docker container mounts it)
-    " For standalone: write to buffer's directory and use absolute path
-    let timestamp = string(localtime())[-4:]  " Last 4 digits of unix timestamp
-    let temp_filename = '.zz' . timestamp . '.R'
+    " Phase 2: Write code to .zz.R and source via the .zz() helper
+    " (defined at terminal startup in s:ConfigureTerminal). The helper
+    " calls source(f, echo=TRUE) then unlink(f), keeping the R prompt
+    " line short: .zz(".zz.R") instead of the full source+unlink call.
+    "
+    " Fixed filename is safe because unlink() runs in the same R
+    " expression as source(), so the file is gone before the next
+    " submission could overwrite it.
+    let temp_filename = '.zz.R'
 
     " Get buffer's directory (where the .R file lives)
     let buffer_dir = expand('%:p:h')
@@ -978,7 +991,7 @@ function! s:SendToR(selection_type, ...) abort
     " For zzcollab/Docker: use relative path (R's cwd is mounted project root)
     " For standalone projects: use absolute path (R's cwd may differ)
     let source_path = is_zzcollab ? temp_filename : temp_file
-    let r_cmd = 'source("' . source_path . '", echo=T); unlink("' . source_path . '")'
+    let r_cmd = '.zz("' . source_path . '")'
     call s:Send_to_r(r_cmd, 1)
     
     " Phase 3: Determine actual submission type for cursor movement
@@ -1065,10 +1078,10 @@ function! s:SendToRWithComments(selection_type) abort
     endif
     
     " Phase 3: Create temp files with code wrapped in capture.output()
-    " Use unique filenames and project root (for Docker compatibility)
-    let timestamp = string(localtime())[-4:]
-    let temp_filename = '.zzc' . timestamp . '.R'
-    let temp_output_filename = '.zzo' . timestamp . '.txt'
+    " Fixed filenames are safe because the output file is read and
+    " cleaned up before the user can trigger another submission.
+    let temp_filename = '.zzc.R'
+    let temp_output_filename = '.zzo.txt'
     let project_root = zzvim_r#get_project_root()
     if empty(project_root)
         let project_root = getcwd()
