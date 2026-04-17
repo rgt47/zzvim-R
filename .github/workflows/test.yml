@@ -38,7 +38,7 @@ jobs:
           - { os: ubuntu-latest,  editor: neovim, version: nightly, experimental: true }
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Set up ${{ matrix.editor }} ${{ matrix.version }}
       uses: rhysd/action-setup-vim@v1
@@ -97,7 +97,7 @@ jobs:
     name: vint
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - uses: actions/setup-python@v5
       with:
         # Pin to 3.11: vint imports pkg_resources, which later Python
