@@ -18,7 +18,10 @@
       "Bash(git commit -m ':*)",
       "Bash(pandoc:*)",
       "Bash(open:*)",
-      "Bash(git rm:*)"
+      "Bash(git rm:*)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:dev.to)"
     ],
     "deny": [],
     "ask": [],

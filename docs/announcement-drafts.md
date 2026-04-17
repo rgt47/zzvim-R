@@ -228,3 +228,7 @@ Per the release plan (docs/RELEASE_PLAN.md Phase 8):
 4. **Same week:** submit This Week in Neovim PR.
 5. **2+ weeks after release:** submit awesome-neovim PR once some
    organic stars accumulate.
+
+---
+*Rendered on 2026-04-16 at 17:25 PDT.*<br>
+*Source: ~/prj/sfw/04-zzvim-r/zzvim-R/docs/announcement-drafts.md*
