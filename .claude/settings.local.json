@@ -21,7 +21,13 @@
       "Bash(git rm:*)",
       "WebSearch",
       "WebFetch(domain:github.com)",
-      "WebFetch(domain:dev.to)"
+      "WebFetch(domain:dev.to)",
+      "WebFetch(domain:www.vim.org)",
+      "WebFetch(domain:dotfyle.com)",
+      "WebFetch(domain:m4xshen.dev)",
+      "WebFetch(domain:news.ycombinator.com)",
+      "WebFetch(domain:sbulav.github.io)",
+      "WebFetch(domain:vimawesome.com)"
     ],
     "deny": [],
     "ask": [],
