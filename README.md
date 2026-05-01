@@ -1,4 +1,4 @@
-# zzvim-R
+# zzvim-R <a href="https://github.com/rgt47/zzvim-R"><img src="assets/logo.png" align="right" height="138" alt="zzvim-R hex sticker" /></a>
 
 [![CI](https://github.com/rgt47/zzvim-R/actions/workflows/test.yml/badge.svg)](https://github.com/rgt47/zzvim-R/actions/workflows/test.yml)
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
