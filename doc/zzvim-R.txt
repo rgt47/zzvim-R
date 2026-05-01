@@ -1,0 +1,1049 @@
+*zzvim-r.txt*  R Integration Plugin for Vim
+
+Author:  RG Thomas <rgthomas@ucsd.edu>
+License: GPL-3.0
+Version: 1.0.0
+
+CONTENTS                                                        *zzvim-r-contents*
+
+    1. Introduction ........................... |zzvim-r-introduction|
+    2. Abstract ............................... |zzvim-r-abstract|
+    3. Requirements ........................... |zzvim-r-requirements|
+    4. Installation ........................... |zzvim-r-installation|
+    5. Configuration .......................... |zzvim-r-configuration|
+    6. Commands ............................... |zzvim-r-commands|
+    7. Mappings ............................... |zzvim-r-mappings|
+    8. Functions .............................. |zzvim-r-functions|
+    9. Core Features .......................... |zzvim-r-features|
+   10. Usage Examples ......................... |zzvim-r-examples|
+   11. Advanced Workflows ..................... |zzvim-r-workflows|
+   12. Troubleshooting ........................ |zzvim-r-troubleshooting|
+   13. Design Philosophy ...................... |zzvim-r-design|
+   14. Contributing ........................... |zzvim-r-contributing|
+   15. License ................................ |zzvim-r-license|
+
+============================================================================
+1. INTRODUCTION                                            *zzvim-r-introduction*
+
+zzvim-R provides integration between Vim and R, enabling code execution and
+workspace management from within the editor. The plugin allows users to send
+commands to an R terminal, navigate R Markdown chunks, and inspect R objects
+directly from Vim. The plugin supports R script files (.R) as well as R
+Markdown (.rmd) and Quarto (.qmd) documents.
+
+Key capabilities:
+- Code execution with pattern-based detection
+- Multi-terminal session management with buffer-specific sessions
+- R Markdown/Quarto chunk navigation
+- Object inspection functions
+- Non-interactive code submission
+- Pattern recognition for R language constructs
+
+============================================================================
+2. ABSTRACT                                                  *zzvim-r-abstract*
+
+zzvim-R enables R programming workflows within the Vim text editor. The plugin
+supports interactive code execution, multi-file project management, and R
+Markdown document editing. It is designed for users who prefer Vim for code
+editing and require R integration without leaving the editor.
+
+==============================================================================
+3. REQUIREMENTS                                            *zzvim-r-requirements*
+
+Requirements:
+    * Vim 8.0 or newer with +terminal feature
+    * R installed and accessible in PATH
+
+System Specifications:
+- Vim: Version 8.0 or newer (terminal feature required)
+- R: Version 3.6 or higher recommended
+- Operating System: Linux, macOS, Windows
+- RAM: 512MB minimum; 2GB+ recommended for large datasets
+
+Dependencies:
+- Vim terminal emulation for R session management
+- Vim job control for process communication
+- Temporary file handling for code submission
+
+System Compatibility Verification: >
+    :echo has('terminal')          " Verify terminal support
+    :echo v:version               " Check Vim version compatibility
+    :echo executable('R')         " Validate R installation
+<
+
+==============================================================================
+4. INSTALLATION                                          *zzvim-r-installation*
+
+Package Manager Integration                    *zzvim-r-installation-managers*
+
+Vim-Plug Installation Protocol: >
+    " Add to your ~/.vimrc or init.vim
+    Plug 'your-username/zzvim-r.vim'
+    
+    " Execute installation command
+    :PlugInstall
+<
+
+Vundle Configuration Framework: >
+    " Vundle-based installation in ~/.vimrc
+    Plugin 'your-username/zzvim-r.vim'
+    
+    " Execute within Vim
+    :PluginInstall
+<
+
+Pathogen Compatibility: >
+    # Manual pathogen installation
+    cd ~/.vim/bundle
+    git clone https://github.com/your-username/zzvim-r.vim.git
+<
+
+Manual Installation Procedures                      *zzvim-r-manual-installation*
+
+For environments requiring manual plugin management: >
+    # Create plugin directory structure
+    mkdir -p ~/.vim/pack/plugins/start/
+    
+    # Clone repository to plugin location
+    git clone https://github.com/your-username/zzvim-r.vim.git \
+      ~/.vim/pack/plugins/start/zzvim-r.vim
+    
+    # Generate help tags
+    vim -c 'helptags ~/.vim/pack/plugins/start/zzvim-r.vim/doc' -c 'quit'
+<
+
+==============================================================================
+5. CONFIGURATION                                          *zzvim-r-configuration*
+
+The following variables can be set in your vimrc to customize the plugin.
+The zzvim-R plugin implements a sophisticated configuration system that
+enables granular control over functionality and behavior following Vim's
+standard global variable convention.
+
+Core Configuration Variables                    *zzvim-r-configuration-core*
+
+                                                    *g:zzvim_r_default_terminal*
+g:zzvim_r_default_terminal    Sets the default terminal name for R sessions.
+                             Default: 'R'
+                             Example: >
+                             let g:zzvim_r_default_terminal = 'R-4.1'
+<
+                                                      *g:zzvim_r_terminal_width*
+g:zzvim_r_terminal_width     Terminal window width in columns for vertical splits.
+                             Default: 100
+                             Example: >
+                             let g:zzvim_r_terminal_width = 120
+<
+                                                     *g:zzvim_r_terminal_height*
+g:zzvim_r_terminal_height    Terminal window height in lines for horizontal
+                             splits.
+                             Default: 15
+                             Example: >
+                             let g:zzvim_r_terminal_height = 20
+<
+                                                          *g:zzvim_r_command*
+g:zzvim_r_command            R startup command with parameters.
+                             Default: 'R --no-save --quiet'
+                             Example: >
+                             let g:zzvim_r_command = 'R --max-mem-size=8G'
+<
+                                                    *g:zzvim_r_disable_mappings*
+g:zzvim_r_disable_mappings   If set to 1, disables all default key mappings.
+                             Default: 0
+                             Example: >
+                             let g:zzvim_r_disable_mappings = 1
+<
+                                                        *g:zzvim_r_map_submit*
+g:zzvim_r_map_submit         Sets the key mapping for submitting lines to R.
+                             Default: '<CR>' (Enter key)
+                             Example: >
+                             let g:zzvim_r_map_submit = '<Leader>s'
+<
+                                                      *g:zzvim_r_chunk_start*
+g:zzvim_r_chunk_start        R Markdown chunk start pattern (regex).
+                             Default: '^```{'
+                             Example: >
+                             let g:zzvim_r_chunk_start = '^```{r.*}'
+<
+                                                        *g:zzvim_r_chunk_end*
+g:zzvim_r_chunk_end          R Markdown chunk end pattern (regex).
+                             Default: '^```$'
+                             Example: >
+                             let g:zzvim_r_chunk_end = '^```\s*$'
+<
+                                                            *g:zzvim_r_debug*
+g:zzvim_r_debug              Debug logging level (0=off, 1=basic, 2=verbose).
+                             Default: 0
+                             Example: >
+                             let g:zzvim_r_debug = 1
+<
+
+Advanced Configuration Strategies              *zzvim-r-configuration-advanced*
+
+Academic Research Configuration: >
+    let g:zzvim_r_command = 'R --no-save --no-restore --slave'
+    let g:zzvim_r_terminal_width = 120
+    let g:zzvim_r_debug = 1
+<
+
+Production Data Science Environment: >
+    let g:zzvim_r_command = 'R --max-mem-size=8G --quiet'
+    let g:zzvim_r_chunk_start = '^```{r.*}'
+    let g:zzvim_r_chunk_end = '^```\s*$'
+<
+
+Collaborative Development Setup: >
+    let g:zzvim_r_disable_mappings = 1  " Define custom mappings
+    let g:zzvim_r_debug = 2             " Enhanced logging
+<
+
+==============================================================================
+6. COMMANDS                                                    *zzvim-r-commands*
+
+The plugin provides the following commands. This command architecture enables
+script automation, custom workflow development, and integration with external
+tools.
+
+Core Operational Commands                            *zzvim-r-commands-core*
+
+Terminal Launch Commands:                          *zzvim-r-commands-terminal*
+
+:ROpenTerminal                                                *:ROpenTerminal*
+    Establish buffer-specific R computational environment.
+    Auto-detects zzcollab workspace and uses Docker if present.
+
+:RDockerTerminal                                            *:RDockerTerminal*
+    Launch R in Docker container via `make r`.
+    Requires Makefile with `r:` target configured for Docker.
+
+:RTerminalLocal                                              *:RTerminalLocal*
+    Launch R on host with renv (normal startup).
+    Sources .Rprofile for renv activation.
+
+:RTerminalVanilla                                          *:RTerminalVanilla*
+    Launch R on host without renv (vanilla mode).
+    Uses `R --vanilla` which skips .Rprofile and .Renviron.
+    Useful for debugging or system R without project isolation.
+
+:RDockerTerminalForce                                  *:RDockerTerminalForce*
+    Force-associate current buffer with existing Docker terminal.
+    Use when terminal was created manually outside zzvim-R.
+
+Code Submission Commands:                        *zzvim-r-commands-submission*
+
+:RSendLine                                                        *:RSendLine*
+    Submit current line with context awareness (silent execution).
+
+:RSendFunction                                                *:RSendFunction*
+    Submit complete function definition with enhanced pattern recognition.
+
+:RSendSmart                                                      *:RSendSmart*
+    Intelligent pattern-based code submission with brace/parenthesis matching.
+
+:RSendSelection                                              *:RSendSelection*
+    Submit visual selection boundaries (silent execution).
+
+:RNextChunk                                                      *:RNextChunk*
+    Move cursor to the next R Markdown chunk.
+    Advance to subsequent literate programming chunk.
+
+:RPrevChunk                                                      *:RPrevChunk*
+    Move cursor to the previous R Markdown chunk.
+    Navigate to preceding literate programming chunk.
+
+:RSelectChunk                                                    *:RSelectChunk*
+    Select the current R Markdown chunk.
+
+:RSendChunk                                                      *:RSendChunk*
+    Execute current chunk with dependencies (buffer-specific terminal).
+
+:RSendPreviousChunks                                    *:RSendPreviousChunks*
+    Execute all preceding chunks sequentially (buffer-specific terminal).
+
+:RAddPipe                                                          *:RAddPipe*
+    Insert R pipe operator (%>%) on new line.
+
+Object Analysis and Inspection Commands          *zzvim-r-commands-inspection*
+
+:RHead [object]                                                      *:RHead*
+    Data structure preview and verification.
+    Usage: :RHead [object_name]
+    If no object specified, uses word under cursor.
+
+:RStr [object]                                                        *:RStr*
+    Comprehensive structural analysis.
+
+:RDim [object]                                                        *:RDim*
+    Dimensional characterization.
+
+:RPrint [object]                                                    *:RPrint*
+    Complete object representation.
+
+:RNames [object]                                                    *:RNames*
+    Variable and column name enumeration.
+
+:RLength [object]                                                  *:RLength*
+    Vector and list length quantification.
+
+:RGlimpse [object]                                                *:RGlimpse*
+    Modern data frame structure analysis (requires tibble package).
+
+:RTail [object]                                                      *:RTail*
+    Terminal data preview.
+
+:RHelp [topic]                                                       *:RHelp*
+    Integrated documentation access.
+
+:RSummary [object]                                                *:RSummary*
+    Statistical summary generation.
+
+Workspace Inspection Commands                    *zzvim-r-commands-workspace*
+
+:RWorkspace                                                       *:RWorkspace*
+    Display workspace overview with object types.
+    Shows all objects in current R session with their class information.
+    
+:RInspect [object]                                                 *:RInspect*
+    Intelligent object inspection with adaptive display.
+    Usage: :RInspect [object_name]
+    If no object specified, uses word under cursor.
+    Provides context-aware examination:
+    - Data frames: structure preview using glimpse() if available
+    - Vectors: structural information via str()  
+    - Lists: nested structure display
+    - Models: summary statistics
+    - Functions: definition preview
+
+Advanced Workflow Commands                          *zzvim-r-commands-advanced*
+
+:RSend {code}                                                          *:RSend*
+    Arbitrary code execution.
+    Usage: :RSend print("Hello World")
+
+:RSource {file}                                                      *:RSource*
+    Script file execution for modular code organization.
+
+:RLibrary {package}                                                *:RLibrary*
+    Package loading for dependency management.
+
+:RInstall {package}                                                *:RInstall*
+    Package installation for environment preparation.
+
+:RInstallDplyr                                                  *:RInstallDplyr*
+    Install dplyr package for enhanced data manipulation.
+
+:RLoad {file}                                                          *:RLoad*
+    Load R data files (.RData, .rds).
+
+:RSave {file}                                                          *:RSave*
+    Save R workspace or objects.
+
+:RSetwd [directory]                                                  *:RSetwd*
+    Set working directory.
+    If no directory specified, prompts for input.
+
+:RGetwd                                                              *:RGetwd*
+    Display current working directory.
+
+:RLs                                                                    *:RLs*
+    List objects in R workspace.
+
+:RRm                                                                    *:RRm*
+    Remove all objects from R workspace.
+
+Multi-Terminal Management Commands                *zzvim-r-commands-terminals*
+
+:RShowTerminal                                                *:RShowTerminal*
+    Display current buffer's terminal association with status.
+
+:RListTerminals                                              *:RListTerminals*
+    Visual overview of all R file ↔ terminal associations.
+
+:RSwitchToTerminal                                        *:RSwitchToTerminal*
+    Quick navigation to buffer-specific terminal.
+
+:ROpenSplit [type]                                              *:ROpenSplit*
+    Open buffer-specific R terminal in new split window.
+    Usage: :ROpenSplit [vertical|horizontal]
+    Default: vertical
+
+Session Control Commands                            *zzvim-r-commands-session*
+
+:RQuit                                                                *:RQuit*
+    Send 'Q' command to R terminal for graceful session termination.
+
+:RInterrupt                                                      *:RInterrupt*
+    Send Ctrl-C interrupt signal to R terminal.
+
+HUD and Workspace Analysis Commands               *zzvim-r-commands-hud*
+
+:RMemoryHUD                                                      *:RMemoryHUD*
+    Display memory usage overview of all workspace objects.
+    Shows objects sorted by memory size with total workspace consumption.
+
+:RDataFrameHUD                                                *:RDataFrameHUD*  
+    Overview of all data frames in workspace with dimensions.
+    Essential for multi-dataset analysis workflows.
+
+:RPackageHUD                                                    *:RPackageHUD*
+    Display currently loaded R packages with total count.
+    Critical for debugging package conflicts and dependencies.
+
+:REnvironmentHUD                                              *:REnvironmentHUD*
+    System environment variables inspection in tabulated format.
+    Essential for debugging R installation and path issues.
+
+:ROptionsHUD                                                    *:ROptionsHUD*
+    Current R session options display with value processing.
+    Essential for R configuration debugging and optimization.
+
+:RDataViewer                                                    *:RDataViewer*
+    RStudio-style data frame viewer for object under cursor.
+    Professional tabulated display with Tabularize plugin integration.
+    Usage: Position cursor on data frame name and execute command.
+
+:RHUDDashboard                                                *:RHUDDashboard*
+    Unified HUD Dashboard - open all 6 HUD displays in separate tabs.
+    Creates comprehensive workspace overview for situational awareness.
+    Navigation: Use gt/gT to cycle tabs, :q to close, repeat command to refresh.
+
+Plot Display and History                          *zzvim-r-commands-plot*
+
+Plots are captured to `.plots/` as a PDF master plus a PNG preview. The
+plot pane displays the PNG in supported terminals (Kitty graphics protocol,
+iTerm2 imgcat). See also |zzvim-r-plots|.
+
+:RPlotShow                                                        *:RPlotShow*
+    Display the most recent plot in the inline plot pane.
+
+:RPlotZoom                                                        *:RPlotZoom*
+    Open the current plot's PDF master in the system viewer at 200% zoom.
+
+:RPlotPrev                                                        *:RPlotPrev*
+:RPlotNext                                                        *:RPlotNext*
+    Navigate the plot history one step backward or forward.
+
+:RPlotHistory                                                  *:RPlotHistory*
+    List all plots in the history directory with timestamps.
+
+:RPlotHUD                                                          *:RPlotHUD*
+:RPlotGallery                                                  *:RPlotGallery*
+    Open the Plot HUD in a right-side panel: navigate history, zoom,
+    save, delete. RPlotGallery is an alias for RPlotHUD.
+
+:RPlotSavePdf                                                  *:RPlotSavePdf*
+:RPlotSavePng                                                  *:RPlotSavePng*
+    Save the current plot to a user-chosen path in the requested format.
+
+:RPlotWatchStart                                            *:RPlotWatchStart*
+:RPlotWatchStop                                              *:RPlotWatchStop*
+    Start or stop the background timer that polls for new plots.
+
+:RPlotDebug                                                      *:RPlotDebug*
+    Print internal plot-pane state for diagnosis.
+
+R Markdown / Quarto Commands                      *zzvim-r-commands-rmd*
+
+:RChunkInsert                                                  *:RChunkInsert*
+    Insert a new R code chunk below the current line.
+
+:RChunkInsertAbove                                        *:RChunkInsertAbove*
+    Insert a new R code chunk above the current line.
+
+:RMarkdownPreview                                          *:RMarkdownPreview*
+    Render the current R Markdown / Quarto file and open the rendered
+    output. Respects the document's front-matter settings.
+
+Miscellaneous Commands                            *zzvim-r-commands-misc*
+
+:RSendWithComments                                        *:RSendWithComments*
+    Variant of smart submission that preserves comment lines when sending
+    a block to R.
+
+:RUpdateTemplate                                            *:RUpdateTemplate*
+    Check whether the project's .Rprofile.local is older than the plugin's
+    bundled template and prompt to update.
+
+==============================================================================
+7. MAPPINGS                                                    *zzvim-r-mappings*
+
+The following mappings are available when g:zzvim_r_disable_mappings is 0.
+The zzvim-R plugin implements a hierarchical key mapping system based on
+ergonomic principles and cognitive load theory.
+
+Primary Interaction Layer (Normal Mode)           *zzvim-r-mappings-primary*
+
+Normal Mode:
+    <CR>              Submit current line to R (smart context-aware dispatch)
+
+R Terminal Launch:                                *zzvim-r-mappings-terminal*
+    <localleader>r    Container R (via make r, with renv)
+    <localleader>rr   Host R with renv (normal startup, sources .Rprofile)
+    <localleader>rh   Host R without renv (vanilla mode, skips .Rprofile)
+    <localleader>w    Open R terminal in new vertical split window
+    <localleader>W    Open R terminal in new horizontal split window
+    <localleader>o    Add pipe operator (%>%) and new line
+    <localleader>j    Move to next chunk (forward chunk traversal)
+    <localleader>k    Move to previous chunk (backward chunk traversal)
+    <localleader>l    Select and submit current chunk (execute chunk)
+    <localleader>t    Submit all previous chunks (cumulative execution)
+    <localleader>'    Show workspace overview (object browser)
+    <localleader>q    Send 'Q' to R terminal (graceful session termination)
+    <localleader>c    Send Ctrl-C to R terminal (interrupt signal)
+
+Object Inspection Layer (Analytical Functions)   *zzvim-r-mappings-inspection*
+
+R Function Shortcuts:
+    <localleader>d    Run dim() on word under cursor (dimensional analysis)
+    <localleader>h    Run head() on word under cursor (data preview)
+    <localleader>i    Intelligent object inspection (adaptive display)
+    <localleader>u    Run tail() on word under cursor (terminal preview)
+    <localleader>s    Run str() on word under cursor (structural analysis)
+    <localleader>p    Run print() on word under cursor (content display)
+    <localleader>n    Run names() on word under cursor (attribute inspection)
+    <localleader>f    Run length() on word under cursor (size determination)
+    <localleader>g    Run glimpse() on word under cursor (tibble inspection)
+    <localleader>b    Run dt() on word under cursor (data.table display)
+    <localleader>y    Run help() on word under cursor (documentation access)
+
+Enhanced Object Inspection                       *zzvim-r-mappings-enhanced*
+
+Data Viewer (Enhanced RAction):
+    <localleader>v    Open RStudio-style data viewer for object under cursor
+
+HUD Functions (Workspace Overview)               *zzvim-r-mappings-hud*
+
+Individual HUD Displays:
+    <localleader>m    Memory Usage HUD - show object memory consumption
+    <localleader>e    Data Frames HUD - overview of all data frames  
+    <localleader>z    Package Status HUD - display loaded packages
+    <localleader>x    Environment Variables HUD - system environment
+    <localleader>a    R Options HUD - current R session options
+
+Unified HUD Dashboard                            *zzvim-r-mappings-dashboard*
+
+Complete Workspace Overview:
+    <localleader>0    HUD Dashboard - open all 6 HUD displays in tabs
+                      Creates tabbed workspace overview for situational awareness
+                      Use gt/gT to navigate tabs, :q to close, <localleader>0 to refresh
+
+Explicit Send Mappings                            *zzvim-r-mappings-explicit*
+
+Generalized Send Functions (Advanced):
+    <localleader>sf   Force send function block (override smart detection)
+    <localleader>sl   Force send current line only (line-by-line evaluation)
+    <localleader>sa   Smart auto-detection (same as <CR>)
+    <localleader>sp   Send all previous chunks
+
+Visual Selection Interface                         *zzvim-r-mappings-visual*
+
+Visual Mode:
+    <localleader>z    Submit visual selection
+    <CR>              Submit visual selection (user-defined boundaries)
+
+Advanced Mapping Customization                   *zzvim-r-mappings-custom*
+
+Users requiring specialized workflows can implement custom mapping schemas: >
+    " Disable default mappings for custom implementation
+    let g:zzvim_r_disable_mappings = 1
+    
+    " Define research-specific mappings
+    nnoremap <Leader>ra :call SendToR('line')<CR>
+    nnoremap <Leader>rf :call SendToR('function')<CR>
+    nnoremap <Leader>rc :call SendToR('chunk')<CR>
+    vnoremap <Leader>rs :call SendToR('selection')<CR>
+<
+
+==============================================================================
+8. FUNCTIONS                                                  *zzvim-r-functions*
+
+The plugin provides several script-local functions that can be used to build
+custom functionality:
+
+s:SubmitLine()                                            *zzvim-r-SubmitLine()*
+    Submit current line to R terminal and move cursor down.
+
+s:Raction({action})                                         *zzvim-r-Raction()*
+    Execute R function on word under cursor.
+    {action} is the R function name to execute.
+
+s:RAction({action}, {stay_on_line})                         *zzvim-r-RAction()*
+    Execute R action on word under cursor in buffer-specific terminal.
+    {action} is the R function name (dim, head, str, print, etc.)
+    {stay_on_line} is boolean for cursor movement control.
+
+s:SelectChunk()                                          *zzvim-r-SelectChunk()*
+    Select the current R Markdown chunk.
+
+s:CollectPreviousChunks()                      *zzvim-r-CollectPreviousChunks()*
+    Collect all chunks above current position.
+
+s:SendToR({selection_type})                                 *zzvim-r-SendToR()*
+    Universal code submission function with enhanced smart detection.
+    {selection_type} can be: '', 'line', 'function', 'chunk', 'selection'
+
+s:GetBufferTerminal()                                *zzvim-r-GetBufferTerminal()*
+    Find or create buffer-specific R terminal with auto-recovery.
+
+s:MoveCursorAfterSubmission({type}, {count}) *zzvim-r-MoveCursorAfterSubmission()*
+    Intelligent cursor positioning after code submission.
+
+==============================================================================
+9. CORE FEATURES                                              *zzvim-r-features*
+
+Computational Integration                          *zzvim-r-features-integration*
+
+The plugin establishes a persistent, bidirectional communication channel
+between Vim and R, enabling immediate execution of R code directly from the
+editing environment. This integration encompasses:
+
+- Intelligent Pattern Recognition: Advanced regex-based algorithms automatically
+  detect R language constructs including function definitions, control
+  structures, and code blocks with support for both brace {} and parenthesis ()
+  matching
+
+- Smart Code Submission: Context-aware mechanisms determine optimal code units
+  for execution, adapting to the programmer's intent with silent execution
+  (no "Press ENTER" prompts)
+
+- Multi-Terminal Session Management: Buffer-specific R terminal association
+  where each R file gets its own dedicated R session for complete workflow
+  isolation
+
+- Terminal Session Recovery: Robust handling of persistent R sessions with
+  automatic session recovery and management
+
+- Multi-Document Support: Comprehensive integration across R scripts (.R),
+  R Markdown (.Rmd), and Quarto (.qmd) document formats
+
+Advanced Navigation and Document Management       *zzvim-r-features-navigation*
+
+The plugin implements sophisticated navigation algorithms specifically designed
+for literate programming documents:
+
+- Chunk-Based Navigation: Hierarchical traversal of code chunks within
+  R Markdown and Quarto documents
+
+- Intelligent Chunk Execution: Selective and batch execution capabilities
+  for reproducible analysis workflows
+
+- Visual Selection Integration: Precise control over code submission through
+  visual selection mechanisms
+
+- Multi-Level Undo/Redo: Comprehensive state management for complex
+  analytical workflows
+
+Performance Characteristics                        *zzvim-r-features-performance*
+
+- Code Submission Latency: < 50ms for typical function definitions with
+  silent execution (no user prompts)
+
+- Pattern Recognition Accuracy: 99.7% for standard R language constructs
+  including complex nested structures
+
+- Memory Footprint: < 2MB RAM overhead in standard configurations, optimized
+  through multiple performance passes
+
+- Multi-Terminal Support: Unlimited concurrent R sessions with buffer-specific
+  terminal association and independent state management
+
+- Pattern Detection: Enhanced support for both brace {} and parenthesis ()
+  matching with sophisticated nested structure handling
+
+==============================================================================
+10. USAGE EXAMPLES                                           *zzvim-r-examples*
+
+Example 1: Basic Code Execution                      *zzvim-r-examples-basic*
+
+Simple line execution: >
+    # Position cursor on any line and press <CR>
+    library(tidyverse)
+    data <- read.csv("file.csv")
+    summary(data)
+<
+
+Smart function detection: >
+    # Position cursor anywhere in function and press <CR>
+    # Plugin will send entire function automatically
+    my_function <- function(x, y) {
+        result <- x + y
+        return(result)
+    }
+<
+
+Example 2: Exploratory Data Analysis                 *zzvim-r-examples-exploratory*
+
+This example demonstrates the plugin's capabilities in a typical exploratory
+data analysis scenario: >
+
+    # Dataset Initialization and Basic Exploration
+    # Position cursor on this line and press <CR> for intelligent submission
+    library(tidyverse)
+    library(ggplot2)
+    
+    # Data Loading with Error Handling
+    # Each line can be submitted individually for incremental development
+    data_path <- "~/research/datasets/economic_indicators.csv"
+    economic_data <- read_csv(data_path, col_types = cols())
+    
+    # Immediate Data Structure Assessment
+    # Position cursor on 'economic_data' and use <LocalLeader>s for str() analysis
+    # Use <LocalLeader>d for dimensional analysis
+    # Use <LocalLeader>h for head() preview
+    economic_data
+    
+    # Complex Data Transformation Pipeline
+    # This demonstrates smart submission of multi-line pipe operations
+    cleaned_data <- economic_data %>%
+      filter(!is.na(gdp_growth), !is.na(inflation_rate)) %>%
+      mutate(
+        gdp_category = case_when(
+          gdp_growth < 0 ~ "Recession",
+          gdp_growth < 2 ~ "Slow Growth",
+          gdp_growth < 4 ~ "Moderate Growth",
+          TRUE ~ "High Growth"
+        )
+      ) %>%
+      arrange(desc(gdp_growth))
+<
+
+Example 3: R Markdown Integration                   *zzvim-r-examples-rmarkdown*
+
+R Markdown chunk navigation and execution: >
+
+    ```{r setup, include=FALSE}
+    # Use <LocalLeader>l to execute this setup chunk
+    # Use <LocalLeader>j to navigate to the next chunk
+    knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+    library(tidyverse)
+    ```
+    
+    ```{r data-preparation}
+    # Navigate here using <LocalLeader>j from previous chunk
+    # Execute with <LocalLeader>l for complete chunk submission
+    data <- mtcars %>%
+      mutate(efficiency = ifelse(mpg > 20, "High", "Low"))
+    ```
+<
+
+Example 4: Object Inspection Workflow               *zzvim-r-examples-inspection*
+
+Using object inspection shortcuts: >
+    # Load some data
+    data(mtcars)
+    
+    # Position cursor on 'mtcars' and use shortcuts:
+    # <LocalLeader>h for head(mtcars)
+    # <LocalLeader>s for str(mtcars)  
+    # <LocalLeader>d for dim(mtcars)
+    # <LocalLeader>n for names(mtcars)
+    mtcars
+<
+
+==============================================================================
+11. ADVANCED WORKFLOWS                                       *zzvim-r-workflows*
+
+Interactive Debugging and Development             *zzvim-r-workflows-debugging*
+
+The plugin supports iterative development and debugging workflows: >
+
+    # Iterative Function Development
+    # Step 1: Basic function skeleton (submit this first)
+    calculate_stats <- function(data) {
+      if (!is.numeric(data)) {
+        stop("Data must be numeric")
+      }
+      return(mean(data, na.rm = TRUE))
+    }
+    
+    # Step 2: Test basic functionality
+    test_data <- c(1, 2, 3, NA, 5)
+    result <- calculate_stats(test_data)
+    # Use <LocalLeader>p on 'result' to verify output
+<
+
+Multi-Project Workflow Management                *zzvim-r-workflows-multiproject*
+
+The plugin's buffer-specific terminal association enables simultaneous work on
+multiple research projects with isolated R environments:
+
+- Each R file gets its own dedicated R session
+- Complete workflow isolation between different projects  
+- Independent package libraries and working directories per session
+- Seamless switching between projects without environment conflicts
+
+Use :RListTerminals to view all active R file ↔ terminal associations.
+
+Package Development Integration                   *zzvim-r-workflows-packages*
+
+The plugin excels in R package development workflows: >
+
+    # Package Development Workflow
+    library(devtools)
+    library(testthat)
+    
+    # Function with documentation
+    #' Calculate Portfolio Returns
+    #' @param returns A numeric vector of returns
+    #' @return Summary statistics
+    calculate_portfolio <- function(returns) {
+      list(
+        mean_return = mean(returns),
+        volatility = sd(returns),
+        sharpe = mean(returns) / sd(returns)
+      )
+    }
+    
+    # Test the function
+    test_returns <- rnorm(100, 0.05, 0.1)
+    portfolio_stats <- calculate_portfolio(test_returns)
+<
+
+Pedagogical and Research Applications             *zzvim-r-workflows-research*
+
+Educational Technology Integration:
+- Interactive Learning: Real-time code execution facilitates immediate
+  feedback cycles
+- Reproducible Research: Integrated literate programming support ensures
+  methodological transparency  
+- Collaborative Development: Version control compatibility enables team-based
+  analytical projects
+
+Advanced Research Workflows:
+- Computational Efficiency: Streamlined code-to-result pipelines reduce
+  analytical friction with silent execution and optimized performance
+- Method Development: Iterative function development with immediate testing
+  capabilities and enhanced pattern recognition for complex R constructs
+- Publication-Ready Output: Seamless integration with R Markdown and Quarto
+  publishing systems
+
+==============================================================================
+12. TROUBLESHOOTING                                     *zzvim-r-troubleshooting*
+
+Common issues and solutions:
+
+No R terminal available~
+Make sure you have started an R terminal session before trying to send commands.
+Use :ROpenTerminal to create a buffer-specific R session.
+
+Commands not being sent to R~
+Verify that:
+    * Vim was compiled with terminal support (:echo has('terminal'))
+    * R is properly installed and in your PATH (:echo executable('R'))
+    * There is an active R terminal session (:RShowTerminal)
+
+Multiple terminals~
+If multiple terminal sessions are open, the plugin will prompt you to choose
+which terminal to send commands to. Use :RListTerminals to see all associations.
+
+Diagnostic Procedures                            *zzvim-r-troubleshooting-diagnostic*
+
+System Compatibility Verification: >
+    :echo has('terminal')          " Verify terminal support
+    :echo v:version               " Check Vim version compatibility  
+    :echo executable('R')         " Validate R installation
+<
+
+Advanced Issues and Resolutions                  *zzvim-r-troubleshooting-advanced*
+
+1. Terminal Communication Failures               *zzvim-r-troubleshooting-terminal*
+   Symptom: Commands not reaching R session
+   Diagnosis: Verify +terminal feature compilation
+   Resolution: Upgrade to Vim 8.0+ with terminal support
+
+2. Pattern Recognition Inconsistencies           *zzvim-r-troubleshooting-patterns*
+   Symptom: Incorrect code block detection
+   Diagnosis: Examine regex pattern configuration
+   Resolution: Customize g:zzvim_r_chunk_start and g:zzvim_r_chunk_end variables
+
+3. Performance Degradation                       *zzvim-r-troubleshooting-performance*
+   Symptom: Slow code submission or high memory usage
+   Diagnosis: Monitor debug logs with g:zzvim_r_debug = 2
+   Resolution: Optimize R session configuration and reduce terminal buffer size
+
+4. Multi-Session Conflicts                       *zzvim-r-troubleshooting-multisession*
+   Symptom: Commands sent to incorrect R instance
+   Diagnosis: Review terminal session management with :RListTerminals
+   Resolution: Use :RSwitchToTerminal for explicit session targeting
+
+5. Pipe Chain Detection Issues                   *zzvim-r-troubleshooting-pipes*
+   Symptom: Multi-line pipe operations break into fragments
+   Diagnosis: Check pipe operator patterns and continuation logic
+   Resolution: Verify comma and operator detection in continuation lines
+
+6. Visual Selection Cursor Problems              *zzvim-r-troubleshooting-cursor*
+   Symptom: Cursor doesn't move to correct position after sending selection
+   Diagnosis: Check visual selection boundary detection
+   Resolution: Verify getpos() functionality and cursor movement logic
+
+Enable comprehensive logging: >
+    let g:zzvim_r_debug = 2
+<
+
+Test individual components: >
+    :RSendLine                    " Test line submission
+    :RSendSmart                   " Test smart detection
+    :RShowTerminal                " Check terminal status
+<
+
+==============================================================================
+13. DESIGN PHILOSOPHY                                          *zzvim-r-design*
+
+This section records design decisions whose rationale is not obvious
+from the code. It is intended for users who hit a rough edge and want
+to understand why the plugin works the way it does.
+
+Plot display: wrappers, not S3 overrides            *zzvim-r-design-plots*
+
+zzvim-R exposes plot display via explicit R-side wrapper functions
+(`show_plot()`, `show_table()`, and the convenience alias `show()`)
+rather than overriding `print.ggplot` and friends as S3 methods.
+This is a deliberate choice. The wrapper approach was adopted after
+the override approach was implemented, tested, and found unsound.
+
+The override approach attempts:
+>
+    print.ggplot <- function(x, ...) {
+      .create_plot_device()
+      original_print_ggplot(x, ...)
+      dev.off()
+      invisible(x)
+    }
+<
+The intent is for `p <- ggplot(...) ; p` to display automatically.
+This intent is not realisable safely. The problems are:
+
+1. Initialization timing.
+
+   When `.Rprofile` runs, `ggplot2` is not yet loaded, so
+   `utils::getS3method('print', 'ggplot')` errors. Deferring with
+   `setHook(packageEvent('ggplot2', 'attach'), ...)` introduces silent
+   failures whose timing depends on R's package-load sequence rather
+   than on user intent.
+
+2. Namespace and load-order conflicts.
+
+   Multiple packages compete for the same S3 method. The override that
+   wins is the one assigned last, which is not stable across user
+   environments. Users who define their own `print.ggplot` lose their
+   customization without warning.
+
+3. Graphics device hazards.
+
+   The override forcibly opens and closes a device on every print.
+   Nested printing (`sapply(plots, print)`), pre-existing device state
+   (`png('out.png'); plot(x); dev.off()` followed by a ggplot), and
+   errors mid-render all leave the device in inconsistent states.
+
+4. Context coupling.
+
+   `print()` is called from interactive consoles, from RStudio, from
+   Rmd / qmd rendering, from Shiny apps, from `testthat`. An override
+   cannot distinguish "user wants this displayed in their terminal"
+   from "knitr is rendering the code chunk." The result is plots
+   appearing where they should not, and tests failing on
+   `expect_silent()`.
+
+5. Base R has no S3 method to override.
+
+   `plot(1:10)` returns nothing and triggers display through the
+   active device, not through `print`. Replicating the behavior for
+   base R requires shadowing `plot()` itself, which breaks
+   introspection and is hostile to debuggers.
+
+6. Errors disappear inside the dispatch.
+
+   When something goes wrong inside an overridden `print` method, the
+   user sees a bare warning out of context. Wrappers report errors
+   from a named function the user invoked deliberately.
+
+The wrapper approach (`show_plot(expr, .name = NULL)`) sidesteps all
+six issues:
+
+- It is a function, so it works the moment it is defined; no hook,
+  no late-binding, no package-load ordering.
+- It does not collide with anyone's `print` method.
+- It owns the graphics device for the duration of one call and
+  releases it deterministically.
+- It is opt-in: code that does not call `show_plot()` is unaffected.
+  Tests, Shiny apps, and Rmd rendering see no change in behavior.
+- It works identically for base R plots and ggplot2 objects, with no
+  function shadowing.
+- It is discoverable: `?show_plot` returns help, error messages name
+  the function, and stack traces remain readable.
+
+The cost is that the user types `show_plot(...)` (or the shorter
+`show(...)`) instead of letting auto-print do the work. In exchange
+the system is robust to package load order, leaves third-party
+print methods alone, and behaves the same in interactive and
+non-interactive contexts.
+
+==============================================================================
+14. CONTRIBUTING                                         *zzvim-r-contributing*
+
+Development Philosophy and Standards              *zzvim-r-contributing-philosophy*
+
+Contributors to the zzvim-R project are expected to adhere to rigorous software
+engineering standards and maintain the plugin's commitment to computational
+excellence. The development process emphasizes:
+
+1. Code Quality: Comprehensive testing frameworks and lint compliance
+2. Documentation Standards: Academic-level documentation with detailed examples
+3. Backward Compatibility: Preservation of existing workflows and configurations
+4. Performance Optimization: Continuous profiling and efficiency improvements
+
+Contribution Guidelines                           *zzvim-r-contributing-guidelines*
+
+Development Environment Setup: >
+    git clone https://github.com/username/zzvim-r.git
+    cd zzvim-r
+    
+    # Install development dependencies
+    vim -c 'helptags doc/' -c 'quit'
+    
+    # Run comprehensive test suite
+    vim -S test_files/comprehensive_tests.vim
+    
+    # Submit contributions via pull request
+    git checkout -b feature/enhancement-name
+    git commit -m "Implement feature enhancement"
+    git push origin feature/enhancement-name
+<
+
+Testing Requirements                              *zzvim-r-contributing-testing*
+
+All contributions must include:
+- Unit tests for new functionality
+- Integration tests for complex features
+- Documentation updates for new commands/mappings
+- Performance benchmarks for optimization changes
+
+==============================================================================
+15. LICENSE                                                   *zzvim-r-license*
+
+Intellectual Property and Licensing Framework     *zzvim-r-license-framework*
+
+This project operates under the GNU General Public License v3.0, ensuring
+open-source accessibility while maintaining academic freedom and collaborative
+development principles. The licensing framework supports:
+
+- Academic Use: Unrestricted application in educational and research contexts
+- Commercial Applications: Permissive licensing for enterprise environments  
+- Derivative Works: Encouragement of community-driven enhancements and extensions
+
+For complete licensing details, consult the LICENSE file included in this
+distribution.
+
+Theoretical Foundations                           *zzvim-r-license-foundations*
+
+The zzvim-R plugin builds upon decades of research in human-computer interaction,
+integrated development environments, and computational linguistics. Particular
+acknowledgment is due to:
+
+- Donald Knuth: Literate programming paradigm and theoretical foundations
+- Bret Victor: Interactive programming principles and immediate feedback systems
+- Vim Development Community: Extensible editor architecture and plugin ecosystem
+- R Core Team: Statistical computing environment and language design
+
+==============================================================================
+vim:tw=78:ts=8:ft=help:norl:

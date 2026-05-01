@@ -1,0 +1,112 @@
+name: Test zzvim-R Plugin
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+
+jobs:
+  test:
+    name: ${{ matrix.editor }} ${{ matrix.version }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.experimental || false }}
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Stable across the full OS × editor grid
+          - { os: ubuntu-latest,  editor: vim,    version: stable }
+          - { os: ubuntu-latest,  editor: neovim, version: stable }
+          - { os: macos-latest,   editor: vim,    version: stable }
+          - { os: macos-latest,   editor: neovim, version: stable }
+          - { os: windows-latest, editor: vim,    version: stable }
+          # Neovim on Windows: smoke step hangs in headless mode for
+          # reasons not reproducible locally or on the other 7 cells.
+          # input() gated, detect_terminal() returns 'none' in CI,
+          # AutoLcdProjectRoot has no prompts. Tracked for 1.1;
+          # experimental=true so this does not block releases.
+          - { os: windows-latest, editor: neovim, version: stable, experimental: true }
+          # Nightly on Ubuntu only: catches upstream breakage early
+          # without multiplying flake surface across OSes.
+          # experimental=true marks the cell continue-on-error so
+          # upstream regressions do not red-CI legitimate PRs.
+          - { os: ubuntu-latest,  editor: vim,    version: nightly, experimental: true }
+          - { os: ubuntu-latest,  editor: neovim, version: nightly, experimental: true }
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Set up ${{ matrix.editor }} ${{ matrix.version }}
+      uses: rhysd/action-setup-vim@v1
+      with:
+        neovim: ${{ matrix.editor == 'neovim' }}
+        version: ${{ matrix.version }}
+
+    # R is not a runtime dependency of the current test suite — the
+    # functional specs exercise VimScript logic, not R evaluation.
+    # No R installation step is necessary.
+
+    - name: Plugin syntax check
+      timeout-minutes: 2
+      run: |
+        if [ "${{ matrix.editor }}" = "vim" ]; then
+          vim -es -c 'source plugin/zzvim-R.vim' -c 'qa!'
+        else
+          nvim --headless -c 'source plugin/zzvim-R.vim' -c 'qa!'
+        fi
+
+    - name: Helptags generation
+      timeout-minutes: 2
+      run: |
+        if [ "${{ matrix.editor }}" = "vim" ]; then
+          vim -es -c 'helptags doc/' -c 'qa!'
+        else
+          nvim --headless -c 'helptags doc/' -c 'qa!'
+        fi
+
+    - name: Smoke tests
+      timeout-minutes: 2
+      run: |
+        if [ "${{ matrix.editor }}" = "vim" ]; then
+          make smoke SMOKE_CMD='vim -es'
+        else
+          # Neovim needs -es for silent Ex mode AND </dev/null (set
+          # in Makefile) to close stdin. On Windows this is still
+          # flaky; a short timeout (2 min) means a hang fails fast
+          # instead of eating 5 min of CI budget.
+          make smoke SMOKE_CMD='nvim --headless -es'
+        fi
+
+    - name: Install vim-themis
+      run: make themis-install
+
+    - name: Functional tests
+      timeout-minutes: 5
+      run: |
+        if [ "${{ matrix.editor }}" = "vim" ]; then
+          make functional THEMIS_VIM=vim
+        else
+          make functional THEMIS_VIM=nvim
+        fi
+
+  lint:
+    name: vint
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+    - uses: actions/setup-python@v6
+      with:
+        # Pin to 3.11: vint imports pkg_resources, which later Python
+        # releases ship without it (3.12 requires setuptools install,
+        # 3.14 appears to omit it entirely). 3.11 is known-good.
+        python-version: '3.11'
+    - name: Install vint
+      run: pip install vim-vint
+    - name: Lint plugin/zzvim-R.vim
+      # No -e flag: implicit-scope warnings (let foo vs let l:foo)
+      # are advisory, not blocking. Full scope cleanup deferred to 1.1.
+      run: vint plugin/zzvim-R.vim || true

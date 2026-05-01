@@ -1,0 +1,13 @@
+" themis configuration for test/functional/
+"
+" Loaded automatically by vim-themis before each spec file is sourced.
+" Sets the test-harness flag, puts the repo on runtimepath so
+" autoload/zzvimr/*.vim resolves, and sources the plugin so
+" g:ZzvimRTestFunc is defined when specs ask for funcrefs.
+
+let g:zzvim_r_testing = 1
+let g:zzvim_r_disable_mappings = 1
+
+let s:repo_root = fnamemodify(resolve(expand('<sfile>:p')), ':h:h:h')
+execute 'set runtimepath^=' . fnameescape(s:repo_root)
+execute 'source' fnameescape(s:repo_root . '/plugin/zzvim-R.vim')

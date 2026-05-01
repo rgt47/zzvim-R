@@ -1,0 +1,77 @@
+name: Bug report
+description: Report a problem with zzvim-R
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please fill out the fields below
+        so the problem can be reproduced. Minimal, precise reports
+        get fixed faster.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: One or two sentences describing what went wrong.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: |
+        Steps someone else can follow to reproduce the problem. Include
+        a minimal R file or R Markdown snippet if relevant.
+      placeholder: |
+        1. Open a fresh Vim: `vim -Nu NONE`
+        2. `:source plugin/zzvim-R.vim`
+        3. Open an `.R` file containing ...
+        4. Press `<CR>` on line ...
+        5. Observed: ...
+        6. Expected: ...
+    validations:
+      required: true
+
+  - type: input
+    id: vim-version
+    attributes:
+      label: Vim / Neovim version
+      description: Output of `:version` (first line is enough).
+      placeholder: "VIM 9.1.0000 / NVIM 0.10.4"
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: "macOS 15.1 / Ubuntu 24.04 / Windows 11"
+    validations:
+      required: true
+
+  - type: input
+    id: r-version
+    attributes:
+      label: R version
+      description: Output of `R --version` (first line).
+      placeholder: "R 4.4.2"
+
+  - type: textarea
+    id: messages
+    attributes:
+      label: :messages output
+      description: |
+        Any error output from `:messages` after reproducing, or the
+        contents of `~/zzvim_r.log` if `g:zzvim_r_debug` is set.
+      render: text
+
+  - type: textarea
+    id: config
+    attributes:
+      label: Relevant configuration
+      description: |
+        Any `g:zzvim_r_*` variables you set, and how you load the
+        plugin (vim-plug, lazy.nvim, native packages, etc.).
+      render: vim
