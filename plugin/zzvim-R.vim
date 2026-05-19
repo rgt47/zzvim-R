@@ -1627,9 +1627,10 @@ if !g:zzvim_r_disable_mappings
         " Render zztable1 blueprint under cursor via Typst (zztab2fig)
         autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>T :call <SID>RTable1View('')<CR>
 
-        " R Markdown rendering (rk = render knit)
+        " R Markdown rendering (rk = render knit, rv = render PDF)
         autocmd FileType rmd,quarto nnoremap <buffer> <silent> <localleader>rp :RMarkdownPreview<CR>
         autocmd FileType rmd,quarto nnoremap <buffer> <silent> <localleader>rk :RMarkdownRender<CR>
+        autocmd FileType rmd,quarto nnoremap <buffer> <silent> <localleader>rv :RMarkdownRender pdf_document<CR>
 
         " Chunk insertion (rmd/qmd only)
         autocmd FileType rmd,quarto nnoremap <buffer> <silent> <localleader>ci :call <SID>InsertRChunk(0)<CR>

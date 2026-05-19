@@ -52,6 +52,9 @@ and display plots -- all without leaving the editor.
 | **R Markdown** | |
 | `<LocalLeader>j/k` | Next / previous chunk |
 | `<LocalLeader>l` | Execute current chunk |
+| `<LocalLeader>rk` | Render to default format (respects YAML front matter) |
+| `<LocalLeader>rp` | Render to HTML and open in browser |
+| `<LocalLeader>rv` | Render to PDF (`pdf_document`) |
 
 Full mapping reference: `:help zzvim-R-mappings`
 

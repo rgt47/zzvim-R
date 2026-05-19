@@ -450,9 +450,15 @@ R Markdown / Quarto Commands                      *zzvim-r-commands-rmd*
 :RChunkInsertAbove                                        *:RChunkInsertAbove*
     Insert a new R code chunk above the current line.
 
+:RMarkdownRender [{format}]                                *:RMarkdownRender*
+    Render the current R Markdown / Quarto file via rmarkdown::render().
+    Optional {format} specifies the output format (e.g. html_document,
+    pdf_document, word_document). Defaults to html_document when omitted.
+
 :RMarkdownPreview                                          *:RMarkdownPreview*
-    Render the current R Markdown / Quarto file and open the rendered
-    output. Respects the document's front-matter settings.
+    Render the current file to html_document and open the result in the
+    system browser. Equivalent to :RMarkdownRender html_document with
+    auto-open.
 
 Miscellaneous Commands                            *zzvim-r-commands-misc*
 
@@ -487,6 +493,9 @@ R Terminal Launch:                                *zzvim-r-mappings-terminal*
     <localleader>k    Move to previous chunk (backward chunk traversal)
     <localleader>l    Select and submit current chunk (execute chunk)
     <localleader>t    Submit all previous chunks (cumulative execution)
+    <localleader>rk   Render to default format (respects YAML front matter)
+    <localleader>rp   Render to HTML and open in browser
+    <localleader>rv   Render to PDF (pdf_document)
     <localleader>'    Show workspace overview (object browser)
     <localleader>q    Send 'Q' to R terminal (graceful session termination)
     <localleader>c    Send Ctrl-C to R terminal (interrupt signal)
