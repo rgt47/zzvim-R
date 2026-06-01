@@ -57,8 +57,9 @@ doc/tags
 # Test dependencies cloned by `make themis-install`
 test/.deps/
 
-# Rendered PDFs (regenerated from .md sources)
-docs/**/*.pdf
+# Technical documentation tree: version-controlled locally (Dropbox),
+# but intentionally not tracked so it is never pushed to public GitHub.
+/docs/
 
 # OS files
 .DS_Store
