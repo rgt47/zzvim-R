@@ -61,26 +61,38 @@ function! s:suite.finds_zzcollab_marker_in_current_dir() abort
     " equality. Git Bash on Windows exposes tempname() via a
     " translated prefix (/tmp/... vs /c/Users/.../Temp/...) that
     " resolve() does not unify, so exact comparison is fragile.
-    call mkdir(s:tmpdir . '/.zzcollab', 'p')
+    " The marker is now a plain empty .zzcollab file (replacing the
+    " legacy .zzcollab/manifest.json directory).
+    call writefile([], s:tmpdir . '/.zzcollab')
     execute 'lcd' fnameescape(s:tmpdir)
     let root = s:GetProjectRoot()
     call s:assert.not_equals(root, '')
-    call s:assert.truthy(isdirectory(root . '/.zzcollab'))
+    call s:assert.truthy(filereadable(root . '/.zzcollab'))
 endfunction
 
 function! s:suite.finds_zzcollab_marker_in_parent_dir() abort
-    call mkdir(s:tmpdir . '/.zzcollab', 'p')
+    call writefile([], s:tmpdir . '/.zzcollab')
     call mkdir(s:tmpdir . '/src/analysis', 'p')
     execute 'lcd' fnameescape(s:tmpdir . '/src/analysis')
     let root = s:GetProjectRoot()
     call s:assert.not_equals(root, '')
-    call s:assert.truthy(isdirectory(root . '/.zzcollab'))
+    call s:assert.truthy(filereadable(root . '/.zzcollab'))
     " The returned path must be an ancestor of the current cwd.
     " getcwd() and root may use different path styles on Windows,
     " so normalize with fnamemodify(':p') first.
     let cwd_p = fnamemodify(getcwd(), ':p')
     let root_p = fnamemodify(root, ':p')
     call s:assert.truthy(stridx(cwd_p, root_p) >= 0)
+endfunction
+
+function! s:suite.finds_legacy_zzcollab_directory_marker() abort
+    " Back-compat: a leftover .zzcollab/ directory (the pre-file
+    " convention) is still recognized as a project root.
+    call mkdir(s:tmpdir . '/.zzcollab', 'p')
+    execute 'lcd' fnameescape(s:tmpdir)
+    let root = s:GetProjectRoot()
+    call s:assert.not_equals(root, '')
+    call s:assert.truthy(isdirectory(root . '/.zzcollab'))
 endfunction
 
 function! s:suite.explicit_override_short_circuits_search() abort
@@ -95,7 +107,7 @@ endfunction
 " =================================================================
 
 function! s:suite.is_inside_zzcollab_true_when_marker_exists() abort
-    call mkdir(s:tmpdir . '/.zzcollab', 'p')
+    call writefile([], s:tmpdir . '/.zzcollab')
     execute 'lcd' fnameescape(s:tmpdir)
     call s:assert.truthy(s:IsInsideZzcollab())
 endfunction
