@@ -210,9 +210,12 @@ endfunction
 " Project-root detection (zzcollab workspaces)
 " ----------------------------------------------------------------------------
 
-" Path to the zzcollab workspace root (directory containing .zzcollab/)
-" by walking up from cwd. Respects a user override via
-" g:zzvim_r_project_root. Returns '' if no marker is found.
+" Path to the zzcollab workspace root (directory containing the
+" .zzcollab marker file) by walking up from cwd. Respects a user
+" override via g:zzvim_r_project_root. Returns '' if no marker is
+" found. The marker is a plain empty .zzcollab file written by every
+" zzc entry point (replacing the legacy .zzcollab/manifest.json
+" directory); a leftover directory is still accepted for back-compat.
 function! zzvim_r#get_project_root() abort
     if exists('g:zzvim_r_project_root') && !empty(g:zzvim_r_project_root)
         return g:zzvim_r_project_root
@@ -220,7 +223,8 @@ function! zzvim_r#get_project_root() abort
 
     let dir = getcwd()
     while dir != '/'
-        if isdirectory(dir . '/.zzcollab')
+        let marker = dir . '/.zzcollab'
+        if filereadable(marker) || isdirectory(marker)
             return dir
         endif
         let dir = fnamemodify(dir, ':h')
