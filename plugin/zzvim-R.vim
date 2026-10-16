@@ -233,7 +233,7 @@ let g:zzvim_r_debug = get(g:, 'zzvim_r_debug', 0)
 "------------------------------------------------------------------------------
 
 " Current template version (must match templates/.Rprofile.local header)
-let s:template_version = '2.0.0'
+let s:template_version = '2.1.0'
 
 " Get plugin directory (where templates/ lives)
 let s:plugin_dir = fnamemodify(resolve(expand('<sfile>:p')), ':h:h')
@@ -668,7 +668,7 @@ function! s:ConfigureTerminal(terminal_name, is_docker) abort
     if !a:is_docker
         call s:WaitForRPrompt(current_terminal, 10000)
         call s:compat_term_sendkeys(current_terminal,
-            \ '.zz <- function(f) { source(f, echo=TRUE); unlink(f) }' . "\n")
+            \ '.zz <- function(f) { if (isatty(stdout())) cat("\033[1A\033[2K\r", sep=""); source(f, echo=TRUE); unlink(f) }' . "\n")
     endif
 
     wincmd p
