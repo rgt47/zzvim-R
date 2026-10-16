@@ -233,7 +233,7 @@ let g:zzvim_r_debug = get(g:, 'zzvim_r_debug', 0)
 "------------------------------------------------------------------------------
 
 " Current template version (must match templates/.Rprofile.local header)
-let s:template_version = '1.9.0'
+let s:template_version = '2.0.0'
 
 " Get plugin directory (where templates/ lives)
 let s:plugin_dir = fnamemodify(resolve(expand('<sfile>:p')), ':h:h')
@@ -658,12 +658,14 @@ function! s:ConfigureTerminal(terminal_name, is_docker) abort
     endif
     let t:is_r_term = 1
 
-    " Define the .zz() helper once R's interactive prompt is confirmed.
-    " Waiting for '>' prevents the definition from landing in the shell
-    " while Docker is still starting, which caused it to appear twice.
-    call s:WaitForRPrompt(current_terminal, 30000)
-    call s:compat_term_sendkeys(current_terminal,
-        \ '.zz <- function(f) { source(f, echo=TRUE); unlink(f) }' . "\n")
+    " For Docker sessions .zz is defined in .Rprofile.local (sourced silently
+    " at startup), so no terminal injection is needed.  For local R sessions
+    " there is no .Rprofile.local, so inject it after the prompt appears.
+    if !a:is_docker
+        call s:WaitForRPrompt(current_terminal, 10000)
+        call s:compat_term_sendkeys(current_terminal,
+            \ '.zz <- function(f) { source(f, echo=TRUE); unlink(f) }' . "\n")
+    endif
 
     wincmd p
 
