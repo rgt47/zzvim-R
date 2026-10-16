@@ -435,6 +435,10 @@ function! s:GetBufferTerminal() abort
     if terminal_id != -1
         " Associate new terminal with this buffer
         let b:r_terminal_id = terminal_id
+        " Wait for R's interactive prompt before returning so that the first
+        " code submission (Send_to_r) arrives at R, not at the shell running
+        " 'make r' while Docker is still starting.
+        call s:WaitForRPrompt(terminal_id, 30000)
         return b:r_terminal_id
     endif
 
