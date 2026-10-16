@@ -589,6 +589,41 @@ function! s:OpenDockerRTerminal(...) abort
     endif
 endfunction
 
+" Poll terminal buffer until R's interactive prompt (>) is visible, or
+" until timeout_ms milliseconds elapse.  Returns 1 on success, 0 on timeout.
+" Works in both Vim (term_getsize / term_getline) and Neovim (nvim API).
+function! s:WaitForRPrompt(bufnr, timeout_ms) abort
+    let l:interval = 250
+    let l:elapsed  = 0
+    while l:elapsed < a:timeout_ms
+        execute 'sleep ' . l:interval . 'm'
+        let l:elapsed += l:interval
+        let l:found = 0
+        if has('nvim')
+            try
+                " nvim_buf_get_lines end=-1 means "to the last line inclusive"
+                let l:lines = nvim_buf_get_lines(a:bufnr, -6, -1, 0)
+                for l:line in l:lines
+                    if trim(l:line) =~# '^>\s*$'
+                        let l:found = 1 | break
+                    endif
+                endfor
+            catch
+            endtry
+        elseif exists('*term_getsize')
+            let l:sz   = term_getsize(a:bufnr)
+            let l:rows = get(l:sz, 0, 24)
+            for l:r in range(max([1, l:rows - 4]), l:rows)
+                if trim(term_getline(a:bufnr, l:r)) =~# '^>\s*$'
+                    let l:found = 1 | break
+                endif
+            endfor
+        endif
+        if l:found | return 1 | endif
+    endwhile
+    return 0
+endfunction
+
 " Configure terminal after creation (shared between local and Docker)
 function! s:ConfigureTerminal(terminal_name, is_docker) abort
     " Check if .Rprofile.local needs updating
@@ -623,13 +658,12 @@ function! s:ConfigureTerminal(terminal_name, is_docker) abort
     endif
     let t:is_r_term = 1
 
-    " Define the .zz() helper in R so code submission shows a short
-    " prompt line (`.zz(".zz.R")`) instead of the full source+unlink
-    " machinery. Wait briefly for R to be ready before sending.
-    sleep 500m
+    " Define the .zz() helper once R's interactive prompt is confirmed.
+    " Waiting for '>' prevents the definition from landing in the shell
+    " while Docker is still starting, which caused it to appear twice.
+    call s:WaitForRPrompt(current_terminal, 30000)
     call s:compat_term_sendkeys(current_terminal,
         \ '.zz <- function(f) { source(f, echo=TRUE); unlink(f) }' . "\n")
-    sleep 50m
 
     wincmd p
 
