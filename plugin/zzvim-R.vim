@@ -233,7 +233,7 @@ let g:zzvim_r_debug = get(g:, 'zzvim_r_debug', 0)
 "------------------------------------------------------------------------------
 
 " Current template version (must match templates/.Rprofile.local header)
-let s:template_version = '2.1.0'
+let s:template_version = '2.2.0'
 
 " Get plugin directory (where templates/ lives)
 let s:plugin_dir = fnamemodify(resolve(expand('<sfile>:p')), ':h:h')
@@ -1001,10 +1001,15 @@ function! s:SendToR(selection_type, ...) abort
     " calls source(f, echo=TRUE) then unlink(f), keeping the R prompt
     " line short: .zz(".zz.R") instead of the full source+unlink call.
     "
-    " Fixed filename is safe because unlink() runs in the same R
-    " expression as source(), so the file is gone before the next
-    " submission could overwrite it.
-    let temp_filename = '.zz.R'
+    " Use a per-session counter so rapid successive sends each get their own
+    " file; a fixed name races when the user presses <CR> twice before R
+    " finishes sourcing the first file (Vim overwrites it, R's unlink then
+    " deletes the second submission's file, and the second .zz call errors).
+    if !exists('s:zz_seq')
+        let s:zz_seq = 0
+    endif
+    let s:zz_seq += 1
+    let temp_filename = '.zz.' . s:zz_seq . '.R'
 
     " Get buffer's directory (where the .R file lives)
     let buffer_dir = expand('%:p:h')
