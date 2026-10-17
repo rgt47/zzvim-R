@@ -3,9 +3,9 @@ scriptencoding utf-8
 " zzvim-R - Advanced R Development Plugin for Vim
 " ==========================================================================="
 " Maintainer:  RG Thomas rgthomas@ucsd.edu
-" Version:     0.9.0
+" Version:     0.9.1
 " License:     GPL3 License
-" Last Change: 2026-04-13
+" Last Change: 2026-10-17
 "
 " PLUGIN OVERVIEW:
 " ================
@@ -807,6 +807,24 @@ endfunction
 " These functions provide navigation between code chunks in literate
 " programming documents
 
+" After landing on the first line inside a chunk, advance past #| option lines,
+" # comment lines, and blank lines so the cursor rests on the first executable
+" line. Stops at the chunk-end fence to avoid escaping the chunk.
+function! s:SkipChunkPreamble() abort
+    let l:end_pattern = get(g:, 'zzvim_r_chunk_end', '^```\s*$')
+    while line('.') < line('$')
+        let l:ln = getline('.')
+        if l:ln =~# l:end_pattern
+            break
+        endif
+        if l:ln =~# '^\s*#' || l:ln =~# '^\s*$'
+            normal! j
+        else
+            break
+        endif
+    endwhile
+endfunction
+
 " Navigate to Next Code Chunk (Forward Direction)
 " Finds the next chunk boundary and positions cursor inside for editing
 function! s:MoveNextChunk() abort
@@ -824,6 +842,7 @@ function! s:MoveNextChunk() abort
         " We're on a chunk start - move inside this chunk
         if l:current_line < line('$')
             normal! j
+            call s:SkipChunkPreamble()
             echom "Moved inside current chunk at line " . line('.')
             return
         else
@@ -844,6 +863,7 @@ function! s:MoveNextChunk() abort
         if line('.') < line('$')
             " Move one line down to enter chunk content area
             normal! j
+            call s:SkipChunkPreamble()
             " Provide user feedback about navigation success
             echom "Moved inside the next chunk at line " . line('.')
         else
@@ -906,6 +926,7 @@ function! s:MovePrevChunk() abort
         " Success: Previous chunk found
         " Position cursor inside chunk content area (after header line)
         call cursor(prev_chunk_start + 1, 1)
+        call s:SkipChunkPreamble()
         " normal! zz centers current line in window for better visibility
         normal! zz
         " Provide success feedback with line number
