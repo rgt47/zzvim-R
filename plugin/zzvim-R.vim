@@ -3,7 +3,7 @@ scriptencoding utf-8
 " zzvim-R - Advanced R Development Plugin for Vim
 " ==========================================================================="
 " Maintainer:  RG Thomas rgthomas@ucsd.edu
-" Version:     0.9.1
+" Version:     0.9.2
 " License:     GPL3 License
 " Last Change: 2026-10-17
 "
@@ -1743,6 +1743,9 @@ endif
 
 " Track Docker R terminal buffer
 let s:docker_r_terminal_bufnr = -1
+" Guard: set to 1 by make r's shell hook so s:OnRTerminalClose does not
+" duplicate the validation when the terminal buffer closes normally.
+let s:post_session_hook_ran = 0
 let s:pane_title = 'zzvim-plot'
 let s:poll_interval = 100
 let s:plot_signal_mtime = 0
@@ -2415,6 +2418,18 @@ endfunction
 function! s:OnRTerminalClose() abort
     call s:StopPlotWatcher()
     call system('kitty @ close-window --match title:' . s:pane_title . ' 2>/dev/null')
+    " Run post-session validation when a docker session was active and the
+    " make r shell hook has not already run it (normal exit path). On :qa!
+    " the shell hook never runs, so this fires instead. Output is logged to
+    " /tmp/zzvim-r-renvcheck.log since the terminal may be closing.
+    " make r writes /tmp/zzvim-r-hook-ran when its post-session validation
+    " completes, so we can skip the duplicate run on normal exit. On :qa!
+    " the sentinel is absent and we run the hook here instead.
+    let l:sentinel = '/tmp/zzvim-r-hook-ran'
+    if s:docker_r_terminal_bufnr >= 0 && !filereadable(l:sentinel)
+        call system('Rscript -e "if (requireNamespace(\"zzrenvcheck\", quietly=TRUE)) zzrenvcheck::check_packages(auto_fix=TRUE, strict=TRUE, skip_image_pkgs=TRUE)" >/tmp/zzvim-r-renvcheck.log 2>&1')
+    endif
+    call delete(l:sentinel)
     let s:docker_r_terminal_bufnr = -1
 endfunction
 
