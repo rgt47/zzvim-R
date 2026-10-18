@@ -630,7 +630,7 @@ function! s:WaitForRPrompt(bufnr, timeout_ms) abort
         elseif exists('*term_getsize')
             let l:sz   = term_getsize(a:bufnr)
             let l:rows = get(l:sz, 0, 24)
-            for l:r in range(max([1, l:rows - 4]), l:rows)
+            for l:r in range(1, l:rows)
                 if trim(term_getline(a:bufnr, l:r)) =~# '^>\s*$'
                     let l:found = 1 | break
                 endif
