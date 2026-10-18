@@ -439,19 +439,26 @@ function! s:GetBufferTerminal() abort
         let l:is_docker = getbufvar(terminal_id, 'r_is_docker', 0)
         " For Docker: ConfigureTerminal left focus on the terminal window so
         " the user can watch the container and R start up in real time.
-        " WaitForRPrompt polls here while that output is visible.
+        " Hide the cursor (t_ve) so the output fills in without the cursor
+        " scrolling visibly through the R banner and renv messages.
         " For local R: ConfigureTerminal already ran WaitForRPrompt and
         " wincmd p; this second poll returns in one tick (~250 ms).
-        call s:WaitForRPrompt(terminal_id, 30000)
-        if l:is_docker
-            " Safety-net .zz injection (harmless if .Rprofile.local already
-            " defined it; guards against prompt-detection edge cases).
-            call s:compat_term_sendkeys(terminal_id,
-                \ '.zz <- function(f) { if (isatty(stdout())) cat("\033[1A\033[2K\r", sep=""); source(f, echo=TRUE); unlink(f) }' . "\n")
-            sleep 50m
-            " Return to the source buffer now that R is ready.
-            wincmd p
-        endif
+        let l:save_t_ve = &t_ve
+        try
+            set t_ve=
+            call s:WaitForRPrompt(terminal_id, 30000)
+            if l:is_docker
+                " Safety-net .zz injection (harmless if .Rprofile.local already
+                " defined it; guards against prompt-detection edge cases).
+                call s:compat_term_sendkeys(terminal_id,
+                    \ '.zz <- function(f) { if (isatty(stdout())) cat("\033[1A\033[2K\r", sep=""); source(f, echo=TRUE); unlink(f) }' . "\n")
+                sleep 50m
+                " Return to the source buffer now that R is ready.
+                wincmd p
+            endif
+        finally
+            let &t_ve = l:save_t_ve
+        endtry
         " Associate the terminal with the source buffer.
         let b:r_terminal_id = terminal_id
         echo ''
