@@ -435,20 +435,26 @@ function! s:GetBufferTerminal() abort
     if terminal_id != -1
         " Associate new terminal with this buffer
         let b:r_terminal_id = terminal_id
-        " Wait for R's interactive prompt before returning so that the first
-        " code submission (Send_to_r) arrives at R, not at the shell running
-        " 'make r' while Docker is still starting.
-        call s:WaitForRPrompt(terminal_id, 30000)
-        " For Docker sessions, inject .zz as a safety net: WaitForRPrompt may
-        " time out in neovim if the terminal buffer is not yet in focus when
-        " term_start() returns, causing bufnr('%') in ConfigureTerminal to
-        " capture the wrong buffer.  .Rprofile.local already defines .zz with
-        " the same body, so this is a harmless no-op when things work normally.
-        if getbufvar(terminal_id, 'r_is_docker', 0)
-            call s:compat_term_sendkeys(terminal_id,
-                \ '.zz <- function(f) { if (isatty(stdout())) cat("\033[1A\033[2K\r", sep=""); source(f, echo=TRUE); unlink(f) }' . "\n")
-            sleep 50m
-        endif
+        " Hide cursor during R startup so the user does not see it drift to
+        " an unrelated line while the terminal is being prepared.  t_ve is
+        " the terminal escape for "cursor visible"; clearing it suppresses
+        " the show-cursor command until we restore it below.
+        let l:save_t_ve = &t_ve
+        try
+            set t_ve=
+            " Wait for R's interactive prompt before returning so that the first
+            " code submission (Send_to_r) arrives at R, not at the shell running
+            " 'make r' while Docker is still starting.
+            call s:WaitForRPrompt(terminal_id, 30000)
+            " For Docker sessions, inject .zz as a safety net.
+            if getbufvar(terminal_id, 'r_is_docker', 0)
+                call s:compat_term_sendkeys(terminal_id,
+                    \ '.zz <- function(f) { if (isatty(stdout())) cat("\033[1A\033[2K\r", sep=""); source(f, echo=TRUE); unlink(f) }' . "\n")
+                sleep 50m
+            endif
+        finally
+            let &t_ve = l:save_t_ve
+        endtry
         return b:r_terminal_id
     endif
 
