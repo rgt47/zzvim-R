@@ -1021,6 +1021,10 @@ endfunction
 " Returns: nothing (void) - uses silent execution, no user prompts
 
 function! s:SendToR(selection_type, ...) abort
+    " Remember source window so cursor movement lands in the right place even
+    " if terminal creation shifts focus to another window temporarily.
+    let l:source_winnr = winnr()
+
     " Phase 1: Text Extraction and Pattern Detection
     let text_lines = s:GetTextByType(a:selection_type)
     
@@ -1081,6 +1085,12 @@ function! s:SendToR(selection_type, ...) abort
     endif
     
     " Phase 4: Cursor Movement Based on Actual Submission Type
+    " Return to the source window before moving the cursor; terminal creation
+    " may have shifted focus (wincmd p can land on the wrong window when there
+    " are 3+ windows open).
+    if winnr() != l:source_winnr
+        execute l:source_winnr . 'wincmd w'
+    endif
     call s:MoveCursorAfterSubmission(actual_type, len(text_lines))
 endfunction
 
