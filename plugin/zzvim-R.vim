@@ -2455,7 +2455,7 @@ function! s:OnRTerminalClose() abort
     " the sentinel is absent and we run the hook here instead.
     let l:sentinel = '/tmp/zzvim-r-hook-ran'
     if s:docker_r_terminal_bufnr >= 0 && !filereadable(l:sentinel)
-        call system('Rscript -e "if (requireNamespace(\"zzrenvcheck\", quietly=TRUE)) zzrenvcheck::check_packages(auto_fix=TRUE, strict=TRUE, skip_image_pkgs=TRUE)" >/tmp/zzvim-r-renvcheck.log 2>&1')
+        call system('Rscript -e "if (requireNamespace(\"zzrenvcheck\", quietly=TRUE)) zzrenvcheck::check_packages(auto_fix=TRUE, strict=TRUE, skip_image_pkgs=TRUE)" >/tmp/zzvim-r-renvcheck.log 2>&1 &')
     endif
     call delete(l:sentinel)
     let s:docker_r_terminal_bufnr = -1
