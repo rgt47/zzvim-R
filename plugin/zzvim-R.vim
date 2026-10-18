@@ -439,6 +439,16 @@ function! s:GetBufferTerminal() abort
         " code submission (Send_to_r) arrives at R, not at the shell running
         " 'make r' while Docker is still starting.
         call s:WaitForRPrompt(terminal_id, 30000)
+        " For Docker sessions, inject .zz as a safety net: WaitForRPrompt may
+        " time out in neovim if the terminal buffer is not yet in focus when
+        " term_start() returns, causing bufnr('%') in ConfigureTerminal to
+        " capture the wrong buffer.  .Rprofile.local already defines .zz with
+        " the same body, so this is a harmless no-op when things work normally.
+        if getbufvar(terminal_id, 'r_is_docker', 0)
+            call s:compat_term_sendkeys(terminal_id,
+                \ '.zz <- function(f) { if (isatty(stdout())) cat("\033[1A\033[2K\r", sep=""); source(f, echo=TRUE); unlink(f) }' . "\n")
+            sleep 50m
+        endif
         return b:r_terminal_id
     endif
 
