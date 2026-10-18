@@ -615,8 +615,11 @@ function! s:WaitForRPrompt(bufnr, timeout_ms) abort
         let l:found = 0
         if has('nvim')
             try
-                " nvim_buf_get_lines end=-1 means "to the last line inclusive"
-                let l:lines = nvim_buf_get_lines(a:bufnr, -6, -1, 0)
+                " Scan all lines: neovim terminal buffers have fixed height
+                " (e.g. 40 rows) so the R prompt "> " may appear near row 5
+                " while the last 5 rows are empty padding.  Searching only
+                " the tail therefore misses the prompt and always times out.
+                let l:lines = nvim_buf_get_lines(a:bufnr, 0, -1, 0)
                 for l:line in l:lines
                     if trim(l:line) =~# '^>\s*$'
                         let l:found = 1 | break
