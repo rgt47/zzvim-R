@@ -429,34 +429,35 @@ function! s:GetBufferTerminal() abort
         " If selection == -1, fall through to create new terminal
     endif
 
-    " No existing terminals, or user chose to create new one
+    " No existing terminals, or user chose to create new one.
+    " Show immediate feedback before the terminal opens.
+    echohl MoreMsg | echo 'Starting R...' | echohl None
+    redraw
     let terminal_id = s:OpenRTerminal()
 
     if terminal_id != -1
-        " Associate new terminal with this buffer
+        let l:is_docker = getbufvar(terminal_id, 'r_is_docker', 0)
+        " For Docker: ConfigureTerminal left focus on the terminal window so
+        " the user can watch the container and R start up in real time.
+        " WaitForRPrompt polls here while that output is visible.
+        " For local R: ConfigureTerminal already ran WaitForRPrompt and
+        " wincmd p; this second poll returns in one tick (~250 ms).
+        call s:WaitForRPrompt(terminal_id, 30000)
+        if l:is_docker
+            " Safety-net .zz injection (harmless if .Rprofile.local already
+            " defined it; guards against prompt-detection edge cases).
+            call s:compat_term_sendkeys(terminal_id,
+                \ '.zz <- function(f) { if (isatty(stdout())) cat("\033[1A\033[2K\r", sep=""); source(f, echo=TRUE); unlink(f) }' . "\n")
+            sleep 50m
+            " Return to the source buffer now that R is ready.
+            wincmd p
+        endif
+        " Associate the terminal with the source buffer.
         let b:r_terminal_id = terminal_id
-        " Hide cursor during R startup so the user does not see it drift to
-        " an unrelated line while the terminal is being prepared.  t_ve is
-        " the terminal escape for "cursor visible"; clearing it suppresses
-        " the show-cursor command until we restore it below.
-        let l:save_t_ve = &t_ve
-        try
-            set t_ve=
-            " Wait for R's interactive prompt before returning so that the first
-            " code submission (Send_to_r) arrives at R, not at the shell running
-            " 'make r' while Docker is still starting.
-            call s:WaitForRPrompt(terminal_id, 30000)
-            " For Docker sessions, inject .zz as a safety net.
-            if getbufvar(terminal_id, 'r_is_docker', 0)
-                call s:compat_term_sendkeys(terminal_id,
-                    \ '.zz <- function(f) { if (isatty(stdout())) cat("\033[1A\033[2K\r", sep=""); source(f, echo=TRUE); unlink(f) }' . "\n")
-                sleep 50m
-            endif
-        finally
-            let &t_ve = l:save_t_ve
-        endtry
+        echo ''
         return b:r_terminal_id
     endif
+    echo ''
 
     " Failed to create terminal
     return -1
@@ -681,19 +682,17 @@ function! s:ConfigureTerminal(terminal_name, is_docker) abort
     endif
     let t:is_r_term = 1
 
-    " For Docker sessions .zz is defined in .Rprofile.local (sourced silently
-    " at startup), so no terminal injection is needed.  For local R sessions
-    " there is no .Rprofile.local, so inject it after the prompt appears.
+    " For local R: wait for the prompt and inject .zz, then return to the
+    " source buffer immediately.  For Docker: do nothing here -- the caller
+    " (GetBufferTerminal) keeps focus on the terminal so the user can watch
+    " the container and R start up, and calls wincmd p once R is ready.
     if !a:is_docker
         call s:WaitForRPrompt(current_terminal, 10000)
         call s:compat_term_sendkeys(current_terminal,
             \ '.zz <- function(f) { if (isatty(stdout())) cat("\033[1A\033[2K\r", sep=""); source(f, echo=TRUE); unlink(f) }' . "\n")
+        wincmd p
+        let b:r_terminal_id = current_terminal
     endif
-
-    wincmd p
-
-    " Associate terminal with buffer
-    let b:r_terminal_id = current_terminal
 
     " Start plot watcher if terminal supports graphics (works for both Docker and local R)
     if s:TerminalSupportsGraphics()
