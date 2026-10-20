@@ -3,9 +3,9 @@ scriptencoding utf-8
 " zzvim-R - Advanced R Development Plugin for Vim
 " ==========================================================================="
 " Maintainer:  RG Thomas rgthomas@ucsd.edu
-" Version:     0.9.2
+" Version:     0.10.0
 " License:     GPL3 License
-" Last Change: 2026-10-17
+" Last Change: 2026-10-20
 "
 " PLUGIN OVERVIEW:
 " ================
@@ -192,7 +192,7 @@ endif
 " Convention: g:loaded_{plugin_name} = 1 indicates successful loading
 let g:loaded_zzvim_r = 1
 " Plugin version for compatibility checking and debugging
-let g:zzvim_r_version = '0.9.0'
+let g:zzvim_r_version = '0.10.0'
 
 " =============================================================================
 " CONFIGURATION INITIALIZATION WITH SAFE DEFAULTS
@@ -1655,6 +1655,248 @@ endfunction
 "
 "
 "
+" =============================================================================
+" <Plug> mapping targets (v0.10.0)
+" =============================================================================
+" Every user-facing action has a named <Plug> target, defined once here at
+" script load time (not buffer-local: only the trigger key bound to it,
+" further down, is buffer-local). This is the standard plugin-mapping
+" pattern from the Vim user manual (usr_51.txt, "Write a Vim script" /
+" mapping an operator): it lets a user remap any single action in their
+" own vimrc, and s:ZzvimRSetupMappings() below skips the corresponding
+" default binding whenever hasmapto() finds the user already did so.
+" Example override, in the user's vimrc, of the chunk-submit key only:
+"   nmap <buffer> <LocalLeader>X <Plug>(zzvim-r-chunk-submit)
+" See doc/zzvim-R.txt, "Advanced Mapping Customization", for the full
+" list of <Plug> names.
+
+" --- Terminal launch ---
+noremap <silent> <Plug>(zzvim-r-terminal-docker)     :call <SID>OpenDockerRTerminal()<CR>
+noremap <silent> <Plug>(zzvim-r-terminal-local)      :call <SID>OpenLocalRTerminal()<CR>
+noremap <silent> <Plug>(zzvim-r-terminal-vanilla)    :call <SID>OpenLocalRTerminalVanilla()<CR>
+noremap <silent> <Plug>(zzvim-r-terminal-docker-new) :call <SID>OpenDockerRTerminal(s:GetTerminalName(), 1)<CR>
+noremap <silent> <Plug>(zzvim-r-split-vertical)      :call <SID>ROpenSplitCommand('vertical')<CR>
+noremap <silent> <Plug>(zzvim-r-split-horizontal)    :call <SID>ROpenSplitCommand('horizontal')<CR>
+
+" --- Sending code ---
+xnoremap <silent> <Plug>(zzvim-r-send-selection) :<C-u>call <SID>SendToR('selection')<CR>
+nnoremap <silent> <Plug>(zzvim-r-send-smart)          :call <SID>SendToR('')<CR>
+nnoremap <silent> <Plug>(zzvim-r-send-smart-comments) :call <SID>SendToRWithComments('')<CR>
+nnoremap <silent> <Plug>(zzvim-r-pipe-newline)        :call <SID>AddPipeAndNewLine()<CR>
+nnoremap <silent> <Plug>(zzvim-r-send-line)           :call <SID>SendToR('line')<CR>
+nnoremap <silent> <Plug>(zzvim-r-send-function)       :call <SID>SendToR('function')<CR>
+nnoremap <silent> <Plug>(zzvim-r-send-prevchunks)     :call <SID>SendToR('previous_chunks')<CR>
+
+" --- Chunk navigation and submission ---
+nnoremap <silent> <Plug>(zzvim-r-chunk-next)   :call <SID>MoveNextChunk()<CR>
+nnoremap <silent> <Plug>(zzvim-r-chunk-prev)   :call <SID>MovePrevChunk()<CR>
+onoremap <silent> <Plug>(zzvim-r-chunk-next)   :call <SID>MoveNextChunk()<CR>
+onoremap <silent> <Plug>(zzvim-r-chunk-prev)   :call <SID>MovePrevChunk()<CR>
+xnoremap <silent> <Plug>(zzvim-r-chunk-next)   :<C-u>exe "normal! gv"<Bar>call <SID>MoveNextChunk()<CR>
+xnoremap <silent> <Plug>(zzvim-r-chunk-prev)   :<C-u>exe "normal! gv"<Bar>call <SID>MovePrevChunk()<CR>
+nnoremap <silent> <Plug>(zzvim-r-chunk-submit) :call <SID>SubmitChunk()<CR>zz
+
+" --- Terminal control ---
+nnoremap <silent> <Plug>(zzvim-r-ctrl-q) :call <SID>SendControlKeys("Q")<CR>
+nnoremap <silent> <Plug>(zzvim-r-ctrl-c) :call <SID>SendControlKeys("\<C-c>")<CR>
+
+" --- Object inspection, under cursor (<cword>) ---
+nnoremap <silent> <Plug>(zzvim-r-obj-dim)     :call <SID>RAction("dim", 1)<CR>
+nnoremap <silent> <Plug>(zzvim-r-obj-head)    :call <SID>RAction("head", 1)<CR>
+nnoremap <silent> <Plug>(zzvim-r-obj-tail)    :call <SID>RAction("tail", 1)<CR>
+nnoremap <silent> <Plug>(zzvim-r-obj-str)     :call <SID>RAction("str", 1)<CR>
+nnoremap <silent> <Plug>(zzvim-r-obj-print)   :call <SID>RAction("print", 1)<CR>
+nnoremap <silent> <Plug>(zzvim-r-obj-names)   :call <SID>RAction("names", 1)<CR>
+nnoremap <silent> <Plug>(zzvim-r-obj-length)  :call <SID>RAction("length", 1)<CR>
+nnoremap <silent> <Plug>(zzvim-r-obj-glimpse) :call <SID>RAction("glimpse", 1)<CR>
+nnoremap <silent> <Plug>(zzvim-r-obj-dt)      :call <SID>RAction("dt", 1)<CR>
+nnoremap <silent> <Plug>(zzvim-r-obj-summary) :call <SID>RAction("summary", 1)<CR>
+
+" --- Object inspection, visual selection (defect 17: RAction only read
+" <cword>; these let the same keys work on an arbitrary selection, e.g.
+" df$x, not just a single word) ---
+xnoremap <silent> <Plug>(zzvim-r-objx-dim)     :<C-u>call <SID>RCommandWithArg("dim", <SID>GetVisualSelection(), 1)<CR>
+xnoremap <silent> <Plug>(zzvim-r-objx-head)    :<C-u>call <SID>RCommandWithArg("head", <SID>GetVisualSelection(), 1)<CR>
+xnoremap <silent> <Plug>(zzvim-r-objx-tail)    :<C-u>call <SID>RCommandWithArg("tail", <SID>GetVisualSelection(), 1)<CR>
+xnoremap <silent> <Plug>(zzvim-r-objx-str)     :<C-u>call <SID>RCommandWithArg("str", <SID>GetVisualSelection(), 1)<CR>
+xnoremap <silent> <Plug>(zzvim-r-objx-print)   :<C-u>call <SID>RCommandWithArg("print", <SID>GetVisualSelection(), 1)<CR>
+xnoremap <silent> <Plug>(zzvim-r-objx-names)   :<C-u>call <SID>RCommandWithArg("names", <SID>GetVisualSelection(), 1)<CR>
+xnoremap <silent> <Plug>(zzvim-r-objx-length)  :<C-u>call <SID>RCommandWithArg("length", <SID>GetVisualSelection(), 1)<CR>
+xnoremap <silent> <Plug>(zzvim-r-objx-glimpse) :<C-u>call <SID>RCommandWithArg("glimpse", <SID>GetVisualSelection(), 1)<CR>
+xnoremap <silent> <Plug>(zzvim-r-objx-dt)      :<C-u>call <SID>RCommandWithArg("dt", <SID>GetVisualSelection(), 1)<CR>
+xnoremap <silent> <Plug>(zzvim-r-objx-summary) :<C-u>call <SID>RCommandWithArg("summary", <SID>GetVisualSelection(), 1)<CR>
+
+" --- Object inspection, GUI (buffer/window-based, not console) ---
+nnoremap <silent> <Plug>(zzvim-r-workspace) :call <SID>RWorkspaceOverview()<CR>
+nnoremap <silent> <Plug>(zzvim-r-inspect)   :call <SID>RInspectObject()<CR>
+
+" --- HUD windows ---
+nnoremap <silent> <Plug>(zzvim-r-hud-memory)      :call <SID>RMemoryHUD()<CR>
+nnoremap <silent> <Plug>(zzvim-r-hud-dataframe)   :call <SID>RDataFrameHUD()<CR>
+nnoremap <silent> <Plug>(zzvim-r-hud-package)     :call <SID>RPackageHUD()<CR>
+nnoremap <silent> <Plug>(zzvim-r-viewer)          :call <SID>RDataViewer()<CR>
+nnoremap <silent> <Plug>(zzvim-r-hud-environment) :call <SID>REnvironmentHUD()<CR>
+nnoremap <silent> <Plug>(zzvim-r-hud-options)     :call <SID>ROptionsHUD()<CR>
+nnoremap <silent> <Plug>(zzvim-r-hud-dashboard)   :call <SID>RHUDDashboard()<CR>
+
+" --- Plots ---
+nnoremap <silent> <Plug>(zzvim-r-plot-hud)     :RPlotHUD<CR>
+nnoremap <silent> <Plug>(zzvim-r-plot-zoom)    :call <SID>ZoomPlot()<CR>
+nnoremap <silent> <Plug>(zzvim-r-plot-prev)    :call <SID>PlotPrev()<CR>
+nnoremap <silent> <Plug>(zzvim-r-plot-next)    :call <SID>PlotNext()<CR>
+nnoremap <silent> <Plug>(zzvim-r-plot-history) :call <SID>PlotHistory()<CR>
+nnoremap <silent> <Plug>(zzvim-r-plot-save)    :call <SID>PlotSave()<CR>
+
+" --- Tables ---
+nnoremap <silent> <Plug>(zzvim-r-table1) :call <SID>RTable1View('')<CR>
+
+" --- R Markdown / Quarto rendering ---
+nnoremap <silent> <Plug>(zzvim-r-render-preview) :RMarkdownPreview<CR>
+nnoremap <silent> <Plug>(zzvim-r-render-knit)    :RMarkdownRender<CR>
+nnoremap <silent> <Plug>(zzvim-r-render-pdf)     :RMarkdownRender pdf_document<CR>
+nnoremap <silent> <Plug>(zzvim-r-chunk-insert-below) :call <SID>InsertRChunk(0)<CR>
+nnoremap <silent> <Plug>(zzvim-r-chunk-insert-above) :call <SID>InsertRChunk(1)<CR>
+
+" --- Help ---
+nnoremap <silent> <Plug>(zzvim-r-help) :call <SID>RHelpBuffer('')<CR>
+
+" Default key bindings, as [mode, lhs, plug-name] triples. Applied by
+" s:ZzvimRSetupMappings() below, which skips any entry whose <Plug>
+" target the user has already mapped elsewhere (hasmapto()).
+"
+" v0.10.0 regroups these keys (notes/vim-mapping-refactor-plan.tex Phase
+" 4, in the companion dotfiles repo): 'r' and 's' become pure prefixes
+" (defect 12: no key is both a complete command and the start of a
+" longer one); object inspection moves under a new 'o' prefix and HUD
+" windows under a new 'u' prefix (defects 14, 15); plot keys use '[' and
+" ']' for previous/next, matching Vim's own bracket-pair convention
+" (defect 16); four exact duplicates (ZR, <LocalLeader>R, sa, t) and one
+" near-duplicate (y, which duplicated K/? through a different code path)
+" are removed (defect 13). See the "Migration from 0.9.x" note in
+" doc/zzvim-R.txt for the full old-key-to-new-key table.
+" Returned by a function, not a top-level list literal: a continuation
+" line (leading backslash) at script scope depends on 'cpoptions' not
+" having the 'C' flag, which is only true once some vimrc has already
+" run `set nocompatible`. A bare `vim -es -c 'source
+" plugin/zzvim-R.vim'` with no vimrc at all -- exactly how CI's basic
+" load-check step runs -- starts 'compatible' (cpo+=C) and would
+" otherwise fail to parse this list with E697/E10 the moment the
+" script reaches it. Inside a function body, by contrast, these lines
+" are only joined and parsed when the function is first called, by
+" which point a real user's vimrc (or this plugin's own call sites,
+" all well after any vimrc has run) has already set 'nocompatible'.
+" The dict literals elsewhere in this file (e.g. s:GetAllTerminals())
+" already relied on this same function-body deferral; this list is new
+" in v0.10.0 and needs the same protection since nothing calls it until
+" a FileType autocommand fires.
+function! s:ZzvimRDefaultMaps() abort
+  return [
+      \ ['n', '<LocalLeader>rd',  '<Plug>(zzvim-r-terminal-docker)'],
+      \ ['n', '<LocalLeader>rl',  '<Plug>(zzvim-r-terminal-local)'],
+      \ ['n', '<LocalLeader>rn',  '<Plug>(zzvim-r-terminal-vanilla)'],
+      \ ['n', '<LocalLeader>rD',  '<Plug>(zzvim-r-terminal-docker-new)'],
+      \ ['n', '<LocalLeader>w',   '<Plug>(zzvim-r-split-vertical)'],
+      \ ['n', '<LocalLeader>W',   '<Plug>(zzvim-r-split-horizontal)'],
+      \ ['x', '<CR>',             '<Plug>(zzvim-r-send-selection)'],
+      \ ['n', '<CR>',             '<Plug>(zzvim-r-send-smart)'],
+      \ ['n', '<LocalLeader><CR>','<Plug>(zzvim-r-send-smart-comments)'],
+      \ ['n', '<LocalLeader>o',  '<Plug>(zzvim-r-pipe-newline)'],
+      \ ['n', '<LocalLeader>ss', '<Plug>(zzvim-r-send-line)'],
+      \ ['n', '<LocalLeader>sf', '<Plug>(zzvim-r-send-function)'],
+      \ ['n', '<LocalLeader>sc', '<Plug>(zzvim-r-chunk-submit)'],
+      \ ['n', '<LocalLeader>sp', '<Plug>(zzvim-r-send-prevchunks)'],
+      \ ['n', '<LocalLeader>j',  '<Plug>(zzvim-r-chunk-next)'],
+      \ ['n', '<LocalLeader>k',  '<Plug>(zzvim-r-chunk-prev)'],
+      \ ['n', ']]',               '<Plug>(zzvim-r-chunk-next)'],
+      \ ['n', '[[',               '<Plug>(zzvim-r-chunk-prev)'],
+      \ ['x', ']]',               '<Plug>(zzvim-r-chunk-next)'],
+      \ ['x', '[[',               '<Plug>(zzvim-r-chunk-prev)'],
+      \ ['o', ']]',               '<Plug>(zzvim-r-chunk-next)'],
+      \ ['o', '[[',               '<Plug>(zzvim-r-chunk-prev)'],
+      \ ['n', '<LocalLeader>q',  '<Plug>(zzvim-r-ctrl-q)'],
+      \ ['n', '<LocalLeader>c',  '<Plug>(zzvim-r-ctrl-c)'],
+      \ ['n', '<LocalLeader>od', '<Plug>(zzvim-r-obj-dim)'],
+      \ ['n', '<LocalLeader>oh', '<Plug>(zzvim-r-obj-head)'],
+      \ ['n', '<LocalLeader>ot', '<Plug>(zzvim-r-obj-tail)'],
+      \ ['n', '<LocalLeader>os', '<Plug>(zzvim-r-obj-str)'],
+      \ ['n', '<LocalLeader>op', '<Plug>(zzvim-r-obj-print)'],
+      \ ['n', '<LocalLeader>on', '<Plug>(zzvim-r-obj-names)'],
+      \ ['n', '<LocalLeader>ol', '<Plug>(zzvim-r-obj-length)'],
+      \ ['n', '<LocalLeader>og', '<Plug>(zzvim-r-obj-glimpse)'],
+      \ ['n', '<LocalLeader>ob', '<Plug>(zzvim-r-obj-dt)'],
+      \ ['n', '<LocalLeader>oS', '<Plug>(zzvim-r-obj-summary)'],
+      \ ['x', '<LocalLeader>od', '<Plug>(zzvim-r-objx-dim)'],
+      \ ['x', '<LocalLeader>oh', '<Plug>(zzvim-r-objx-head)'],
+      \ ['x', '<LocalLeader>ot', '<Plug>(zzvim-r-objx-tail)'],
+      \ ['x', '<LocalLeader>os', '<Plug>(zzvim-r-objx-str)'],
+      \ ['x', '<LocalLeader>op', '<Plug>(zzvim-r-objx-print)'],
+      \ ['x', '<LocalLeader>on', '<Plug>(zzvim-r-objx-names)'],
+      \ ['x', '<LocalLeader>ol', '<Plug>(zzvim-r-objx-length)'],
+      \ ['x', '<LocalLeader>og', '<Plug>(zzvim-r-objx-glimpse)'],
+      \ ['x', '<LocalLeader>ob', '<Plug>(zzvim-r-objx-dt)'],
+      \ ['x', '<LocalLeader>oS', '<Plug>(zzvim-r-objx-summary)'],
+      \ ['n', "<LocalLeader>'",  '<Plug>(zzvim-r-workspace)'],
+      \ ['n', '<LocalLeader>i',  '<Plug>(zzvim-r-inspect)'],
+      \ ['n', '<LocalLeader>um', '<Plug>(zzvim-r-hud-memory)'],
+      \ ['n', '<LocalLeader>ud', '<Plug>(zzvim-r-hud-dataframe)'],
+      \ ['n', '<LocalLeader>up', '<Plug>(zzvim-r-hud-package)'],
+      \ ['n', '<LocalLeader>uv', '<Plug>(zzvim-r-viewer)'],
+      \ ['n', '<LocalLeader>ue', '<Plug>(zzvim-r-hud-environment)'],
+      \ ['n', '<LocalLeader>uo', '<Plug>(zzvim-r-hud-options)'],
+      \ ['n', '<LocalLeader>0',  '<Plug>(zzvim-r-hud-dashboard)'],
+      \ ['n', '<LocalLeader>P',  '<Plug>(zzvim-r-plot-hud)'],
+      \ ['n', '<LocalLeader>pz', '<Plug>(zzvim-r-plot-zoom)'],
+      \ ['n', '<LocalLeader>[',  '<Plug>(zzvim-r-plot-prev)'],
+      \ ['n', '<LocalLeader>]',  '<Plug>(zzvim-r-plot-next)'],
+      \ ['n', '<LocalLeader>ph', '<Plug>(zzvim-r-plot-history)'],
+      \ ['n', '<LocalLeader>ps', '<Plug>(zzvim-r-plot-save)'],
+      \ ['n', '<LocalLeader>T',  '<Plug>(zzvim-r-table1)'],
+      \ ['n', 'K',                '<Plug>(zzvim-r-help)'],
+      \ ['n', '<LocalLeader>?',  '<Plug>(zzvim-r-help)'],
+      \ ]
+endfunction
+
+" rmd/quarto only: rendering and chunk insertion
+function! s:ZzvimRDefaultMapsRmd() abort
+  return [
+      \ ['n', '<LocalLeader>rp', '<Plug>(zzvim-r-render-preview)'],
+      \ ['n', '<LocalLeader>rk', '<Plug>(zzvim-r-render-knit)'],
+      \ ['n', '<LocalLeader>rv', '<Plug>(zzvim-r-render-pdf)'],
+      \ ['n', '<LocalLeader>ci', '<Plug>(zzvim-r-chunk-insert-below)'],
+      \ ['n', '<LocalLeader>cI', '<Plug>(zzvim-r-chunk-insert-above)'],
+      \ ]
+endfunction
+
+" Bind every entry in {maps} to its <Plug> target, buffer-local, unless
+" the user has already mapped that target themselves. Several actions
+" below have two default aliases (<LocalLeader>j and ]] both point at
+" <Plug>(zzvim-r-chunk-next), for example); hasmapto() is checked once
+" per (mode, plug) pair against a snapshot taken before this function
+" sets anything, so the first alias this function itself adds does not
+" cause hasmapto() to think the user already mapped it and skip the
+" second.
+function! s:ZzvimRApplyMaps(maps) abort
+  let l:already_mapped = {}
+  for [l:mode, l:lhs, l:plug] in a:maps
+    let l:key = l:mode . l:plug
+    if !has_key(l:already_mapped, l:key)
+      let l:already_mapped[l:key] = hasmapto(l:plug, l:mode)
+    endif
+  endfor
+  for [l:mode, l:lhs, l:plug] in a:maps
+    if !l:already_mapped[l:mode . l:plug]
+      execute l:mode . 'map <buffer> <silent> ' . l:lhs . ' ' . l:plug
+    endif
+  endfor
+endfunction
+
+function! s:ZzvimRSetupMappings() abort
+  call s:ZzvimRApplyMaps(s:ZzvimRDefaultMaps())
+  if &filetype =~# '^\(rmd\|quarto\)$'
+    call s:ZzvimRApplyMaps(s:ZzvimRDefaultMapsRmd())
+  endif
+endfunction
+
 if !g:zzvim_r_disable_mappings
     augroup zzvim_RMarkdown
         autocmd!
@@ -1663,83 +1905,7 @@ if !g:zzvim_r_disable_mappings
         " Auto-lcd to project root in zzcollab projects so getcwd() aligns
         " with the Docker container's mount point
         autocmd FileType r,rmd,quarto call zzvim_r#auto_lcd_project_root()
-        " R Terminal Launch Mappings:
-        "   <localleader>r  - Container R (via make r, with renv)
-        "   <localleader>rr - Host R with renv (normal startup, sources .Rprofile)
-        "   <localleader>rh - Host R without renv (vanilla, skips .Rprofile)
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>r   :call <SID>OpenDockerRTerminal()<CR>
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> ZR              :call <SID>OpenDockerRTerminal()<CR>
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>rr  :call <SID>OpenLocalRTerminal()<CR>
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>rh  :call <SID>OpenLocalRTerminalVanilla()<CR>
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>R   :call <SID>OpenLocalRTerminal()<CR>
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>D   :call <SID>OpenDockerRTerminal(s:GetTerminalName(), 1)<CR>
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>w :call <SID>ROpenSplitCommand('vertical')<CR>
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>W :call <SID>ROpenSplitCommand('horizontal')<CR>
-        autocmd FileType r,rmd,quarto xnoremap <buffer> <silent> <CR>    :<C-u>call <SID>SendToR('selection')<CR>
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <CR>  :call <SID>SendToR('')<CR>
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader><CR>  :call <SID>SendToRWithComments('')<CR>
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>o   :call <SID>AddPipeAndNewLine()<CR>
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>j   :call <SID>MoveNextChunk()<CR>
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>k :call <SID>MovePrevChunk()<CR>
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>l :call <SID>SubmitChunk()<CR>zz
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>t :call <SID>SendToR('previous_chunks')<CR>
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>q :call <SID>SendControlKeys("Q")<CR>
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>c :call <SID>SendControlKeys("\<C-c>")<CR>
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>d :call <SID>RAction("dim", 1)<CR>
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>h :call <SID>RAction("head",1)<CR>
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>u :call <SID>RAction("tail",1)<CR>
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>s :call <SID>RAction("str",1)<CR>
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>p :call <SID>RAction("print",1)<CR>
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>n :call <SID>RAction("names",1)<CR>
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>f :call <SID>RAction("length",1)<CR>
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>g :call <SID>RAction("glimpse",1)<CR>
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>b :call <SID>RAction("dt",1)<CR>
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>y :call <SID>RAction("help", 1)<CR>
-        " Additional generalized send mappings
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>sf :call <SID>SendToR('function')<CR>
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>sl :call <SID>SendToR('line')<CR>
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>sa :call <SID>SendToR('')<CR>
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>sp :call <SID>SendToR('previous_chunks')<CR>
-        " Simple Object Inspection  
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>' :call <SID>RWorkspaceOverview()<CR>
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>i :call <SID>RInspectObject()<CR>
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>m :call <SID>RMemoryHUD()<CR>
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>e :call <SID>RDataFrameHUD()<CR>
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>z :call <SID>RPackageHUD()<CR>
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>v :call <SID>RDataViewer()<CR>
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>x :call <SID>REnvironmentHUD()<CR>
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>a :call <SID>ROptionsHUD()<CR>
-        " Unified HUD Dashboard - Open all HUD displays in tabs
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>0 :call <SID>RHUDDashboard()<CR>
-
-        " ---------------------------------------------------------------------
-        " Plot HUD: <LocalLeader>P opens Plot HUD (consistent with other HUDs)
-        " ---------------------------------------------------------------------
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>P :RPlotHUD<CR>
-        " Zoom - open PDF (vector)
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>] :call <SID>ZoomPlot()<CR>
-        " Quick navigation (without opening HUD)
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>< :call <SID>PlotPrev()<CR>
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>> :call <SID>PlotNext()<CR>
-        " Plot history and save
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>[ :call <SID>PlotHistory()<CR>
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>\ :call <SID>PlotSave()<CR>
-
-        " Render zztable1 blueprint under cursor via Typst (zztab2fig)
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>T :call <SID>RTable1View('')<CR>
-
-        " R Markdown rendering (rk = render knit, rv = render PDF)
-        autocmd FileType rmd,quarto nnoremap <buffer> <silent> <localleader>rp :RMarkdownPreview<CR>
-        autocmd FileType rmd,quarto nnoremap <buffer> <silent> <localleader>rk :RMarkdownRender<CR>
-        autocmd FileType rmd,quarto nnoremap <buffer> <silent> <localleader>rv :RMarkdownRender pdf_document<CR>
-
-        " Chunk insertion (rmd/qmd only)
-        autocmd FileType rmd,quarto nnoremap <buffer> <silent> <localleader>ci :call <SID>InsertRChunk(0)<CR>
-        autocmd FileType rmd,quarto nnoremap <buffer> <silent> <localleader>cI :call <SID>InsertRChunk(1)<CR>
-
-        " Help in buffer (K override and <localleader>?)
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> K :call <SID>RHelpBuffer('')<CR>
-        autocmd FileType r,rmd,quarto nnoremap <buffer> <silent> <localleader>? :call <SID>RHelpBuffer('')<CR>
+        autocmd FileType r,rmd,quarto call s:ZzvimRSetupMappings()
     augroup END
 
     " Clean up plot pane when R terminal closes or buffer is deleted

@@ -147,6 +147,10 @@ endif
 "
 " The checked list is the subset advertised prominently in README;
 " keep this in sync with the README 'Key Mappings' table.
+"
+" v0.10.0: updated to the post-Phase-4 key scheme (r/s/o/u prefixes;
+" see "Migration from 0.9.x" in doc/zzvim-R.txt). The pre-0.10.0 list
+" ('r', 'rr', 'rh', 'h', 's', 'd', 'l') no longer resolves by design.
 " ---------------------------------------------------------------------------
 enew
 setlocal buftype=nofile
@@ -156,7 +160,7 @@ setfiletype r
 doautocmd FileType
 
 let s:maplocalleader = exists('g:maplocalleader') ? g:maplocalleader : '\'
-let s:expected_maps = ['r', 'rr', 'rh', 'w', 'h', 's', 'd', 'j', 'k', 'l']
+let s:expected_maps = ['rd', 'rl', 'rn', 'w', 'oh', 'os', 'od', 'j', 'k', 'sc']
 let s:missing_maps = []
 for s:key in s:expected_maps
     let s:lhs = s:maplocalleader . s:key

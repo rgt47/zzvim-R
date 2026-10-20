@@ -474,8 +474,17 @@ Miscellaneous Commands                            *zzvim-r-commands-misc*
 7. MAPPINGS                                                    *zzvim-r-mappings*
 
 The following mappings are available when g:zzvim_r_disable_mappings is 0.
-The zzvim-R plugin implements a hierarchical key mapping system based on
-ergonomic principles and cognitive load theory.
+Every action also has a named |zzvim-r-mappings-plug| target, so any single
+key below can be remapped without disabling the rest; see
+|zzvim-r-mappings-custom|.
+
+                                                   *zzvim-r-mappings-v0.10.0*
+v0.10.0 regroups these keys: 'r' and 's' are now pure prefixes (no bare
+<localleader>r or <localleader>s command), object inspection moved under a
+new 'o' prefix, HUD windows moved under a new 'u' prefix, and plot
+previous/next moved onto '[' and ']' to match Vim's own bracket-pair
+convention. See |zzvim-r-mappings-migration| for the full old-to-new table
+if you have muscle memory from an earlier version.
 
 Primary Interaction Layer (Normal Mode)           *zzvim-r-mappings-primary*
 
@@ -483,16 +492,20 @@ Normal Mode:
     <CR>              Submit current line to R (smart context-aware dispatch)
 
 R Terminal Launch:                                *zzvim-r-mappings-terminal*
-    <localleader>r    Container R (via make r, with renv)
-    <localleader>rr   Host R with renv (normal startup, sources .Rprofile)
-    <localleader>rh   Host R without renv (vanilla mode, skips .Rprofile)
+    <localleader>rd   Container R (via make r, with renv)
+    <localleader>rl   Host R with renv (normal startup, sources .Rprofile)
+    <localleader>rn   Host R without renv (vanilla mode, skips .Rprofile)
+    <localleader>rD   Force a new Docker terminal
     <localleader>w    Open R terminal in new vertical split window
     <localleader>W    Open R terminal in new horizontal split window
     <localleader>o    Add pipe operator (%>%) and new line
     <localleader>j    Move to next chunk (forward chunk traversal)
     <localleader>k    Move to previous chunk (backward chunk traversal)
-    <localleader>l    Select and submit current chunk (execute chunk)
-    <localleader>t    Submit all previous chunks (cumulative execution)
+    ]]                Move to next chunk (operator- and count-composable;
+                      alias of <localleader>j; works as a motion, e.g. d]])
+    [[                Move to previous chunk (alias of <localleader>k)
+    <localleader>sc   Select and submit current chunk (execute chunk)
+    <localleader>sp   Submit all previous chunks (cumulative execution)
     <localleader>rk   Render to default format (respects YAML front matter)
     <localleader>rp   Render to HTML and open in browser
     <localleader>rv   Render to PDF (pdf_document)
@@ -502,32 +515,34 @@ R Terminal Launch:                                *zzvim-r-mappings-terminal*
 
 Object Inspection Layer (Analytical Functions)   *zzvim-r-mappings-inspection*
 
-R Function Shortcuts:
-    <localleader>d    Run dim() on word under cursor (dimensional analysis)
-    <localleader>h    Run head() on word under cursor (data preview)
+R Function Shortcuts, all under the 'o' prefix. Each also has a visual-mode
+counterpart on the same key, which inspects the visual selection (e.g.
+df$x) rather than the word under the cursor:
+    <localleader>od   Run dim() (dimensional analysis)
+    <localleader>oh   Run head() (data preview)
+    <localleader>ot   Run tail() (terminal preview)
+    <localleader>os   Run str() (structural analysis)
+    <localleader>op   Run print() (content display)
+    <localleader>on   Run names() (attribute inspection)
+    <localleader>ol   Run length() (size determination)
+    <localleader>og   Run glimpse() (tibble inspection)
+    <localleader>ob   Run dt() (data.table display)
+    <localleader>oS   Run summary()
     <localleader>i    Intelligent object inspection (adaptive display)
-    <localleader>u    Run tail() on word under cursor (terminal preview)
-    <localleader>s    Run str() on word under cursor (structural analysis)
-    <localleader>p    Run print() on word under cursor (content display)
-    <localleader>n    Run names() on word under cursor (attribute inspection)
-    <localleader>f    Run length() on word under cursor (size determination)
-    <localleader>g    Run glimpse() on word under cursor (tibble inspection)
-    <localleader>b    Run dt() on word under cursor (data.table display)
-    <localleader>y    Run help() on word under cursor (documentation access)
 
 Enhanced Object Inspection                       *zzvim-r-mappings-enhanced*
 
 Data Viewer (Enhanced RAction):
-    <localleader>v    Open RStudio-style data viewer for object under cursor
+    <localleader>uv   Open RStudio-style data viewer for object under cursor
 
 HUD Functions (Workspace Overview)               *zzvim-r-mappings-hud*
 
-Individual HUD Displays:
-    <localleader>m    Memory Usage HUD - show object memory consumption
-    <localleader>e    Data Frames HUD - overview of all data frames  
-    <localleader>z    Package Status HUD - display loaded packages
-    <localleader>x    Environment Variables HUD - system environment
-    <localleader>a    R Options HUD - current R session options
+Individual HUD Displays, all under the 'u' prefix:
+    <localleader>um   Memory Usage HUD - show object memory consumption
+    <localleader>ud   Data Frames HUD - overview of all data frames
+    <localleader>up   Package Status HUD - display loaded packages
+    <localleader>ue   Environment Variables HUD - system environment
+    <localleader>uo   R Options HUD - current R session options
 
 Unified HUD Dashboard                            *zzvim-r-mappings-dashboard*
 
@@ -536,31 +551,138 @@ Complete Workspace Overview:
                       Creates tabbed workspace overview for situational awareness
                       Use gt/gT to navigate tabs, :q to close, <localleader>0 to refresh
 
+Plots                                                *zzvim-r-mappings-plots*
+
+    <localleader>P    Open Plot HUD
+    <localleader>[    Previous plot (no HUD)
+    <localleader>]    Next plot (no HUD)
+    <localleader>pz   Zoom current plot (open vector PDF)
+    <localleader>ph   Plot history list
+    <localleader>ps   Save current plot
+
 Explicit Send Mappings                            *zzvim-r-mappings-explicit*
 
-Generalized Send Functions (Advanced):
+Generalized Send Functions (Advanced), under the 's' prefix:
     <localleader>sf   Force send function block (override smart detection)
-    <localleader>sl   Force send current line only (line-by-line evaluation)
-    <localleader>sa   Smart auto-detection (same as <CR>)
+    <localleader>ss   Force send current line only (line-by-line evaluation)
+    <localleader>sc   Submit current chunk (same key as the chunk-submit
+                      mapping above; it is the 's'-prefix member of this
+                      group as well as the chunk-navigation group)
     <localleader>sp   Send all previous chunks
 
 Visual Selection Interface                         *zzvim-r-mappings-visual*
 
 Visual Mode:
-    <localleader>z    Submit visual selection
     <CR>              Submit visual selection (user-defined boundaries)
+    <localleader>oX   Inspect visual selection with R function X, where X
+                      is any letter from the object-inspection group above
+                      (d, h, t, s, p, n, l, g, b, S)
+
+                                                     *zzvim-r-mappings-plug*
+<Plug> Mapping Targets (v0.10.0)
+
+Every action bound by default (section above) has a named <Plug> target,
+defined once at script load time regardless of filetype, so it exists to
+remap against even before a buffer's FileType autocommand has fired. To
+change a single key without touching any other default, remap the
+<Plug> target instead of disabling g:zzvim_r_disable_mappings: >
+    " Change only the chunk-submit key, in an r/rmd/quarto ftplugin or
+    " autocmd FileType block; leave every other default as-is.
+    nmap <buffer> <LocalLeader>X <Plug>(zzvim-r-chunk-submit)
+<
+The plugin checks hasmapto() before applying its own default for a given
+<Plug> target, so once you have mapped it yourself (as above), the
+plugin's own default key for that same action is not also applied.
+
+<Plug> names, grouped the same way as the mapping tables above:
+    <Plug>(zzvim-r-terminal-docker)      <Plug>(zzvim-r-terminal-local)
+    <Plug>(zzvim-r-terminal-vanilla)     <Plug>(zzvim-r-terminal-docker-new)
+    <Plug>(zzvim-r-split-vertical)       <Plug>(zzvim-r-split-horizontal)
+    <Plug>(zzvim-r-send-selection)       <Plug>(zzvim-r-send-smart)
+    <Plug>(zzvim-r-send-smart-comments)  <Plug>(zzvim-r-pipe-newline)
+    <Plug>(zzvim-r-send-line)            <Plug>(zzvim-r-send-function)
+    <Plug>(zzvim-r-send-prevchunks)      <Plug>(zzvim-r-chunk-next)
+    <Plug>(zzvim-r-chunk-prev)           <Plug>(zzvim-r-chunk-submit)
+    <Plug>(zzvim-r-ctrl-q)               <Plug>(zzvim-r-ctrl-c)
+    <Plug>(zzvim-r-obj-dim/head/tail/str/print/names/length/glimpse/dt/summary)
+    <Plug>(zzvim-r-objx-dim/head/tail/str/print/names/length/glimpse/dt/summary)
+    (the objx- group is the visual-mode, selection-based counterpart)
+    <Plug>(zzvim-r-workspace)            <Plug>(zzvim-r-inspect)
+    <Plug>(zzvim-r-hud-memory/dataframe/package/environment/options)
+    <Plug>(zzvim-r-viewer)               <Plug>(zzvim-r-hud-dashboard)
+    <Plug>(zzvim-r-plot-hud/zoom/prev/next/history/save)
+    <Plug>(zzvim-r-table1)
+    <Plug>(zzvim-r-render-preview/knit/pdf)
+    <Plug>(zzvim-r-chunk-insert-below/above)
+    <Plug>(zzvim-r-help)
+
+                                                *zzvim-r-mappings-migration*
+Migration from 0.9.x
+
+Old key -> new key, for every key that moved or was removed in v0.10.0:
+    <localleader>r    -> <localleader>rd
+    ZR                -> <localleader>rd  (ZR itself removed; exact
+                                           duplicate, defect 13)
+    <localleader>rr   -> <localleader>rl
+    <localleader>rh   -> <localleader>rn
+    <localleader>R    -> <localleader>rl  (<localleader>R itself removed;
+                                           exact duplicate)
+    <localleader>D    -> <localleader>rD
+    <localleader>l    -> <localleader>sc
+    <localleader>t    -> <localleader>sp  (<localleader>t itself removed;
+                                           exact duplicate of old sp)
+    <localleader>sl   -> <localleader>ss
+    <localleader>sa   -> removed (exact duplicate of plain <CR>)
+    <localleader>d    -> <localleader>od
+    <localleader>h    -> <localleader>oh
+    <localleader>u    -> <localleader>ot
+    <localleader>s    -> <localleader>os
+    <localleader>p    -> <localleader>op
+    <localleader>n    -> <localleader>on
+    <localleader>f    -> <localleader>ol
+    <localleader>g    -> <localleader>og
+    <localleader>b    -> <localleader>ob
+    <localleader>y    -> removed (near-duplicate of K/<localleader>?,
+                                  sent help() to the console via a
+                                  different code path; freed rather than
+                                  kept as a third way to do the same thing)
+    <localleader>m    -> <localleader>um
+    <localleader>e    -> <localleader>ud
+    <localleader>z    -> <localleader>up
+    <localleader>v    -> <localleader>uv
+    <localleader>x    -> <localleader>ue
+    <localleader>a    -> <localleader>uo
+    <localleader>]    -> <localleader>pz  (zoom)
+    <localleader>[    -> <localleader>ph  (history)
+    <localleader>\    -> <localleader>ps  (save)
+    <localleader><    -> <localleader>[   (previous plot)
+    <localleader>>    -> <localleader>]   (next plot)
+
+If you had customized any of the old keys yourself (via
+g:zzvim_r_disable_mappings and your own mappings, the pattern shown
+below), update them to call the matching <Plug> target or script-local
+function under its current name; no script-local function name changed
+in this release, only the default key bindings above it.
 
 Advanced Mapping Customization                   *zzvim-r-mappings-custom*
 
-Users requiring specialized workflows can implement custom mapping schemas: >
+g:zzvim_r_disable_mappings disables every default key in this file, with
+no partial middle ground; prefer remapping a single <Plug> target
+(above) when you only want to change one or two keys. For a wholesale
+replacement of the default scheme, users requiring specialized workflows
+can implement custom mapping schemas: >
     " Disable default mappings for custom implementation
     let g:zzvim_r_disable_mappings = 1
-    
-    " Define research-specific mappings
-    nnoremap <Leader>ra :call SendToR('line')<CR>
-    nnoremap <Leader>rf :call SendToR('function')<CR>
-    nnoremap <Leader>rc :call SendToR('chunk')<CR>
-    vnoremap <Leader>rs :call SendToR('selection')<CR>
+
+    " Define research-specific mappings. SendToR() is a script-local
+    " function (s:SendToR in plugin/zzvim-R.vim) and is not directly
+    " callable from a user vimrc; call it via its own <Plug> target
+    " instead, as shown here, or via :call <SID>SendToR(...) from
+    " within another script loaded by this same plugin file.
+    nmap <Leader>ra <Plug>(zzvim-r-send-line)
+    nmap <Leader>rf <Plug>(zzvim-r-send-function)
+    nmap <Leader>rc <Plug>(zzvim-r-chunk-submit)
+    xmap <Leader>rs <Plug>(zzvim-r-send-selection)
 <
 
 ==============================================================================

@@ -34,29 +34,36 @@ and display plots -- all without leaving the editor.
 
 ## Key mappings
 
+As of v0.10.0, `r`/`s`/`o`/`u` are pure prefixes (no key is both a
+complete command and the start of a longer one); see `:help
+zzvim-r-mappings-migration` if you have muscle memory from an earlier
+version.
+
 | Key | Action |
 |-----|--------|
 | `<CR>` | Smart code submission (context-aware) |
 | **Terminal** | |
-| `<LocalLeader>r` | Container R (Docker, with renv) |
-| `<LocalLeader>rr` | Host R with renv |
-| `<LocalLeader>rh` | Host R without renv (vanilla) |
+| `<LocalLeader>rd` | Container R (Docker, with renv) |
+| `<LocalLeader>rl` | Host R with renv |
+| `<LocalLeader>rn` | Host R without renv (vanilla) |
 | `<LocalLeader>w` | R terminal in vertical split |
 | **HUD & workspace** | |
 | `<LocalLeader>0` | Dashboard (all 6 workspace tabs) |
-| `<LocalLeader>m/e/z` | Memory / Data frames / Packages |
-| `<LocalLeader>v` | Data viewer |
-| **Inspection** | |
-| `<LocalLeader>h/s/d` | `head` / `str` / `dim` |
-| `<LocalLeader>p/n/g` | `print` / `names` / `glimpse` |
+| `<LocalLeader>um/ud/up` | Memory / Data frames / Packages |
+| `<LocalLeader>uv` | Data viewer |
+| **Inspection** (also works on a visual selection, e.g. `df$x`) | |
+| `<LocalLeader>oh/os/od` | `head` / `str` / `dim` |
+| `<LocalLeader>op/on/og` | `print` / `names` / `glimpse` |
 | **R Markdown** | |
-| `<LocalLeader>j/k` | Next / previous chunk |
-| `<LocalLeader>l` | Execute current chunk |
+| `<LocalLeader>j/k`, `]]`/`[[` | Next / previous chunk (`]]`/`[[` compose with operators, e.g. `d]]`) |
+| `<LocalLeader>sc` | Execute current chunk |
 | `<LocalLeader>rk` | Render to default format (respects YAML front matter) |
 | `<LocalLeader>rp` | Render to HTML and open in browser |
 | `<LocalLeader>rv` | Render to PDF (`pdf_document`) |
 
-Full mapping reference: `:help zzvim-R-mappings`
+Full mapping reference: `:help zzvim-r-mappings`. Every key above has a
+named `<Plug>` target, so a single action can be remapped without
+disabling the rest: `:help zzvim-r-mappings-plug`.
 
 ## Installation
 
