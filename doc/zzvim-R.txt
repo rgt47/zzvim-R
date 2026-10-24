@@ -495,7 +495,7 @@ R Terminal Launch:                                *zzvim-r-mappings-terminal*
     <localleader>rd   Container R (via make r, with renv)
     <localleader>rl   Host R with renv (normal startup, sources .Rprofile)
     <localleader>rn   Host R without renv (vanilla mode, skips .Rprofile)
-    <localleader>rD   Force a new Docker terminal
+    <localleader>rf   Force a new Docker terminal
     <localleader>w    Open R terminal in new vertical split window
     <localleader>W    Open R terminal in new horizontal split window
     <localleader>o    Add pipe operator (%>%) and new line
@@ -509,6 +509,9 @@ R Terminal Launch:                                *zzvim-r-mappings-terminal*
     <localleader>rk   Render to default format (respects YAML front matter)
     <localleader>rp   Render to HTML and open in browser
     <localleader>rv   Render to PDF (pdf_document)
+    <localleader>nb   Insert R chunk below (rmd/quarto only)
+    <localleader>na   Insert R chunk above (rmd/quarto only)
+    <localleader>T    Render zztable1 blueprint under cursor via Typst
     <localleader>'    Show workspace overview (object browser)
     <localleader>q    Send 'Q' to R terminal (graceful session termination)
     <localleader>c    Send Ctrl-C to R terminal (interrupt signal)
@@ -527,7 +530,7 @@ df$x) rather than the word under the cursor:
     <localleader>ol   Run length() (size determination)
     <localleader>og   Run glimpse() (tibble inspection)
     <localleader>ob   Run dt() (data.table display)
-    <localleader>oS   Run summary()
+    <localleader>ou   Run summary()
     <localleader>i    Intelligent object inspection (adaptive display)
 
 Enhanced Object Inspection                       *zzvim-r-mappings-enhanced*
@@ -576,7 +579,7 @@ Visual Mode:
     <CR>              Submit visual selection (user-defined boundaries)
     <localleader>oX   Inspect visual selection with R function X, where X
                       is any letter from the object-inspection group above
-                      (d, h, t, s, p, n, l, g, b, S)
+                      (d, h, t, s, p, n, l, g, b, u)
 
                                                      *zzvim-r-mappings-plug*
 <Plug> Mapping Targets (v0.10.0)
@@ -616,10 +619,22 @@ plugin's own default key for that same action is not also applied.
     <Plug>(zzvim-r-chunk-insert-below/above)
     <Plug>(zzvim-r-help)
 
+                                                 *zzvim-r-mappings-nomixedcase*
+No default key mixes upper- and lower-case letters in the same
+sequence, since that forces a shift key mid-sequence and is easy to
+mistype. <localleader>rD, <localleader>oS, and <localleader>ci/cI (an
+earlier cut of v0.10.0 briefly had these) are now <localleader>rf,
+<localleader>ou, and <localleader>nb/na respectively; see the
+migration table below. The nb/na rename also fixed an unrelated
+defect: <localleader>c (Ctrl-C) is a complete command active in every
+one of r/rmd/quarto, so ci/cI's 'c' prefix collided with it in
+rmd/quarto buffers specifically.
+
                                                 *zzvim-r-mappings-migration*
 Migration from 0.9.x
 
-Old key -> new key, for every key that moved or was removed in v0.10.0:
+Old key -> new key, for every key that moved or was removed in v0.10.0
+or v0.10.1:
     <localleader>r    -> <localleader>rd
     ZR                -> <localleader>rd  (ZR itself removed; exact
                                            duplicate, defect 13)
@@ -627,7 +642,11 @@ Old key -> new key, for every key that moved or was removed in v0.10.0:
     <localleader>rh   -> <localleader>rn
     <localleader>R    -> <localleader>rl  (<localleader>R itself removed;
                                            exact duplicate)
-    <localleader>D    -> <localleader>rD
+    <localleader>D    -> <localleader>rf  (v0.10.0 briefly used rD;
+                                           see |zzvim-r-mappings-nomixedcase|)
+    <localleader>ci   -> <localleader>nb  (v0.10.0 only; see above)
+    <localleader>cI   -> <localleader>na  (v0.10.0 only; see above)
+    <localleader>oS   -> <localleader>ou  (v0.10.0 only; see above)
     <localleader>l    -> <localleader>sc
     <localleader>t    -> <localleader>sp  (<localleader>t itself removed;
                                            exact duplicate of old sp)

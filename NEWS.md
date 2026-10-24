@@ -1,6 +1,23 @@
 # zzvim-R (development)
 
-## 2026-10-20
+## 2026-10-20 (v0.10.1)
+
+* **Breaking: three default keys renamed to avoid mixed case.**
+  v0.10.0 briefly used `<LocalLeader>rD` (force a new Docker
+  terminal), `<LocalLeader>oS` (`summary()`), and `<LocalLeader>ci`/
+  `cI` (insert chunk below/above) -- each combines an upper- and a
+  lower-case letter in one key, which forces a shift key mid-sequence
+  and is easy to mistype. Renamed to `<LocalLeader>rf`,
+  `<LocalLeader>ou`, and `<LocalLeader>nb`/`na`. The `nb`/`na` rename
+  also fixed an unrelated defect: `<LocalLeader>c` (Ctrl-C) is a
+  complete command active in every one of r/rmd/quarto, so `ci`/`cI`'s
+  `c` prefix collided with it in rmd/quarto buffers specifically --
+  the same one-key-is-both-a-command-and-a-prefix pattern already
+  fixed elsewhere in v0.10.0, just scoped to a filetype subset.
+  `<Plug>` target names are unchanged, only the default key bound to
+  each. See `:help zzvim-r-mappings-migration`.
+
+## 2026-10-20 (v0.10.0)
 
 * **Breaking: default key mappings regrouped (v0.10.0).** `<LocalLeader>r`
   and `<LocalLeader>s` are now pure prefixes (no key is both a complete

@@ -3,7 +3,7 @@ scriptencoding utf-8
 " zzvim-R - Advanced R Development Plugin for Vim
 " ==========================================================================="
 " Maintainer:  RG Thomas rgthomas@ucsd.edu
-" Version:     0.10.0
+" Version:     0.10.1
 " License:     GPL3 License
 " Last Change: 2026-10-20
 "
@@ -192,7 +192,7 @@ endif
 " Convention: g:loaded_{plugin_name} = 1 indicates successful loading
 let g:loaded_zzvim_r = 1
 " Plugin version for compatibility checking and debugging
-let g:zzvim_r_version = '0.10.0'
+let g:zzvim_r_version = '0.10.1'
 
 " =============================================================================
 " CONFIGURATION INITIALIZATION WITH SAFE DEFAULTS
@@ -1774,6 +1774,21 @@ nnoremap <silent> <Plug>(zzvim-r-help) :call <SID>RHelpBuffer('')<CR>
 " near-duplicate (y, which duplicated K/? through a different code path)
 " are removed (defect 13). See the "Migration from 0.9.x" note in
 " doc/zzvim-R.txt for the full old-key-to-new-key table.
+"
+" No default key below mixes upper- and lower-case letters in the same
+" sequence (a key that used to, like <LocalLeader>rD or <LocalLeader>oS,
+" forces a shift key mid-sequence and is easy to mistype). Three were
+" renamed to avoid this: <LocalLeader>rD (force a new Docker terminal)
+" is now <LocalLeader>rf; <LocalLeader>oS (summary()) is now
+" <LocalLeader>ou ('u' from the middle of "summary", since 's' was
+" already taken by str()); <LocalLeader>ci/cI (insert chunk below/
+" above) are now <LocalLeader>nb/na. The last rename also fixes a
+" second, independent defect: <LocalLeader>c (send Ctrl-C) is a
+" complete command active in every one of r/rmd/quarto, so ci/cI's 'c'
+" prefix collided with it in rmd/quarto buffers specifically -- the
+" same one-key-is-both-a-command-and-a-prefix pattern as defect 12,
+" just scoped to a subset of filetypes. nb/na uses a prefix ('n') that
+" is not bound to anything else, so it has no such collision.
 " Returned by a function, not a top-level list literal: a continuation
 " line (leading backslash) at script scope depends on 'cpoptions' not
 " having the 'C' flag, which is only true once some vimrc has already
@@ -1794,7 +1809,7 @@ function! s:ZzvimRDefaultMaps() abort
       \ ['n', '<LocalLeader>rd',  '<Plug>(zzvim-r-terminal-docker)'],
       \ ['n', '<LocalLeader>rl',  '<Plug>(zzvim-r-terminal-local)'],
       \ ['n', '<LocalLeader>rn',  '<Plug>(zzvim-r-terminal-vanilla)'],
-      \ ['n', '<LocalLeader>rD',  '<Plug>(zzvim-r-terminal-docker-new)'],
+      \ ['n', '<LocalLeader>rf',  '<Plug>(zzvim-r-terminal-docker-new)'],
       \ ['n', '<LocalLeader>w',   '<Plug>(zzvim-r-split-vertical)'],
       \ ['n', '<LocalLeader>W',   '<Plug>(zzvim-r-split-horizontal)'],
       \ ['x', '<CR>',             '<Plug>(zzvim-r-send-selection)'],
@@ -1824,7 +1839,7 @@ function! s:ZzvimRDefaultMaps() abort
       \ ['n', '<LocalLeader>ol', '<Plug>(zzvim-r-obj-length)'],
       \ ['n', '<LocalLeader>og', '<Plug>(zzvim-r-obj-glimpse)'],
       \ ['n', '<LocalLeader>ob', '<Plug>(zzvim-r-obj-dt)'],
-      \ ['n', '<LocalLeader>oS', '<Plug>(zzvim-r-obj-summary)'],
+      \ ['n', '<LocalLeader>ou', '<Plug>(zzvim-r-obj-summary)'],
       \ ['x', '<LocalLeader>od', '<Plug>(zzvim-r-objx-dim)'],
       \ ['x', '<LocalLeader>oh', '<Plug>(zzvim-r-objx-head)'],
       \ ['x', '<LocalLeader>ot', '<Plug>(zzvim-r-objx-tail)'],
@@ -1834,7 +1849,7 @@ function! s:ZzvimRDefaultMaps() abort
       \ ['x', '<LocalLeader>ol', '<Plug>(zzvim-r-objx-length)'],
       \ ['x', '<LocalLeader>og', '<Plug>(zzvim-r-objx-glimpse)'],
       \ ['x', '<LocalLeader>ob', '<Plug>(zzvim-r-objx-dt)'],
-      \ ['x', '<LocalLeader>oS', '<Plug>(zzvim-r-objx-summary)'],
+      \ ['x', '<LocalLeader>ou', '<Plug>(zzvim-r-objx-summary)'],
       \ ['n', "<LocalLeader>'",  '<Plug>(zzvim-r-workspace)'],
       \ ['n', '<LocalLeader>i',  '<Plug>(zzvim-r-inspect)'],
       \ ['n', '<LocalLeader>um', '<Plug>(zzvim-r-hud-memory)'],
@@ -1862,8 +1877,8 @@ function! s:ZzvimRDefaultMapsRmd() abort
       \ ['n', '<LocalLeader>rp', '<Plug>(zzvim-r-render-preview)'],
       \ ['n', '<LocalLeader>rk', '<Plug>(zzvim-r-render-knit)'],
       \ ['n', '<LocalLeader>rv', '<Plug>(zzvim-r-render-pdf)'],
-      \ ['n', '<LocalLeader>ci', '<Plug>(zzvim-r-chunk-insert-below)'],
-      \ ['n', '<LocalLeader>cI', '<Plug>(zzvim-r-chunk-insert-above)'],
+      \ ['n', '<LocalLeader>nb', '<Plug>(zzvim-r-chunk-insert-below)'],
+      \ ['n', '<LocalLeader>na', '<Plug>(zzvim-r-chunk-insert-above)'],
       \ ]
 endfunction
 
