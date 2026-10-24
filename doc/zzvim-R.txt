@@ -153,12 +153,18 @@ g:zzvim_r_disable_mappings   If set to 1, disables all default key mappings.
                              Example: >
                              let g:zzvim_r_disable_mappings = 1
 <
-                                                        *g:zzvim_r_map_submit*
-g:zzvim_r_map_submit         Sets the key mapping for submitting lines to R.
-                             Default: '<CR>' (Enter key)
+                                                              *g:zzvim_r_pipe*
+g:zzvim_r_pipe               Pipe operator appended by <localleader>| and
+                             :RAddPipe.
+                             Default: '|>' (native pipe, R >= 4.1)
                              Example: >
-                             let g:zzvim_r_map_submit = '<Leader>s'
+                             let g:zzvim_r_pipe = '%>%'
 <
+                             To move code submission off <CR>, map
+                             <Plug>(zzvim-r-send-smart) yourself (see
+                             |zzvim-r-mappings-plug|). The former
+                             g:zzvim_r_map_submit option was documented but
+                             never read, and was removed in v0.10.2.
                                                       *g:zzvim_r_chunk_start*
 g:zzvim_r_chunk_start        R Markdown chunk start pattern (regex).
                              Default: '^```{'
@@ -261,7 +267,8 @@ Code Submission Commands:                        *zzvim-r-commands-submission*
     Execute all preceding chunks sequentially (buffer-specific terminal).
 
 :RAddPipe                                                          *:RAddPipe*
-    Insert R pipe operator (%>%) on new line.
+    Append the pipe (|g:zzvim_r_pipe|, default |>) to the current line
+    and open an indented new line in insert mode.
 
 Object Analysis and Inspection Commands          *zzvim-r-commands-inspection*
 
@@ -498,7 +505,7 @@ R Terminal Launch:                                *zzvim-r-mappings-terminal*
     <localleader>rf   Force a new Docker terminal
     <localleader>w    Open R terminal in new vertical split window
     <localleader>W    Open R terminal in new horizontal split window
-    <localleader>o    Add pipe operator (%>%) and new line
+    <localleader>|    Append pipe (|> by default) and open a new line
     <localleader>j    Move to next chunk (forward chunk traversal)
     <localleader>k    Move to previous chunk (backward chunk traversal)
     ]]                Move to next chunk (operator- and count-composable;
@@ -550,13 +557,13 @@ Individual HUD Displays, all under the 'u' prefix:
 Unified HUD Dashboard                            *zzvim-r-mappings-dashboard*
 
 Complete Workspace Overview:
-    <localleader>0    HUD Dashboard - open all 6 HUD displays in tabs
+    <localleader>uu   HUD Dashboard - open all 6 HUD displays in tabs
                       Creates tabbed workspace overview for situational awareness
-                      Use gt/gT to navigate tabs, :q to close, <localleader>0 to refresh
+                      Use gt/gT to navigate tabs, :q to close, <localleader>uu to refresh
 
 Plots                                                *zzvim-r-mappings-plots*
 
-    <localleader>P    Open Plot HUD
+    <localleader>pp   Open Plot HUD
     <localleader>[    Previous plot (no HUD)
     <localleader>]    Next plot (no HUD)
     <localleader>pz   Zoom current plot (open vector PDF)
@@ -633,8 +640,15 @@ rmd/quarto buffers specifically.
                                                 *zzvim-r-mappings-migration*
 Migration from 0.9.x
 
-Old key -> new key, for every key that moved or was removed in v0.10.0
-or v0.10.1:
+Old key -> new key, for every key that moved or was removed in v0.10.0,
+v0.10.1, or v0.10.2:
+    <localleader>o    -> <localleader>|   (v0.10.2: o was both a command
+                                           and the prefix of the o?
+                                           object keys; the pipe is now
+                                           |> by default, see
+                                           |g:zzvim_r_pipe|)
+    <localleader>0    -> <localleader>uu  (v0.10.2: joins the u HUD group)
+    <localleader>P    -> <localleader>pp  (v0.10.2: joins the p plot group)
     <localleader>r    -> <localleader>rd
     ZR                -> <localleader>rd  (ZR itself removed; exact
                                            duplicate, defect 13)

@@ -22,11 +22,11 @@ and display plots -- all without leaving the editor.
   control structures, and multi-line expressions automatically
 - **Multi-terminal sessions**: each buffer gets its own R process
 - **R Markdown / Quarto**: chunk navigation (`j`/`k`), execution
-  (`l`), render, and chunk insertion
+  (`sc`), render, and chunk insertion
 - **Object inspection**: `head`, `str`, `dim`, `print`, `names`,
   `glimpse` on the word under the cursor
 - **Workspace HUD**: memory usage, data frames, packages, and
-  environment in a tabbed dashboard (`<LocalLeader>0`)
+  environment in a tabbed dashboard (`<LocalLeader>uu`)
 - **Inline plots**: PDF master + PNG preview displayed in Kitty,
   Ghostty, WezTerm, or iTerm2 terminal panes
 - **Docker integration**: auto-detects zzcollab workspaces and
@@ -34,21 +34,22 @@ and display plots -- all without leaving the editor.
 
 ## Key mappings
 
-As of v0.10.0, `r`/`s`/`o`/`u` are pure prefixes (no key is both a
-complete command and the start of a longer one); see `:help
+As of v0.10.2, `r`/`s`/`o`/`u`/`p`/`n` are pure prefixes (no key is
+both a complete command and the start of a longer one); see `:help
 zzvim-r-mappings-migration` if you have muscle memory from an earlier
 version.
 
 | Key | Action |
 |-----|--------|
 | `<CR>` | Smart code submission (context-aware) |
+| `<LocalLeader>\|` | Append pipe (`\|>` by default) and open a new line |
 | **Terminal** | |
 | `<LocalLeader>rd` | Container R (Docker, with renv) |
 | `<LocalLeader>rl` | Host R with renv |
 | `<LocalLeader>rn` | Host R without renv (vanilla) |
 | `<LocalLeader>w` | R terminal in vertical split |
 | **HUD & workspace** | |
-| `<LocalLeader>0` | Dashboard (all 6 workspace tabs) |
+| `<LocalLeader>uu` | Dashboard (all 6 workspace tabs) |
 | `<LocalLeader>um/ud/up` | Memory / Data frames / Packages |
 | `<LocalLeader>uv` | Data viewer |
 | **Inspection** (also works on a visual selection, e.g. `df$x`) | |

@@ -3,9 +3,9 @@ scriptencoding utf-8
 " zzvim-R - Advanced R Development Plugin for Vim
 " ==========================================================================="
 " Maintainer:  RG Thomas rgthomas@ucsd.edu
-" Version:     0.10.1
+" Version:     0.10.2
 " License:     GPL3 License
-" Last Change: 2026-10-20
+" Last Change: 2026-10-24
 "
 " PLUGIN OVERVIEW:
 " ================
@@ -70,10 +70,14 @@ scriptencoding utf-8
 "   Default: 0 (mappings enabled)
 "   Example: let g:zzvim_r_disable_mappings = 1
 "
-" g:zzvim_r_map_submit         (string)
-"   Key sequence for code submission in normal mode.
-"   Default: '<CR>' (Enter key)
-"   Example: let g:zzvim_r_map_submit = '<Leader>r'  " Use leader+r instead
+" g:zzvim_r_pipe               (string)
+"   Pipe operator appended by <Plug>(zzvim-r-pipe-newline).
+"   Default: '|>' (native pipe, R >= 4.1)
+"   Example: let g:zzvim_r_pipe = '%>%'  " magrittr pipe
+"
+" To move code submission off <CR>, map its <Plug> target yourself;
+" the default key is then skipped:
+"   nmap <LocalLeader><CR> <Plug>(zzvim-r-send-smart)
 "
 " R Markdown/Quarto Document Configuration:
 " ----------------------------------------
@@ -192,7 +196,7 @@ endif
 " Convention: g:loaded_{plugin_name} = 1 indicates successful loading
 let g:loaded_zzvim_r = 1
 " Plugin version for compatibility checking and debugging
-let g:zzvim_r_version = '0.10.1'
+let g:zzvim_r_version = '0.10.2'
 
 " =============================================================================
 " CONFIGURATION INITIALIZATION WITH SAFE DEFAULTS
@@ -206,7 +210,7 @@ let g:zzvim_r_version = '0.10.1'
 " checks
 let g:zzvim_r_default_terminal = get(g:, 'zzvim_r_default_terminal', 'R')
 let g:zzvim_r_disable_mappings = get(g:, 'zzvim_r_disable_mappings', 0)
-let g:zzvim_r_map_submit = get(g:, 'zzvim_r_map_submit', '<CR>')
+let g:zzvim_r_pipe = get(g:, 'zzvim_r_pipe', '|>')
 let g:zzvim_r_terminal_width = get(g:, 'zzvim_r_terminal_width', 100)
 let g:zzvim_r_terminal_height = get(g:, 'zzvim_r_terminal_height', 15)
 let g:zzvim_r_command = get(g:, 'zzvim_r_command', 'R --no-save --quiet')
@@ -810,20 +814,24 @@ function! s:GetVisualSelection() abort
     return join(l:lines, "\n")
 endfunction
 
-" Insert R Pipe Operator for Functional Programming Workflows
-" Adds %>% operator on new line and positions cursor for chaining
-" Used extensively in tidyverse/dplyr data manipulation pipelines
+" Append the pipe (g:zzvim_r_pipe, default |>) to the end of the current
+" line, tidyverse-style, then open a new line and enter insert mode for
+" the next step. The new line is indented one shiftwidth deeper than the
+" chain's first line: if the line above already ends in a pipe, the
+" current line is itself a continuation, so its indent is kept.
 function! s:AddPipeAndNewLine() abort
-    " Insert pipe operator on new line after current line
-    " line('.') = current line number
-    " append(line, text) = insert text after specified line
-    " ' %>%' includes leading space for proper formatting
-    call append(line('.'), ' %>%')
-    
-    " Move cursor to the newly created line
-    " normal! j = move down one line (! prevents mapping interference)
-    " Positions cursor at end of pipe operator for immediate typing
+    let l:pipe = g:zzvim_r_pipe
+    let l:text = substitute(getline('.'), '\s\+$', '', '')
+    if l:text !~# '\V' . escape(l:pipe, '\') . '\$'
+        call setline('.', l:text . ' ' . l:pipe)
+    endif
+    let l:prev = substitute(getline(line('.') - 1), '\s\+$', '', '')
+    let l:continuation = line('.') > 1
+          \ && l:prev =~# '\V' . escape(l:pipe, '\') . '\$'
+    let l:indent = indent('.') + (l:continuation ? 0 : shiftwidth())
+    call append(line('.'), repeat(' ', l:indent))
     normal! j
+    startinsert!
 endfunction
 
 " =============================================================================
@@ -1789,6 +1797,12 @@ nnoremap <silent> <Plug>(zzvim-r-help) :call <SID>RHelpBuffer('')<CR>
 " same one-key-is-both-a-command-and-a-prefix pattern as defect 12,
 " just scoped to a subset of filetypes. nb/na uses a prefix ('n') that
 " is not bound to anything else, so it has no such collision.
+"
+" v0.10.2: <LocalLeader>o (pipe + new line) was still both a command
+" and the prefix of the ten o? object keys, so it waited timeoutlen on
+" every use; it moves to <LocalLeader>| (written <Bar>; not >, which
+" meant "next plot" in 0.9.x). The dashboard (0) and plot HUD
+" (P) join their groups as uu and pp, leaving u and p pure prefixes.
 " Returned by a function, not a top-level list literal: a continuation
 " line (leading backslash) at script scope depends on 'cpoptions' not
 " having the 'C' flag, which is only true once some vimrc has already
@@ -1815,7 +1829,7 @@ function! s:ZzvimRDefaultMaps() abort
       \ ['x', '<CR>',             '<Plug>(zzvim-r-send-selection)'],
       \ ['n', '<CR>',             '<Plug>(zzvim-r-send-smart)'],
       \ ['n', '<LocalLeader><CR>','<Plug>(zzvim-r-send-smart-comments)'],
-      \ ['n', '<LocalLeader>o',  '<Plug>(zzvim-r-pipe-newline)'],
+      \ ['n', '<LocalLeader><Bar>', '<Plug>(zzvim-r-pipe-newline)'],
       \ ['n', '<LocalLeader>ss', '<Plug>(zzvim-r-send-line)'],
       \ ['n', '<LocalLeader>sf', '<Plug>(zzvim-r-send-function)'],
       \ ['n', '<LocalLeader>sc', '<Plug>(zzvim-r-chunk-submit)'],
@@ -1858,8 +1872,8 @@ function! s:ZzvimRDefaultMaps() abort
       \ ['n', '<LocalLeader>uv', '<Plug>(zzvim-r-viewer)'],
       \ ['n', '<LocalLeader>ue', '<Plug>(zzvim-r-hud-environment)'],
       \ ['n', '<LocalLeader>uo', '<Plug>(zzvim-r-hud-options)'],
-      \ ['n', '<LocalLeader>0',  '<Plug>(zzvim-r-hud-dashboard)'],
-      \ ['n', '<LocalLeader>P',  '<Plug>(zzvim-r-plot-hud)'],
+      \ ['n', '<LocalLeader>uu', '<Plug>(zzvim-r-hud-dashboard)'],
+      \ ['n', '<LocalLeader>pp', '<Plug>(zzvim-r-plot-hud)'],
       \ ['n', '<LocalLeader>pz', '<Plug>(zzvim-r-plot-zoom)'],
       \ ['n', '<LocalLeader>[',  '<Plug>(zzvim-r-plot-prev)'],
       \ ['n', '<LocalLeader>]',  '<Plug>(zzvim-r-plot-next)'],
@@ -3423,7 +3437,7 @@ function! s:RHUDDashboard() abort
     " Go to first HUD tab
     1tabnext
 
-    echo "HUD Dashboard: 6 tabs created. Use gt/gT to navigate, <LocalLeader>0 to refresh"
+    echo "HUD Dashboard: 6 tabs created. Use gt/gT to navigate, <LocalLeader>uu to refresh"
 endfunction
 
 " Helper: Close existing HUD tabs to prevent accumulation
@@ -3459,7 +3473,7 @@ function! s:CreateHUDTab(tab_name, file_suffix, data_generator, source_file, r_t
     setlocal readonly
 
     " Standard HUD mappings
-    nnoremap <buffer> <silent> <LocalLeader>0 :call <SID>RHUDDashboard()<CR>
+    nnoremap <buffer> <silent> <LocalLeader>uu :call <SID>RHUDDashboard()<CR>
     nnoremap <buffer> <silent> q :bwipeout<CR>
 
     " Interactive HUD mappings for drill-down (skip for Plots tab which has its own)
@@ -3549,7 +3563,7 @@ function! s:GenerateMemoryHUD() abort
                 \ 'output <- c(output, sprintf("%-20s %10.2f", objs[i], mem_mb[i]));' .
                 \ 'output <- c(output, sprintf("%-20s %10.2f", "TOTAL WORKSPACE", total_mb))' .
                 \ '} else output <- c(output, "No objects in workspace");' .
-                \ 'output <- c(output, "", "Press <LocalLeader>0 to refresh all HUD tabs");' .
+                \ 'output <- c(output, "", "Press <LocalLeader>uu to refresh all HUD tabs");' .
                 \ 'writeLines(output, "' . l:temp_file . '")' .
                 \ '}'
     
@@ -3586,7 +3600,7 @@ function! s:GenerateDataFrameHUD() abort
                 \ 'dims <- dim(get(df));' .
                 \ 'output <- c(output, sprintf("%-20s %8d %8d", df, dims[1], dims[2]))' .
                 \ '}} else output <- c(output, "No data frames found");' .
-                \ 'output <- c(output, "", "Press <LocalLeader>0 to refresh all HUD tabs");' .
+                \ 'output <- c(output, "", "Press <LocalLeader>uu to refresh all HUD tabs");' .
                 \ 'writeLines(output, "' . l:temp_file . '")' .
                 \ '}'
     
@@ -3617,7 +3631,7 @@ function! s:GeneratePackageHUD() abort
                 \ 'loaded <- sub("package:", "", loaded);' .
                 \ 'output <- c(output, sprintf("Total loaded packages: %d", length(loaded)), "");' .
                 \ 'for(pkg in loaded) output <- c(output, sprintf("  %-30s", pkg));' .
-                \ 'output <- c(output, "", "Press <LocalLeader>0 to refresh all HUD tabs");' .
+                \ 'output <- c(output, "", "Press <LocalLeader>uu to refresh all HUD tabs");' .
                 \ 'writeLines(output, "' . l:temp_file . '")' .
                 \ '}'
     
@@ -3657,7 +3671,7 @@ function! s:GenerateEnvironmentHUD() abort
     
     sleep 300m
     if filereadable(l:env_file)
-        let l:content = ['ENVIRONMENT VARIABLES', '====================', ''] + readfile(l:env_file) + ['', 'Press <LocalLeader>0 to refresh all HUD tabs']
+        let l:content = ['ENVIRONMENT VARIABLES', '====================', ''] + readfile(l:env_file) + ['', 'Press <LocalLeader>uu to refresh all HUD tabs']
         call setline(1, l:content)
         call delete(l:env_file)
         
@@ -3696,7 +3710,7 @@ function! s:GenerateOptionsHUD() abort
     
     sleep 300m  
     if filereadable(l:options_file)
-        let l:content = ['R SESSION OPTIONS', '==================', ''] + readfile(l:options_file) + ['', 'Press <LocalLeader>0 to refresh all HUD tabs']
+        let l:content = ['R SESSION OPTIONS', '==================', ''] + readfile(l:options_file) + ['', 'Press <LocalLeader>uu to refresh all HUD tabs']
         call setline(1, l:content)
         call delete(l:options_file)
         

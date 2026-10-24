@@ -1,5 +1,23 @@
 # zzvim-R (development)
 
+## 2026-10-24 (v0.10.2)
+
+* **Breaking: pipe key and pipe operator.** `<LocalLeader>o` (append
+  pipe, open new line) was still both a complete command and the
+  prefix of the ten `<LocalLeader>o?` object-inspection keys, so it
+  waited `timeoutlen` on every use. It moves to `<LocalLeader>|`. It
+  now appends the pipe to the end of the current line (tidyverse
+  style) instead of putting it alone on the next line, inserts the
+  native `|>` by default (new option `g:zzvim_r_pipe`; set it to
+  `'%>%'` for magrittr), indents the new line, and enters insert mode.
+* **Breaking: `<LocalLeader>0` -> `<LocalLeader>uu` and
+  `<LocalLeader>P` -> `<LocalLeader>pp`**, so the dashboard and plot
+  HUD sit inside their `u` and `p` groups. `<Plug>` names are
+  unchanged.
+* **Removed `g:zzvim_r_map_submit`.** It was documented but never
+  read. Remap `<Plug>(zzvim-r-send-smart)` to move submission off
+  `<CR>`.
+
 ## 2026-10-20 (v0.10.1)
 
 * **Breaking: three default keys renamed to avoid mixed case.**
