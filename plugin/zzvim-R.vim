@@ -450,8 +450,11 @@ function! s:GetBufferTerminal() abort
         let l:save_t_ve = &t_ve
         try
             set t_ve=
-            call s:WaitForRPrompt(terminal_id, 30000)
-            if l:is_docker
+            let l:ready = s:WaitForRPrompt(terminal_id, 30000)
+            " Without an R prompt, 'make r' may still be at a shell prompt
+            " (e.g. the host-R [y/N] fallback); sending text there would
+            " answer it.  Leave focus on the terminal so the user can respond.
+            if l:is_docker && l:ready
                 " Safety-net .zz injection (harmless if .Rprofile.local already
                 " defined it; guards against prompt-detection edge cases).
                 call s:compat_term_sendkeys(terminal_id,
