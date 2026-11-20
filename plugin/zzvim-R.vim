@@ -3160,6 +3160,46 @@ function! s:RInspectObject(...) abort
                 \ 'else cat("Not found: ' . obj . '\n")}', 1)
 endfunction
 
+" HUD scratch-file paths. In a zzcollab project R runs in Docker and
+" sees only the mounted project root, so a Vim tempname() under
+" /var/folders does not exist for it. There R writes a relative name
+" (its cwd is the project root, as for .zzc.R) and Vim reads the
+" absolute host path. Outside a project R is local and tempname() is
+" kept. R writes to '<name>.part' and renames on completion, so the
+" poll in s:HUDWaitForFile() never reads a partially written file.
+" Returns {host, r, commit}: r is the path to embed in the R write
+" call, commit is R code to append after the command.
+function! s:HUDTempPaths(name) abort
+    let l:root = zzvim_r#get_project_root()
+    if empty(l:root)
+        let l:host = tempname() . '_' . a:name
+        let l:final = substitute(l:host, '\', '/', 'g')
+    else
+        let l:final = '.zzhud_' . a:name
+        let l:host = l:root . '/' . l:final
+    endif
+    call delete(l:host)
+    let l:part = l:final . '.part'
+    return {
+                \ 'host': l:host,
+                \ 'r': l:part,
+                \ 'commit': printf(';if(file.exists("%s")) '
+                \   . 'invisible(file.rename("%s", "%s"))',
+                \   l:part, l:part, l:final)}
+endfunction
+
+" Poll for a HUD scratch file instead of a fixed sleep: a container
+" round trip or a large workspace can exceed any fixed delay.
+" Timeout is g:zzvim_r_hud_timeout_ms (default 3000).
+function! s:HUDWaitForFile(path) abort
+    let l:tries = get(g:, 'zzvim_r_hud_timeout_ms', 3000) / 100
+    while !filereadable(a:path) && l:tries > 0
+        sleep 100m
+        let l:tries -= 1
+    endwhile
+    return filereadable(a:path)
+endfunction
+
 " HUD Function 1: Memory Usage Display - Show memory usage of workspace objects
 function! s:RMemoryHUD() abort
     call s:Send_to_r('{cat("\n=== Memory Usage ===\n");' .
@@ -3207,26 +3247,22 @@ function! s:RDataViewer() abort
         return
     endif
     
-    " Create temp space-separated file path  
-    let data_file = tempname() . '.txt'
-    let data_file_escaped = substitute(data_file, '\', '/', 'g')  " Fix Windows paths
-    
+    let paths = s:HUDTempPaths('dataview.txt')
+    let data_file = paths.host
+
     " Phase 1: Check if object exists and is a data frame
     let check_cmd = 'if(exists("' . obj_name . '") && is.data.frame(' . obj_name . ')) {' .
-                \ 'write.table(' . obj_name . ', "' . data_file_escaped . '", ' .
+                \ 'write.table(' . obj_name . ', "' . paths.r . '", ' .
                 \ 'sep=" ", row.names=FALSE, col.names=TRUE, quote=FALSE); ' .
                 \ 'cat("Data viewer: Exported ' . obj_name . ' with space delimiter\n")' .
                 \ '} else {' .
                 \ 'cat("Error: ' . obj_name . ' is not a data frame or does not exist\n")' .
-                \ '}'
-    
+                \ '}' . paths.commit
+
     call s:Send_to_r(check_cmd, 1)
-    
-    " Brief delay to ensure file is written
-    sleep 200m
-    
+
     " Phase 2: Check if data file was created successfully
-    if !filereadable(data_file)
+    if !s:HUDWaitForFile(data_file)
         call s:Error("Failed to export data frame: " . obj_name)
         return
     endif
@@ -3265,10 +3301,9 @@ endfunction
 
 " HUD Function 5: Environment Variables Viewer - System environment variables in tabulated format
 function! s:REnvironmentHUD() abort
-    " Create temp space-separated file for environment variables
-    let env_file = tempname() . '.txt'
-    let env_file_escaped = substitute(env_file, '\', '/', 'g')  " Fix Windows paths
-    
+    let paths = s:HUDTempPaths('environment.txt')
+    let env_file = paths.host
+
     " Phase 1: Export environment variables as a data frame with R_ variables prioritized
     let env_cmd = '{' .
                 \ 'env_vars <- Sys.getenv(); ' .
@@ -3279,18 +3314,15 @@ function! s:REnvironmentHUD() abort
                 \ 'env_df$R_priority <- ifelse(grepl("^R_", env_df$Variable), 1, 2); ' .
                 \ 'env_df <- env_df[order(env_df$R_priority, env_df$Variable), ]; ' .
                 \ 'env_df$R_priority <- NULL; ' .
-                \ 'write.table(env_df, "' . env_file_escaped . '", ' .
+                \ 'write.table(env_df, "' . paths.r . '", ' .
                 \ 'sep=" ", row.names=FALSE, col.names=TRUE, quote=FALSE); ' .
                 \ 'cat("Environment HUD: Exported", nrow(env_df), "environment variables\n")' .
-                \ '}'
-    
+                \ '}' . paths.commit
+
     call s:Send_to_r(env_cmd, 1)
-    
-    " Brief delay to ensure file is written
-    sleep 200m
-    
+
     " Phase 2: Check if environment file was created successfully
-    if !filereadable(env_file)
+    if !s:HUDWaitForFile(env_file)
         call s:Error("Failed to export environment variables")
         return
     endif
@@ -3321,10 +3353,9 @@ endfunction
 
 " HUD Function 6: R Options Viewer - Current R options in tabulated format
 function! s:ROptionsHUD() abort
-    " Create temp space-separated file for R options
-    let options_file = tempname() . '.txt'
-    let options_file_escaped = substitute(options_file, '\', '/', 'g')  " Fix Windows paths
-    
+    let paths = s:HUDTempPaths('options.txt')
+    let options_file = paths.host
+
     " Phase 1: Export R options as a data frame
     let options_cmd = '{' .
                 \ 'r_options <- options(); ' .
@@ -3340,18 +3371,15 @@ function! s:ROptionsHUD() abort
                 \ '}), ' .
                 \ 'stringsAsFactors = FALSE); ' .
                 \ 'opt_df <- opt_df[order(opt_df$Option), ]; ' .
-                \ 'write.table(opt_df, "' . options_file_escaped . '", ' .
+                \ 'write.table(opt_df, "' . paths.r . '", ' .
                 \ 'sep=" ", row.names=FALSE, col.names=TRUE, quote=FALSE); ' .
                 \ 'cat("R Options HUD: Exported", nrow(opt_df), "R options\n")' .
-                \ '}'
-    
+                \ '}' . paths.commit
+
     call s:Send_to_r(options_cmd, 1)
-    
-    " Brief delay to ensure file is written
-    sleep 200m
-    
+
     " Phase 2: Check if options file was created successfully
-    if !filereadable(options_file)
+    if !s:HUDWaitForFile(options_file)
         call s:Error("Failed to export R options")
         return
     endif
@@ -3549,9 +3577,9 @@ endfunction
 
 " HUD Data Generators - Generate content for each tab
 function! s:GenerateMemoryHUD() abort
-    " Create temp file for memory data
-    let l:temp_file = tempname()
-    
+    let l:paths = s:HUDTempPaths('memory.txt')
+    let l:temp_file = l:paths.host
+
     let l:mem_cmd = '{' .
                 \ 'output <- c();' .
                 \ 'output <- c(output, "MEMORY USAGE OVERVIEW");' .
@@ -3567,14 +3595,12 @@ function! s:GenerateMemoryHUD() abort
                 \ 'output <- c(output, sprintf("%-20s %10.2f", "TOTAL WORKSPACE", total_mb))' .
                 \ '} else output <- c(output, "No objects in workspace");' .
                 \ 'output <- c(output, "", "Press <LocalLeader>uu to refresh all HUD tabs");' .
-                \ 'writeLines(output, "' . l:temp_file . '")' .
-                \ '}'
-    
+                \ 'writeLines(output, "' . l:paths.r . '")' .
+                \ '}' . l:paths.commit
+
     call s:Send_to_r(l:mem_cmd, 1)
-    
-    " Wait and read file content
-    sleep 500m
-    if filereadable(l:temp_file)
+
+    if s:HUDWaitForFile(l:temp_file)
         let l:content = readfile(l:temp_file)
         if len(l:content) > 0
             call setline(1, l:content)
@@ -3588,8 +3614,9 @@ function! s:GenerateMemoryHUD() abort
 endfunction
 
 function! s:GenerateDataFrameHUD() abort
-    let l:temp_file = tempname()
-    
+    let l:paths = s:HUDTempPaths('dataframes.txt')
+    let l:temp_file = l:paths.host
+
     let l:df_cmd = '{' .
                 \ 'output <- c();' .
                 \ 'output <- c(output, "DATA FRAMES OVERVIEW");' .
@@ -3604,13 +3631,12 @@ function! s:GenerateDataFrameHUD() abort
                 \ 'output <- c(output, sprintf("%-20s %8d %8d", df, dims[1], dims[2]))' .
                 \ '}} else output <- c(output, "No data frames found");' .
                 \ 'output <- c(output, "", "Press <LocalLeader>uu to refresh all HUD tabs");' .
-                \ 'writeLines(output, "' . l:temp_file . '")' .
-                \ '}'
-    
+                \ 'writeLines(output, "' . l:paths.r . '")' .
+                \ '}' . l:paths.commit
+
     call s:Send_to_r(l:df_cmd, 1)
-    
-    sleep 500m
-    if filereadable(l:temp_file)
+
+    if s:HUDWaitForFile(l:temp_file)
         let l:content = readfile(l:temp_file)
         if len(l:content) > 0
             call setline(1, l:content)
@@ -3624,8 +3650,9 @@ function! s:GenerateDataFrameHUD() abort
 endfunction
 
 function! s:GeneratePackageHUD() abort
-    let l:temp_file = tempname()
-    
+    let l:paths = s:HUDTempPaths('packages.txt')
+    let l:temp_file = l:paths.host
+
     let l:pkg_cmd = '{' .
                 \ 'output <- c();' .
                 \ 'output <- c(output, "LOADED PACKAGES");' .
@@ -3635,13 +3662,12 @@ function! s:GeneratePackageHUD() abort
                 \ 'output <- c(output, sprintf("Total loaded packages: %d", length(loaded)), "");' .
                 \ 'for(pkg in loaded) output <- c(output, sprintf("  %-30s", pkg));' .
                 \ 'output <- c(output, "", "Press <LocalLeader>uu to refresh all HUD tabs");' .
-                \ 'writeLines(output, "' . l:temp_file . '")' .
-                \ '}'
-    
+                \ 'writeLines(output, "' . l:paths.r . '")' .
+                \ '}' . l:paths.commit
+
     call s:Send_to_r(l:pkg_cmd, 1)
-    
-    sleep 500m
-    if filereadable(l:temp_file)
+
+    if s:HUDWaitForFile(l:temp_file)
         let l:content = readfile(l:temp_file)
         if len(l:content) > 0
             call setline(1, l:content)
@@ -3655,10 +3681,9 @@ function! s:GeneratePackageHUD() abort
 endfunction
 
 function! s:GenerateEnvironmentHUD() abort
-    " Create temp space-separated file for environment variables  
-    let l:env_file = tempname() . '.txt'
-    let l:env_file_escaped = substitute(l:env_file, '\', '/', 'g')  " Fix Windows paths
-    
+    let l:paths = s:HUDTempPaths('dash_environment.txt')
+    let l:env_file = l:paths.host
+
     let l:env_cmd = '{' .
                 \ 'env_vars <- Sys.getenv(); ' .
                 \ 'env_df <- data.frame(' .
@@ -3666,14 +3691,13 @@ function! s:GenerateEnvironmentHUD() abort
                 \ 'Value = as.character(env_vars), ' .
                 \ 'stringsAsFactors = FALSE); ' .
                 \ 'env_df <- env_df[order(env_df$Variable), ]; ' .
-                \ 'write.table(env_df, "' . l:env_file_escaped . '", ' .
+                \ 'write.table(env_df, "' . l:paths.r . '", ' .
                 \ 'sep="  ", row.names=FALSE, col.names=TRUE, quote=FALSE)' .
-                \ '}'
-    
+                \ '}' . l:paths.commit
+
     call s:Send_to_r(l:env_cmd, 1)
-    
-    sleep 300m
-    if filereadable(l:env_file)
+
+    if s:HUDWaitForFile(l:env_file)
         let l:content = ['ENVIRONMENT VARIABLES', '====================', ''] + readfile(l:env_file) + ['', 'Press <LocalLeader>uu to refresh all HUD tabs']
         call setline(1, l:content)
         call delete(l:env_file)
@@ -3686,10 +3710,9 @@ function! s:GenerateEnvironmentHUD() abort
 endfunction
 
 function! s:GenerateOptionsHUD() abort
-    " Create temp space-separated file for R options
-    let l:options_file = tempname() . '.txt' 
-    let l:options_file_escaped = substitute(l:options_file, '\', '/', 'g')  " Fix Windows paths
-    
+    let l:paths = s:HUDTempPaths('dash_options.txt')
+    let l:options_file = l:paths.host
+
     let l:options_cmd = '{' .
                 \ 'r_options <- options(); ' .
                 \ 'opt_df <- data.frame(' .
@@ -3705,14 +3728,13 @@ function! s:GenerateOptionsHUD() abort
                 \ '}), ' .
                 \ 'stringsAsFactors = FALSE); ' .
                 \ 'opt_df <- opt_df[order(opt_df$Option), ]; ' .
-                \ 'write.table(opt_df, "' . l:options_file_escaped . '", ' .
+                \ 'write.table(opt_df, "' . l:paths.r . '", ' .
                 \ 'sep="  ", row.names=FALSE, col.names=TRUE, quote=FALSE)' .
-                \ '}'
-    
+                \ '}' . l:paths.commit
+
     call s:Send_to_r(l:options_cmd, 1)
-    
-    sleep 300m  
-    if filereadable(l:options_file)
+
+    if s:HUDWaitForFile(l:options_file)
         let l:content = ['R SESSION OPTIONS', '==================', ''] + readfile(l:options_file) + ['', 'Press <LocalLeader>uu to refresh all HUD tabs']
         call setline(1, l:content)
         call delete(l:options_file)
@@ -3821,9 +3843,8 @@ function! s:RHelpBuffer(topic) abort
         return
     endif
 
-    " Create temp file for help output
-    let l:help_file = tempname() . '.Rhelp'
-    let l:help_file_escaped = substitute(l:help_file, '\', '/', 'g')
+    let l:paths = s:HUDTempPaths('help.Rhelp')
+    let l:help_file = l:paths.host
 
     " R command to capture help text
     let l:cmd = printf(
@@ -3833,18 +3854,11 @@ function! s:RHelpBuffer(topic) abort
         \ 'utils:::.getHelpFile(h))), "%s")} ' .
         \ 'else cat("No help found for: %s\n")}, ' .
         \ 'error = function(e) cat("Error:", e$message, "\n"))',
-        \ l:topic, l:help_file_escaped, l:topic)
+        \ l:topic, l:paths.r, l:topic) . l:paths.commit
 
     call s:Send_to_r(l:cmd, 1)
 
-    " Wait for file with timeout (3 seconds max)
-    let l:tries = 30
-    while !filereadable(l:help_file) && l:tries > 0
-        sleep 100m
-        let l:tries -= 1
-    endwhile
-
-    if !filereadable(l:help_file)
+    if !s:HUDWaitForFile(l:help_file)
         call s:Error("Help not found: " . l:topic)
         return
     endif
