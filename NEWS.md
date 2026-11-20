@@ -1,5 +1,38 @@
 # zzvim-R (development)
 
+## 2026-11-19 (v0.10.3)
+
+* **Fixed: HUD displays under Docker.** The HUD dashboard, the
+  memory/data-frame/package/environment/options displays, the data
+  viewer, and the R help buffer passed a Vim `tempname()` path
+  (`/var/folders/...`) to R. R in the container cannot see that path,
+  so every display failed with "cannot open file". In a zzcollab
+  project R now writes a `.zzhud_<name>` file in the project root and
+  Vim reads it there; outside a project `tempname()` is still used. R
+  writes to `<name>.part` and renames it when done, so Vim never reads
+  a partial file.
+* **Fixed: HUD waits.** The fixed 200-500 ms sleeps are replaced by
+  polling every 100 ms up to `g:zzvim_r_hud_timeout_ms` (new option,
+  default 3000), so a slow container or a large workspace no longer
+  produces "file not found".
+* **Fixed: `:RMarkdownRender` under Docker.** It sent the document's
+  absolute host path. In a zzcollab project it now sends the path
+  relative to the project root (R's working directory), and refuses a
+  document outside the root with an error.
+* **Changed: Quarto documents render with the quarto CLI.**
+  `rmarkdown::render()` knits a `.qmd` as R Markdown and ignores its
+  Quarto YAML and cross-references. `.qmd` files now go to
+  `system2("quarto", c("render", ...))` from the R session.
+  `html_document`, `pdf_document` and `word_document` map to `html`,
+  `pdf` and `docx`; other names pass through to `--to`. **Behavior
+  change:** with no format, a `.qmd` now renders the formats in its
+  YAML header instead of forcing `html_document`.
+* **Fixed: `:RMarkdownPreview` opening stale or missing files.** It
+  opened `<file>.html` after a fixed 2 s sleep. It now waits, without
+  blocking Vim, for an HTML file written after the render started, up
+  to `g:zzvim_r_preview_timeout_ms` (new option, default 120000), and
+  reports the expected path if none appears.
+
 ## 2026-10-24 (v0.10.2)
 
 * **Breaking: pipe key and pipe operator.** `<LocalLeader>o` (append

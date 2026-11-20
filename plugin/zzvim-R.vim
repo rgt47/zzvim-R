@@ -3,7 +3,7 @@ scriptencoding utf-8
 " zzvim-R - Advanced R Development Plugin for Vim
 " ==========================================================================="
 " Maintainer:  RG Thomas rgthomas@ucsd.edu
-" Version:     0.10.2
+" Version:     0.10.3
 " License:     GPL3 License
 " Last Change: 2026-10-24
 "
@@ -196,7 +196,7 @@ endif
 " Convention: g:loaded_{plugin_name} = 1 indicates successful loading
 let g:loaded_zzvim_r = 1
 " Plugin version for compatibility checking and debugging
-let g:zzvim_r_version = '0.10.2'
+let g:zzvim_r_version = '0.10.3'
 
 " =============================================================================
 " CONFIGURATION INITIALIZATION WITH SAFE DEFAULTS
@@ -3832,20 +3832,55 @@ function! s:RMarkdownRender(format) abort
     endif
     call s:Send_to_r(l:cmd, 0)
     echom "Rendering " . expand('%:t') . " to " . l:format
+    return 1
 endfunction
 
 " Render R Markdown to HTML and open in browser
-function! s:RMarkdownPreview() abort
-    call s:RMarkdownRender('html_document')
-    let l:output = expand('%:p:r') . '.html'
+" The render runs in the R terminal, so Vim stays responsive; a timer
+" waits for an output file written after the render started instead of
+" a fixed sleep, which opened a stale or missing file whenever a render
+" took longer. A Quarto project with output-dir writes elsewhere; the
+" timeout message names the path that was expected.
+" Timeout is g:zzvim_r_preview_timeout_ms (default 120000).
+let s:preview_timer = -1
 
-    " Platform-specific browser open (with delay for rendering)
+function! s:RMarkdownPreview() abort
+    let l:output = expand('%:p:r') . '.html'
+    let l:start = localtime()
+    if !s:RMarkdownRender('html_document')
+        return
+    endif
+    if s:preview_timer != -1
+        call timer_stop(s:preview_timer)
+    endif
+    let s:preview = {'path': l:output, 'start': l:start,
+                \ 'tries': get(g:, 'zzvim_r_preview_timeout_ms', 120000) / 500}
+    let s:preview_timer = timer_start(500,
+                \ function('s:PreviewPoll'), {'repeat': -1})
+endfunction
+
+function! s:PreviewPoll(timer) abort
+    let s:preview.tries -= 1
+    if getftime(s:preview.path) >= s:preview.start
+        call timer_stop(a:timer)
+        let s:preview_timer = -1
+        call s:OpenInBrowser(s:preview.path)
+    elseif s:preview.tries <= 0
+        call timer_stop(a:timer)
+        let s:preview_timer = -1
+        call s:Error('Preview: no fresh output at ' . s:preview.path
+                    \ . ' (render failed, still running, or a Quarto'
+                    \ . ' output-dir puts it elsewhere)')
+    endif
+endfunction
+
+function! s:OpenInBrowser(path) abort
     if has('mac')
-        call system('(sleep 2 && open "' . l:output . '") &')
+        call system('open ' . shellescape(a:path) . ' &')
     elseif has('unix')
-        call system('(sleep 2 && xdg-open "' . l:output . '") &')
+        call system('xdg-open ' . shellescape(a:path) . ' &')
     elseif has('win32')
-        call system('start "" "' . l:output . '"')
+        call system('start "" "' . a:path . '"')
     endif
 endfunction
 

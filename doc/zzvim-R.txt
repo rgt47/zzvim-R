@@ -183,6 +183,24 @@ g:zzvim_r_debug              Debug logging level (0=off, 1=basic, 2=verbose).
                              Example: >
                              let g:zzvim_r_debug = 1
 <
+                                                  *g:zzvim_r_hud_timeout_ms*
+g:zzvim_r_hud_timeout_ms     How long a HUD display, viewer, or help buffer
+                             waits for R to write its output file, in
+                             milliseconds. Raise it for very large
+                             workspaces or a slow container.
+                             Default: 3000
+                             Example: >
+                             let g:zzvim_r_hud_timeout_ms = 10000
+<
+                                              *g:zzvim_r_preview_timeout_ms*
+g:zzvim_r_preview_timeout_ms How long |:RMarkdownPreview| waits for the
+                             rendered HTML before reporting that none was
+                             found, in milliseconds. Vim stays usable while
+                             it waits.
+                             Default: 120000
+                             Example: >
+                             let g:zzvim_r_preview_timeout_ms = 300000
+<
 
 Advanced Configuration Strategies              *zzvim-r-configuration-advanced*
 
@@ -458,14 +476,31 @@ R Markdown / Quarto Commands                      *zzvim-r-commands-rmd*
     Insert a new R code chunk above the current line.
 
 :RMarkdownRender [{format}]                                *:RMarkdownRender*
-    Render the current R Markdown / Quarto file via rmarkdown::render().
-    Optional {format} specifies the output format (e.g. html_document,
-    pdf_document, word_document). Defaults to html_document when omitted.
+    Render the current document in the R session.
+
+    R Markdown files go to rmarkdown::render(). Optional {format} is
+    the output format (e.g. html_document, pdf_document,
+    word_document); the default is html_document.
+
+    Quarto files (.qmd) go to the quarto CLI, called from R as
+    system2("quarto", c("render", ...)), so it runs wherever R runs
+    (in the container under zzcollab) and the quarto R package is not
+    needed. html_document, pdf_document and word_document become
+    --to html, pdf and docx; any other {format} (typst, revealjs, ...)
+    is passed to --to unchanged. Without {format}, the formats in the
+    document's YAML header are rendered.
+
+    In a zzcollab project the path is sent relative to the project
+    root, which is R's working directory in the container. A document
+    outside the project root cannot be rendered there and is refused
+    with an error.
 
 :RMarkdownPreview                                          *:RMarkdownPreview*
-    Render the current file to html_document and open the result in the
-    system browser. Equivalent to :RMarkdownRender html_document with
-    auto-open.
+    Render the current file to HTML and open it in the system browser
+    once a fresh <file>.html appears next to the source. Vim stays
+    usable while it waits; see |g:zzvim_r_preview_timeout_ms|. A Quarto
+    project that sets output-dir writes the HTML elsewhere, and the
+    timeout message then names the path that was expected.
 
 Miscellaneous Commands                            *zzvim-r-commands-misc*
 
