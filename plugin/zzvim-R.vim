@@ -3779,8 +3779,23 @@ let g:zzvim_r_help_width = get(g:, 'zzvim_r_help_width', 80)
 "                     defaults to html_document if empty
 function! s:RMarkdownRender(format) abort
     let l:format = empty(a:format) ? 'html_document' : a:format
-    let l:file = expand('%:p')
+    let l:file = resolve(expand('%:p'))
     let l:file_escaped = substitute(l:file, '\', '/', 'g')
+
+    " In a zzcollab project R runs in Docker and sees only the mounted
+    " project root, so the absolute host path does not exist for it.
+    " Send the path relative to the root (R's cwd), as the .zz send path
+    " does; a document outside the root cannot be reached at all.
+    let l:root = zzvim_r#get_project_root()
+    if !empty(l:root)
+        let l:root = substitute(resolve(l:root), '/$', '', '')
+        if stridx(l:file, l:root . '/') != 0
+            call s:Error('Cannot render outside the project root ('
+                        \ . l:root . '): R in Docker cannot see ' . l:file)
+            return
+        endif
+        let l:file_escaped = strpart(l:file, len(l:root) + 1)
+    endif
 
     " Save current buffer before rendering
     if &modified
