@@ -3773,11 +3773,26 @@ endfunction
 let g:zzvim_r_help_position = get(g:, 'zzvim_r_help_position', 'vsplit')
 let g:zzvim_r_help_width = get(g:, 'zzvim_r_help_width', 80)
 
+" Map an rmarkdown output format to a quarto --to format. Unknown names
+" (typst, revealjs, ...) are taken to be quarto formats already.
+function! s:QuartoFormat(format) abort
+    let l:map = {'html_document': 'html', 'pdf_document': 'pdf',
+                \ 'word_document': 'docx'}
+    return get(l:map, a:format, a:format)
+endfunction
+
 " Render R Markdown/Quarto document
 " Parameters:
 "   format (string) - output format (html_document, pdf_document, word_document)
-"                     defaults to html_document if empty
+"                     defaults to html_document if empty; for Quarto,
+"                     empty means the formats declared in the YAML header
+" Quarto documents go to the quarto CLI: rmarkdown::render() would knit
+" a .qmd as R Markdown and ignore its Quarto YAML and cross-references.
+" The CLI is called through system2() from the R session so it runs
+" where R runs (in the container under zzcollab), and the quarto R
+" package is not required.
 function! s:RMarkdownRender(format) abort
+    let l:is_quarto = expand('%:e') ==? 'qmd' || &filetype ==# 'quarto'
     let l:format = empty(a:format) ? 'html_document' : a:format
     let l:file = resolve(expand('%:p'))
     let l:file_escaped = substitute(l:file, '\', '/', 'g')
@@ -3802,9 +3817,19 @@ function! s:RMarkdownRender(format) abort
         write
     endif
 
-    " Build and send render command
-    let l:cmd = printf('rmarkdown::render("%s", output_format = "%s")',
-        \ l:file_escaped, l:format)
+    if l:is_quarto
+        let l:args = 'c("render", shQuote("' . l:file_escaped . '")'
+        if !empty(a:format)
+            let l:format = s:QuartoFormat(a:format)
+            let l:args .= ', "--to", "' . l:format . '"'
+        else
+            let l:format = 'YAML-declared formats'
+        endif
+        let l:cmd = 'system2("quarto", ' . l:args . '))'
+    else
+        let l:cmd = printf('rmarkdown::render("%s", output_format = "%s")',
+            \ l:file_escaped, l:format)
+    endif
     call s:Send_to_r(l:cmd, 0)
     echom "Rendering " . expand('%:t') . " to " . l:format
 endfunction
