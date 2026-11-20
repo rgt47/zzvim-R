@@ -201,6 +201,21 @@ g:zzvim_r_preview_timeout_ms How long |:RMarkdownPreview| waits for the
                              Example: >
                              let g:zzvim_r_preview_timeout_ms = 300000
 <
+                                                      *g:zzvim_r_figure_dirs*
+g:zzvim_r_figure_dirs        Directories, relative to the project root (or
+                             the current directory outside a zzcollab
+                             project), whose .png, .pdf, .svg, .jpg and
+                             .jpeg files the Plot HUD lists under Figure
+                             Files, one group per directory in this order.
+                             A file reached through two entries (e.g. a
+                             figures symlink) is listed once, under the
+                             first. analysis/media/images is where zzcollab
+                             blog workspaces keep hero and static images.
+                             Default: ['analysis/figures', 'figures',
+                             'analysis/media/images']
+                             Example: >
+                             let g:zzvim_r_figure_dirs = ['output/plots']
+<
 
 Advanced Configuration Strategies              *zzvim-r-configuration-advanced*
 
@@ -455,6 +470,18 @@ iTerm2 imgcat). See also |zzvim-r-plots|.
 :RPlotGallery                                                  *:RPlotGallery*
     Open the Plot HUD in a right-side panel: navigate history, zoom,
     save, delete. RPlotGallery is an alias for RPlotHUD.
+
+    The HUD has two sections. Plot History lists graphics recorded by
+    show_plot() and show_table() in the R session (.graphics/history).
+    Figure Files lists images that did not come through show_plot():
+    script output from ggsave(), png() or pdf(), and static images such
+    as a blog post's hero image. They come from the directories in
+    |g:zzvim_r_figure_dirs|, grouped under one heading per directory,
+    newest first within each; these lines are tagged [fN]. The rest of
+    the repository is not scanned. On a figure line, <CR> shows a PNG or
+    JPEG in the plot pane (PDF and SVG open in the system viewer), z
+    opens the same-named PDF if one exists, and s copies the file.
+    d does not delete figure files.
 
 :RPlotSavePdf                                                  *:RPlotSavePdf*
 :RPlotSavePng                                                  *:RPlotSavePng*

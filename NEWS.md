@@ -1,5 +1,27 @@
 # zzvim-R (development)
 
+## 2026-11-19 (v0.10.4)
+
+* **New: the Plot HUD lists figure files.** Plots that scripts write
+  directly (`ggsave()`, `png()`, `pdf()`) never enter the
+  `show_plot()` history, so the Plots tab showed nothing for a project
+  whose figures all come from scripts. A second section, Figure Files,
+  now lists the images in `g:zzvim_r_figure_dirs` (new option, default
+  `analysis/figures`, `figures` and `analysis/media/images`, the last
+  being where zzcollab blog workspaces keep hero images), grouped by
+  directory and newest first within each group. A file reached through
+  a symlinked directory is listed once. The rest of the repository is
+  deliberately not scanned: it would pull in slides, rendered reports
+  and guides, and the scan runs on every plot refresh. `<CR>` shows a
+  PNG/JPEG in the plot pane, `z` opens
+  the same-named PDF (or the file), `s` copies it; `d` refuses, since
+  these are analysis outputs in the repository.
+* **Fixed: `:RPlotHUD` always reported an empty history.** It checked
+  the index for a `plots` key, but `.Rprofile.local` writes
+  `graphics`. It also no longer errors when there is no history but
+  there are figure files, and refreshing (`r`) no longer errors when
+  the history index does not exist.
+
 ## 2026-11-19 (v0.10.3)
 
 * **Fixed: HUD displays under Docker.** The HUD dashboard, the

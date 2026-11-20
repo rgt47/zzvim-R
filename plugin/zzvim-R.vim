@@ -3,7 +3,7 @@ scriptencoding utf-8
 " zzvim-R - Advanced R Development Plugin for Vim
 " ==========================================================================="
 " Maintainer:  RG Thomas rgthomas@ucsd.edu
-" Version:     0.10.3
+" Version:     0.10.4
 " License:     GPL3 License
 " Last Change: 2026-10-24
 "
@@ -196,7 +196,7 @@ endif
 " Convention: g:loaded_{plugin_name} = 1 indicates successful loading
 let g:loaded_zzvim_r = 1
 " Plugin version for compatibility checking and debugging
-let g:zzvim_r_version = '0.10.3'
+let g:zzvim_r_version = '0.10.4'
 
 " =============================================================================
 " CONFIGURATION INITIALIZATION WITH SAFE DEFAULTS
@@ -2295,22 +2295,14 @@ endfunction
 " Opens in a Vim split with consistent key bindings
 
 function! s:RPlotHUD() abort
-    let l:index_file = s:GetHistoryIndex()
-    if !filereadable(l:index_file)
-        call s:Error("No plot history. Create plots with zzplot() first.")
-        return
-    endif
-
-    let l:json_content = join(readfile(l:index_file), '')
-    try
-        let l:index = json_decode(l:json_content)
-    catch
-        call s:Error("Failed to parse plot history")
-        return
-    endtry
-
-    if empty(get(l:index, 'plots', []))
-        call s:Error("Plot history is empty")
+    " The index written by .Rprofile.local keeps its entries under
+    " 'graphics' (an earlier check here read 'plots', so the HUD always
+    " reported an empty history). A missing index is not an error when
+    " the project has figure files to list.
+    let l:index = s:ReadPlotIndex(s:GetHistoryDir())
+    if empty(get(l:index, 'graphics', [])) && empty(s:FigureFiles())
+        call s:Error("No plot history (show_plot()) and no figure files in "
+                    \ . join(s:FigureDirs(), ', '))
         return
     endif
 
@@ -2340,10 +2332,79 @@ function! s:RPlotHUD() abort
     echo "Plot HUD: Enter=display, z=zoom PDF, s=save, d=delete, q=close"
 endfunction
 
+" Read the plot history index, or an empty one if it is missing or
+" unreadable.
+function! s:ReadPlotIndex(history_dir) abort
+    let l:index_file = a:history_dir . '/index.json'
+    if filereadable(l:index_file)
+        try
+            return json_decode(join(readfile(l:index_file), ''))
+        catch
+        endtry
+    endif
+    return {'graphics': [], 'current': 0}
+endfunction
+
+" Figure directories, relative to the project root (or cwd outside a
+" zzcollab project).
+" analysis/media/images is where zzcollab blog workspaces keep hero and
+" other static images (zzcollab modules/project.sh). A whole-repo scan
+" was rejected: it pulls in slides, rendered reports and guides, and
+" runs synchronously on every plot refresh.
+function! s:FigureDirs() abort
+    return get(g:, 'zzvim_r_figure_dirs',
+                \ ['analysis/figures', 'figures', 'analysis/media/images'])
+endfunction
+
+" Image files that did not come through show_plot() (script output from
+" ggsave()/png()/pdf(), hero and static images), grouped by directory in
+" g:zzvim_r_figure_dirs order, newest first within a group. A file is
+" listed once, under the first directory that reaches it, because
+" zzcollab workspaces symlink figures/ and media/ to analysis/.
+" Returns [{'dir': dir, 'files': [path, ...]}, ...], empty groups omitted.
+function! s:FigureGroups() abort
+    let l:root = zzvim_r#get_project_root()
+    if empty(l:root)
+        let l:root = getcwd()
+    endif
+    let l:seen = {}
+    let l:groups = []
+    for l:dir in s:FigureDirs()
+        let l:base = l:root . '/' . l:dir
+        if !isdirectory(l:base)
+            continue
+        endif
+        let l:files = []
+        for l:ext in ['png', 'pdf', 'svg', 'jpg', 'jpeg']
+            for l:f in glob(l:base . '/*.' . l:ext, 1, 1)
+                let l:real = resolve(l:f)
+                if !has_key(l:seen, l:real)
+                    let l:seen[l:real] = 1
+                    call add(l:files, l:real)
+                endif
+            endfor
+        endfor
+        if !empty(l:files)
+            call add(l:groups, {'dir': l:dir, 'files':
+                        \ sort(l:files, {a, b -> getftime(b) - getftime(a)})})
+        endif
+    endfor
+    return l:groups
+endfunction
+
+" All figure files in display order; [fN] in the HUD indexes this list.
+function! s:FigureFiles() abort
+    let l:files = []
+    for l:g in s:FigureGroups()
+        call extend(l:files, l:g.files)
+    endfor
+    return l:files
+endfunction
+
 " Generate Plot HUD content (also used by dashboard)
 function! s:GeneratePlotHUDContent() abort
     if !exists('b:plot_index')
-        return
+        let b:plot_index = {'graphics': [], 'current': 0}
     endif
 
     let l:index = b:plot_index
@@ -2372,9 +2433,30 @@ function! s:GeneratePlotHUDContent() abort
         call add(l:lines, printf('%s%s [%d] %-16s %-16s %s', l:marker, l:type_tag, i+1, l:name, l:created, l:code))
     endfor
 
+    " Figure files written by scripts. Tagged [fN], never [N], so the
+    " history handlers (number keys, d=delete) cannot act on them.
+    let b:figure_files = []
+    let l:groups = s:FigureGroups()
+    if !empty(l:groups)
+        call add(l:lines, '')
+        call add(l:lines, 'Figure Files (not from show_plot(); Enter=display, z=open)')
+        call add(l:lines, repeat('-', 70))
+        for l:g in l:groups
+            call add(l:lines, l:g.dir . '/')
+            for l:f in l:g.files
+                call add(b:figure_files, l:f)
+                call add(l:lines, printf('  [F] %-6s %-32s %s',
+                            \ '[f' . len(b:figure_files) . ']',
+                            \ strpart(fnamemodify(l:f, ':t'), 0, 32),
+                            \ strftime('%Y-%m-%d %H:%M', getftime(l:f))))
+            endfor
+        endfor
+    endif
+
     " Footer
     call add(l:lines, '')
-    call add(l:lines, printf('Total: %d items | Current: %d', len(l:graphics), l:current))
+    call add(l:lines, printf('Total: %d history items, %d figure files | Current: %d',
+                \ len(l:graphics), len(b:figure_files), l:current))
 
     " Write to buffer (preserve cursor position)
     let l:save_pos = getpos('.')
@@ -2414,6 +2496,44 @@ function! s:PlotHUDGetNum() abort
     return 0
 endfunction
 
+" Figure file on the current line ([fN]), or '' on any other line
+function! s:PlotHUDGetFigure() abort
+    let l:match = matchstr(getline('.'), '\[f\zs\d\+\ze\]')
+    let l:files = get(b:, 'figure_files', [])
+    if empty(l:match) || str2nr(l:match) > len(l:files)
+        return ''
+    endif
+    return l:files[str2nr(l:match) - 1]
+endfunction
+
+" Show a figure file: raster images go through the plot pane (copied to
+" current.png, as history entries are); PDF and SVG open externally.
+" current.pdf is replaced by a same-named sibling PDF when one exists
+" and removed otherwise, so z never opens a different plot's PDF.
+function! s:PlotHUDShowFigure(path) abort
+    if a:path !~? '\.\(png\|jpe\?g\)$'
+        call s:OpenFile(a:path)
+        redraw | echo "Opened: " . fnamemodify(a:path, ':t')
+        return
+    endif
+    let l:plots_dir = get(b:, 'plots_dir', s:GetPlotsDir())
+    if !isdirectory(l:plots_dir)
+        call mkdir(l:plots_dir, 'p')
+    endif
+    call system('cp ' . shellescape(a:path) . ' '
+                \ . shellescape(l:plots_dir . '/current.png'))
+    let l:pdf = fnamemodify(a:path, ':r') . '.pdf'
+    if filereadable(l:pdf)
+        call system('cp ' . shellescape(l:pdf) . ' '
+                    \ . shellescape(l:plots_dir . '/current.pdf'))
+    else
+        call delete(l:plots_dir . '/current.pdf')
+    endif
+    let s:plot_signal_mtime = 0
+    call s:DisplayPlot()
+    redraw | echo "Displaying: " . fnamemodify(a:path, ':t')
+endfunction
+
 " Get graphics entry from number
 function! s:PlotHUDGetEntry(num) abort
     if !exists('b:plot_index') || a:num < 1
@@ -2428,6 +2548,11 @@ endfunction
 
 " Select and display plot under cursor
 function! s:PlotHUDSelect() abort
+    let l:figure = s:PlotHUDGetFigure()
+    if !empty(l:figure)
+        call s:PlotHUDShowFigure(l:figure)
+        return
+    endif
     let l:num = s:PlotHUDGetNum()
     if l:num > 0
         call s:PlotHUDSelectNum(l:num)
@@ -2472,6 +2597,13 @@ endfunction
 
 " Zoom: open PDF of plot under cursor
 function! s:PlotHUDZoom() abort
+    let l:figure = s:PlotHUDGetFigure()
+    if !empty(l:figure)
+        let l:pdf = fnamemodify(l:figure, ':r') . '.pdf'
+        call s:OpenFile(filereadable(l:pdf) ? l:pdf : l:figure)
+        redraw | echo "Opened: " . fnamemodify(filereadable(l:pdf) ? l:pdf : l:figure, ':t')
+        return
+    endif
     let l:num = s:PlotHUDGetNum()
     if l:num == 0
         call s:ZoomPlot()
@@ -2500,6 +2632,15 @@ endfunction
 
 " Save: export plot under cursor
 function! s:PlotHUDSave() abort
+    let l:figure = s:PlotHUDGetFigure()
+    if !empty(l:figure)
+        let l:filename = input('Save as: ', getcwd() . '/' . fnamemodify(l:figure, ':t'))
+        if !empty(l:filename)
+            call system('cp ' . shellescape(l:figure) . ' ' . shellescape(l:filename))
+            echom "Saved: " . l:filename
+        endif
+        return
+    endif
     let l:num = s:PlotHUDGetNum()
     let l:entry = s:PlotHUDGetEntry(l:num)
 
@@ -2539,6 +2680,12 @@ endfunction
 
 " Delete: remove plot from history
 function! s:PlotHUDDelete() abort
+    " Figure files are analysis outputs in the repo, not HUD history;
+    " deleting them from here would be an easy, silent mistake.
+    if !empty(s:PlotHUDGetFigure())
+        echom "Figure files are not deleted from the HUD; remove them in the shell"
+        return
+    endif
     let l:num = s:PlotHUDGetNum()
     if l:num == 0
         echom "Position cursor on a plot line"
@@ -2593,21 +2740,9 @@ endfunction
 " Refresh: reload plot history from disk
 function! s:PlotHUDRefresh() abort
     " Use buffer-local path if available (stored when HUD was created)
-    let l:hist_dir = get(b:, 'history_dir', s:GetHistoryDir())
-    let l:index_file = l:hist_dir . '/index.json'
-    if !filereadable(l:index_file)
-        call s:Error("No plot history")
-        return
-    endif
-
-    let l:json_content = join(readfile(l:index_file), '')
-    try
-        let b:plot_index = json_decode(l:json_content)
-    catch
-        call s:Error("Failed to parse plot history")
-        return
-    endtry
-
+    " A missing index is normal when only figure files are listed, and
+    " the figure list is re-read on every refresh.
+    let b:plot_index = s:ReadPlotIndex(get(b:, 'history_dir', s:GetHistoryDir()))
     call s:GeneratePlotHUDContent()
     redraw | echo "Plot HUD refreshed"
 endfunction
@@ -2623,19 +2758,7 @@ function! s:GeneratePlotHUD() abort
         let b:history_dir = s:GetHistoryDir()
     endif
 
-    " Read plot history using buffer-local path
-    let l:index_file = b:history_dir . '/index.json'
-    if filereadable(l:index_file)
-        let l:json_content = join(readfile(l:index_file), '')
-        try
-            let b:plot_index = json_decode(l:json_content)
-        catch
-            let b:plot_index = {'plots': [], 'current': 0}
-        endtry
-    else
-        let b:plot_index = {'plots': [], 'current': 0}
-    endif
-
+    let b:plot_index = s:ReadPlotIndex(b:history_dir)
     call s:GeneratePlotHUDContent()
     call s:SetupPlotHUDMappings()
 endfunction
@@ -3864,7 +3987,7 @@ function! s:PreviewPoll(timer) abort
     if getftime(s:preview.path) >= s:preview.start
         call timer_stop(a:timer)
         let s:preview_timer = -1
-        call s:OpenInBrowser(s:preview.path)
+        call s:OpenFile(s:preview.path)
     elseif s:preview.tries <= 0
         call timer_stop(a:timer)
         let s:preview_timer = -1
@@ -3874,7 +3997,9 @@ function! s:PreviewPoll(timer) abort
     endif
 endfunction
 
-function! s:OpenInBrowser(path) abort
+" Open a file in the system's default application (browser for HTML,
+" the PDF/image viewer for figures).
+function! s:OpenFile(path) abort
     if has('mac')
         call system('open ' . shellescape(a:path) . ' &')
     elseif has('unix')
